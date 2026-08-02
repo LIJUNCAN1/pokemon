@@ -15,11 +15,15 @@ const CREATURE_TEXTURES: Array[String] = [
 var pixel_font: FontFile
 var creature_buttons: Array[Button] = []
 var creature_sprites: Array[TextureRect] = []
-var creature_names: Array[Label] = []
+var creature_level_labels: Array[Label] = []
+var creature_hp_labels: Array[Label] = []
+var creature_special_labels: Array[Label] = []
 var creature_masks: Array[ColorRect] = []
 var creature_data: Array[String] = []
 var selected_slot := -1
 var shop_sprites: Array[TextureRect] = []
+var shop_hp_labels: Array[Label] = []
+var shop_special_labels: Array[Label] = []
 var shop_data: Array[String] = []
 var notice_label: Label
 var coin_label: Label
@@ -53,6 +57,7 @@ func _build_interface() -> void:
 	_build_shop()
 	_build_footer_actions()
 	notice_label = _add_label(self, "选择一个角色，再点击另一个位置即可互换", Rect2(338, 543, 604, 24), 12, Color(0.82, 0.96, 1.0), HORIZONTAL_ALIGNMENT_CENTER)
+	_play_transition_in.call_deferred()
 
 
 func _build_top_bar() -> void:
@@ -70,9 +75,9 @@ func _build_top_bar() -> void:
 	_add_label(self, "3", Rect2(5, 48, 28, 22), 18, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_add_texture(self, UI + "05_切图_5.png", Rect2(405, 12, 48, 45))
 	_add_label(self, "10", Rect2(455, 15, 70, 42), 30, Color.WHITE)
-	_add_label(self, "第 4 天", Rect2(525, 7, 230, 54), 38, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	_add_label(self, "第 1 天", Rect2(525, 7, 230, 54), 38, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_add_texture(self, UI + "04_切图_4.png", Rect2(765, 12, 47, 47))
-	_add_label(self, "3/10", Rect2(816, 15, 110, 42), 28, Color.WHITE)
+	_add_label(self, "1/10", Rect2(816, 15, 110, 42), 28, Color.WHITE)
 	_add_icon_button(UI + "02_切图_2.png", Rect2(1138, 6, 56, 56), _on_settings_pressed, "设置")
 	_add_icon_button(UI + "03_切图_3.png", Rect2(1207, 5, 58, 58), _on_back_pressed, "返回主菜单")
 
@@ -80,7 +85,7 @@ func _build_top_bar() -> void:
 func _build_trainer_panel() -> void:
 	_add_texture(self, UI + "角色框.png", Rect2(8, 82, 244, 394), TextureRect.STRETCH_SCALE)
 	_add_label(self, "训练家 · 晴", Rect2(24, 89, 212, 28), 16, Color(0.16, 0.12, 0.08), HORIZONTAL_ALIGNMENT_CENTER)
-	_add_texture(self, UI + "04_image-1785665946324-sdmjaqsxe3.png", Rect2(35, 128, 190, 190))
+	_add_texture(self, "res://assets/ui/trainer_avatar_transparent.png", Rect2(35, 128, 190, 190))
 	_add_label(self, "+300 最大生命", Rect2(35, 361, 190, 40), 15, Color(0.22, 0.24, 0.3), HORIZONTAL_ALIGNMENT_CENTER)
 	_add_texture(self, UI + "11_切图_11.png", Rect2(8, 480, 244, 51), TextureRect.STRETCH_SCALE)
 	_add_label(self, "900", Rect2(143, 492, 82, 28), 20, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
@@ -146,18 +151,39 @@ func _build_shop() -> void:
 	_add_texture(self, UI + "刷新外框.png", Rect2(272, 573, 310, 39), TextureRect.STRETCH_SCALE)
 	_add_texture(self, UI + "06_切图_6.png", Rect2(278, 579, 27, 27))
 	_add_label(self, "等级4  1★60%  2★30%  3★10%", Rect2(307, 580, 267, 24), 11, Color(0.19, 0.22, 0.3), HORIZONTAL_ALIGNMENT_CENTER)
-	_add_texture(self, UI + "血量.png", Rect2(590, 569, 112, 49), TextureRect.STRETCH_SCALE)
+	var coin_panel := Panel.new()
+	coin_panel.position = Vector2(590, 569)
+	coin_panel.size = Vector2(112, 49)
+	coin_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	coin_panel.add_theme_stylebox_override("panel", _slot_style(Color(0.86, 0.2, 0.38, 1.0), Color(0.92, 0.93, 0.96), 3))
+	add_child(coin_panel)
 	coin_label = _add_label(self, "$%d" % coins, Rect2(592, 576, 108, 34), 23, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_add_icon_button(UI + "14_切图_14.png", Rect2(894, 569, 145, 49), _on_lock_pressed, "锁定商店")
 	lock_label = _add_label(self, "", Rect2(896, 574, 140, 28), 10, Color(0.25, 0.2, 0.05), HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _build_footer_actions() -> void:
-	var reroll := _add_texture_button(UI + "攻击力 (1).png", Rect2(9, 590, 214, 125), "刷新商店")
+	var reroll := Button.new()
+	reroll.position = Vector2(9, 590)
+	reroll.size = Vector2(214, 125)
+	reroll.flat = false
+	reroll.focus_mode = Control.FOCUS_NONE
+	reroll.tooltip_text = "刷新商店"
+	reroll.add_theme_stylebox_override("normal", _slot_style(Color(0.94, 0.58, 0.03, 1.0), Color(0.96, 0.96, 0.98), 4))
+	reroll.add_theme_stylebox_override("hover", _slot_style(Color(1.0, 0.7, 0.08, 1.0), Color(1.0, 0.86, 0.28), 4))
+	add_child(reroll)
 	reroll.pressed.connect(_on_reroll_pressed)
 	_add_label(reroll, "刷新", Rect2(0, 25, 214, 36), 25, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_add_label(reroll, "$3", Rect2(0, 65, 214, 32), 21, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-	var battle := _add_texture_button(UI + "血量.png", Rect2(1063, 595, 208, 120), "进入战斗")
+	var battle := Button.new()
+	battle.position = Vector2(1063, 595)
+	battle.size = Vector2(208, 120)
+	battle.flat = false
+	battle.focus_mode = Control.FOCUS_NONE
+	battle.tooltip_text = "进入战斗"
+	battle.add_theme_stylebox_override("normal", _slot_style(Color(0.83, 0.12, 0.29, 1.0), Color(0.96, 0.96, 0.98), 4))
+	battle.add_theme_stylebox_override("hover", _slot_style(Color(0.98, 0.2, 0.39, 1.0), Color(1.0, 0.65, 0.72), 4))
+	add_child(battle)
 	battle.pressed.connect(_on_battle_pressed)
 	_add_label(battle, "战斗！", Rect2(0, 39, 208, 42), 27, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 
@@ -173,13 +199,21 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String)
 	button.add_theme_stylebox_override("hover", _slot_style(Color(0.1, 0.65, 0.8, 0.08), Color(0.3, 0.9, 1.0, 0.8), 2))
 	add_child(button)
 	var sprite := TextureRect.new()
-	sprite.position = Vector2(25, 12)
-	sprite.size = Vector2(rect.size.x - 50, rect.size.y - 34)
+	sprite.position = Vector2(30, 18)
+	sprite.size = Vector2(rect.size.x - 60, rect.size.y - 48)
 	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(sprite)
+	var level_label := _add_label(button, "", Rect2(7, 3, 54, 19), 10, Color.WHITE)
+	var badge_width := 42.0
+	var badge_gap := 4.0
+	var badge_x := (rect.size.x - badge_width * 2.0 - badge_gap) * 0.5
+	_add_texture(button, UI + "血量.png", Rect2(badge_x, rect.size.y - 27, badge_width, 23), TextureRect.STRETCH_SCALE)
+	_add_texture(button, UI + "攻击力 (1).png", Rect2(badge_x + badge_width + badge_gap, rect.size.y - 27, badge_width, 23), TextureRect.STRETCH_SCALE)
+	var hp_label := _add_label(button, "", Rect2(badge_x, rect.size.y - 26, badge_width, 20), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	var special_label := _add_label(button, "", Rect2(badge_x + badge_width + badge_gap, rect.size.y - 26, badge_width, 20), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	var replace_mask := ColorRect.new()
 	replace_mask.position = Vector2(3, 3)
 	replace_mask.size = rect.size - Vector2(6, 6)
@@ -187,10 +221,11 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String)
 	replace_mask.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	replace_mask.visible = false
 	button.add_child(replace_mask)
-	var data_label := _add_label(button, "", Rect2(5, rect.size.y - 23, rect.size.x - 10, 19), 10, Color(0.12, 0.13, 0.16), HORIZONTAL_ALIGNMENT_CENTER)
 	creature_buttons.append(button)
 	creature_sprites.append(sprite)
-	creature_names.append(data_label)
+	creature_level_labels.append(level_label)
+	creature_hp_labels.append(hp_label)
+	creature_special_labels.append(special_label)
 	creature_masks.append(replace_mask)
 	creature_data.append(texture_path)
 	var slot_index := creature_buttons.size() - 1
@@ -221,9 +256,27 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	sprite.visible = index < 4
 	button.add_child(sprite)
+	var hp_label := _add_label(button, "", Rect2(52, 40, 30, 18), 9, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	var special_label := _add_label(button, "", Rect2(85, 40, 30, 18), 9, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	if index < 4:
+		_add_texture(button, UI + "血量.png", Rect2(52, 39, 30, 20), TextureRect.STRETCH_SCALE)
+		_add_texture(button, UI + "攻击力 (1).png", Rect2(85, 39, 30, 20), TextureRect.STRETCH_SCALE)
+		hp_label.move_to_front()
+		special_label.move_to_front()
+	else:
+		hp_label.visible = false
+		special_label.visible = false
 	_add_label(button, "道具券" if index == 4 else "精灵 %d" % (index + 1), Rect2(5, rect.size.y - 22, 88, 18), 9, Color.WHITE)
 	_add_label(button, "$5" if index == 4 else "$3", Rect2(rect.size.x - 42, rect.size.y - 22, 35, 18), 9, Color(1.0, 0.86, 0.25), HORIZONTAL_ALIGNMENT_RIGHT)
+	var card_outline := Panel.new()
+	card_outline.position = Vector2.ZERO
+	card_outline.size = rect.size
+	card_outline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card_outline.add_theme_stylebox_override("panel", _slot_style(Color(0, 0, 0, 0), Color(0.66, 0.67, 0.72, 1.0), 3))
+	button.add_child(card_outline)
 	shop_sprites.append(sprite)
+	shop_hp_labels.append(hp_label)
+	shop_special_labels.append(special_label)
 	button.pressed.connect(_on_shop_card_pressed.bind(index))
 	_render_shop_card(index)
 
@@ -302,6 +355,20 @@ func _on_settings_pressed() -> void:
 	_set_notice("设置面板将在下一步接入")
 
 
+func _play_transition_in() -> void:
+	var transition := ColorRect.new()
+	transition.z_index = 200
+	transition.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	transition.color = Color.BLACK
+	transition.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(transition)
+	var reveal := create_tween()
+	reveal.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	reveal.tween_interval(0.12)
+	reveal.tween_property(transition, "color:a", 0.0, 0.65)
+	reveal.tween_callback(transition.queue_free)
+
+
 func _on_battle_pressed() -> void:
 	_set_notice("队伍已准备完毕 · 战斗系统待接入")
 
@@ -312,11 +379,17 @@ func _on_back_pressed() -> void:
 
 func _render_creature_slot(index: int) -> void:
 	creature_sprites[index].texture = load(creature_data[index]) as Texture2D
-	creature_names[index].text = "Lv.%d  HP %d" % [1 + index % 3, 20 + index * 3]
+	var data_index := maxi(CREATURE_TEXTURES.find(creature_data[index]), 0)
+	creature_level_labels[index].text = "Lv.%d" % (1 + data_index % 3)
+	creature_hp_labels[index].text = "%d" % (20 + data_index * 3)
+	creature_special_labels[index].text = "%d" % (5 + data_index * 2)
 
 
 func _render_shop_card(index: int) -> void:
 	shop_sprites[index].texture = load(shop_data[index]) as Texture2D
+	var data_index := maxi(CREATURE_TEXTURES.find(shop_data[index]), 0)
+	shop_hp_labels[index].text = "%d" % (20 + data_index * 3)
+	shop_special_labels[index].text = "%d" % (5 + data_index * 2)
 
 
 func _update_selection() -> void:
