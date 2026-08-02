@@ -100,11 +100,11 @@ func _build_bench() -> void:
 
 
 func _build_team() -> void:
-	_add_texture(self, UI + "10_切图_10.png", Rect2(390, 247, 555, 328), TextureRect.STRETCH_SCALE)
-	_add_label(self, "我的队伍", Rect2(408, 252, 170, 30), 17, Color.WHITE)
+	_add_texture(self, UI + "10_切图_10.png", Rect2(362, 247, 555, 328), TextureRect.STRETCH_SCALE)
+	_add_label(self, "队伍", Rect2(408, 252, 170, 30), 17, Color.WHITE)
 	var rects := [
-		Rect2(410, 292, 158, 119), Rect2(579, 292, 158, 119), Rect2(748, 292, 158, 119),
-		Rect2(410, 425, 158, 119), Rect2(579, 425, 158, 119), Rect2(748, 425, 158, 119),
+		Rect2(382, 292, 158, 119), Rect2(551, 292, 158, 119), Rect2(720, 292, 158, 119),
+		Rect2(382, 425, 158, 119), Rect2(551, 425, 158, 119), Rect2(720, 425, 158, 119),
 	]
 	for index in rects.size():
 		_create_creature_slot(rects[index], CREATURE_TEXTURES[index + 4], "上阵 %d" % (index + 1))
