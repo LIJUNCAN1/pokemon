@@ -26,8 +26,8 @@ const ENEMY_TEAM: Array[String] = [
 	POKEMON + "图层 2.png", POKEMON + "图层 3.png", POKEMON + "图层 4.png",
 	POKEMON + "图层 5.png", POKEMON + "图层 6.png", POKEMON + "图层 7.png",
 ]
-const TOP_X_POSITIONS: Array[float] = [240.0, 402.0, 560.0, 740.0, 902.0, 1060.0]
-const BOTTOM_X_POSITIONS: Array[float] = [190.0, 352.0, 514.0, 757.0, 919.0, 1081.0]
+const TOP_X_POSITIONS: Array[float] = [230.0, 392.0, 550.0, 730.0, 892.0, 1050.0]
+const BOTTOM_X_POSITIONS: Array[float] = [194.0, 356.0, 518.0, 761.0, 923.0, 1085.0]
 const ROW_POSITIONS: Array[float] = [335.0, 438.0]
 
 var pixel_font: FontFile
@@ -74,10 +74,10 @@ func _build_battlefield() -> void:
 
 
 func _build_platforms() -> void:
-	for group_x in [180.0, 680.0]:
+	for group_x in [170.0, 670.0]:
 		_add_texture(SCENE_ASSETS + "图层 6.png", Rect2(group_x, 307, 440, 52), 4, TextureRect.STRETCH_SCALE)
-	_add_texture(SCENE_ASSETS + "图层 7.png", Rect2(131, 410, 446, 55), 4, TextureRect.STRETCH_SCALE)
-	_add_texture(SCENE_ASSETS + "图层 7.png", Rect2(698, 410, 446, 55), 4, TextureRect.STRETCH_SCALE)
+	_add_texture(SCENE_ASSETS + "图层 7.png", Rect2(135, 410, 446, 55), 4, TextureRect.STRETCH_SCALE)
+	_add_texture(SCENE_ASSETS + "图层 7.png", Rect2(702, 410, 446, 55), 4, TextureRect.STRETCH_SCALE)
 
 
 func _spawn_teams() -> void:
@@ -138,12 +138,6 @@ func _create_fighter(texture_path: String, center: Vector2, player_side: bool, i
 
 
 func _build_hud() -> void:
-	var top_bar := ColorRect.new()
-	top_bar.position = Vector2(0, 0)
-	top_bar.size = Vector2(1280, 68)
-	top_bar.color = Color(0.015, 0.12, 0.16, 0.88)
-	top_bar.z_index = 40
-	add_child(top_bar)
 	_add_label("第 1 天 · 战斗", Rect2(430, 7, 420, 48), 30, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 45)
 	_add_label("我方", Rect2(14, 270, 120, 28), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 45)
 	_add_label("敌方", Rect2(1146, 270, 120, 28), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT, 45)
