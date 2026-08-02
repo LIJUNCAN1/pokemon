@@ -12,6 +12,7 @@ class Fighter:
 	var player_side: bool
 	var alive := true
 	var home_position: Vector2
+	var base_scale := Vector2.ONE
 
 
 const PIXEL_FONT: FontFile = preload("res://assets/fonts/ark-pixel-12px-proportional-zh_cn.ttf")
@@ -59,34 +60,20 @@ func _process(delta: float) -> void:
 
 
 func _build_battlefield() -> void:
-	var sky := _add_texture(SCENE_ASSETS + "图层 2.png", Rect2(0, 0, 1280, 245), 0)
+	var sky := _add_texture(SCENE_ASSETS + "图层 2.png", Rect2(0, 0, 1280, 220), 0)
 	sky.stretch_mode = TextureRect.STRETCH_SCALE
 
-	var grass := ColorRect.new()
-	grass.position = Vector2(0, 165)
-	grass.size = Vector2(1280, 465)
-	grass.color = Color(0.28, 0.57, 0.20)
-	grass.z_index = 1
-	grass.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(grass)
-	var grass_light := ColorRect.new()
-	grass_light.position = Vector2(0, 165)
-	grass_light.size = Vector2(1280, 190)
-	grass_light.color = Color(0.48, 0.72, 0.25, 0.52)
-	grass_light.z_index = 2
-	grass_light.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(grass_light)
-
-	_add_texture(SCENE_ASSETS + "图层 3.png", Rect2(0, 128, 1280, 158), 3, TextureRect.STRETCH_SCALE)
+	_add_texture(SCENE_ASSETS + "图层 5.png", Rect2(0, 215, 1280, 405), 1, TextureRect.STRETCH_SCALE)
+	_add_texture(SCENE_ASSETS + "图层 3.png", Rect2(0, 82, 1280, 149), 3, TextureRect.STRETCH_SCALE)
 	_build_platforms()
 	_spawn_teams()
-	_add_texture(SCENE_ASSETS + "图层 4.png", Rect2(0, 478, 1280, 232), 20, TextureRect.STRETCH_SCALE)
+	_add_texture(SCENE_ASSETS + "图层 1.png", Rect2(0, 400, 1280, 315), 20, TextureRect.STRETCH_SCALE)
 	_build_hud()
 
 
 func _build_platforms() -> void:
 	var platform_texture := load("res://assets/battle/platform.png") as Texture2D
-	for row_y in [250.0, 392.0]:
+	for row_y in [330.0, 425.0]:
 		for center_x in X_POSITIONS:
 			var platform := TextureRect.new()
 			platform.position = Vector2(center_x - 76.0, row_y - 25.0)
@@ -105,9 +92,9 @@ func _spawn_teams() -> void:
 	if player_team.size() != 6:
 		player_team = FALLBACK_TEAM.duplicate()
 	for index in 6:
-		_create_fighter(ENEMY_TEAM[index], Vector2(X_POSITIONS[index], 250), false, index)
+		_create_fighter(ENEMY_TEAM[index], Vector2(X_POSITIONS[index], 330), false, index)
 	for index in 6:
-		_create_fighter(player_team[index], Vector2(X_POSITIONS[index], 392), true, index)
+		_create_fighter(player_team[index], Vector2(X_POSITIONS[index], 425), true, index)
 
 
 func _create_fighter(texture_path: String, center: Vector2, player_side: bool, index: int) -> void:
@@ -126,9 +113,11 @@ func _create_fighter(texture_path: String, center: Vector2, player_side: bool, i
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	sprite.pivot_offset = sprite.size * 0.5
+	sprite.scale = Vector2.ONE if player_side else Vector2(-1, 1)
 	sprite.z_index = 10
 	add_child(sprite)
 	fighter.sprite = sprite
+	fighter.base_scale = sprite.scale
 	fighter.home_position = sprite.position
 
 	var charge_frame := Panel.new()
@@ -161,8 +150,8 @@ func _build_hud() -> void:
 	top_bar.z_index = 40
 	add_child(top_bar)
 	_add_label("第 1 天 · 战斗", Rect2(430, 7, 420, 48), 30, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 45)
-	_add_label("敌方", Rect2(14, 72, 120, 28), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 45)
-	_add_label("我方", Rect2(14, 431, 120, 28), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 45)
+	_add_label("敌方", Rect2(14, 268, 120, 28), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 45)
+	_add_label("我方", Rect2(14, 458, 120, 28), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 45)
 	status_label = _add_label("技能条充满后自动攻击随机目标", Rect2(360, 665, 560, 34), 14, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 45)
 	var exit_button := Button.new()
 	exit_button.position = Vector2(1150, 10)
@@ -198,8 +187,8 @@ func _perform_skill(attacker: Fighter) -> void:
 func _play_attack_animation(attacker: Fighter, target: Fighter, damage: int) -> void:
 	var attack_tween := create_tween()
 	attack_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	attack_tween.tween_property(attacker.sprite, "scale", Vector2(1.28, 1.28), 0.12)
-	attack_tween.tween_property(attacker.sprite, "scale", Vector2.ONE, 0.16)
+	attack_tween.tween_property(attacker.sprite, "scale", attacker.base_scale * 1.28, 0.12)
+	attack_tween.tween_property(attacker.sprite, "scale", attacker.base_scale, 0.16)
 
 	var hit_tween := create_tween()
 	hit_tween.tween_property(target.sprite, "modulate", Color(1.0, 0.25, 0.25), 0.08)
@@ -220,7 +209,7 @@ func _defeat_fighter(fighter: Fighter) -> void:
 	fighter.hp_label.modulate = Color(0.5, 0.5, 0.5, 0.7)
 	var fall := create_tween().set_parallel(true)
 	fall.tween_property(fighter.sprite, "modulate:a", 0.28, 0.35)
-	fall.tween_property(fighter.sprite, "scale", Vector2(0.72, 0.72), 0.35)
+	fall.tween_property(fighter.sprite, "scale", fighter.base_scale * 0.72, 0.35)
 
 
 func _update_charge_bar(fighter: Fighter) -> void:

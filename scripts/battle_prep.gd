@@ -116,7 +116,7 @@ func _build_synergy() -> void:
 	var names: Array[String] = ["火焰", "水流", "自然", "猛兽", "虫群", "精神"]
 	var counts: Array[String] = ["2/4", "1/4", "2/4", "3/5", "1/3", "1/3"]
 	var icon_paths: Array[String] = [
-		UI + "图层 5.png", UI + "图层 6.png", UI + "图层 7.png",
+		"res://assets/ui/synergy_fire.png", UI + "图层 6.png", UI + "图层 7.png",
 		UI + "图层 8.png", UI + "图层 3.png", UI + "属性.png",
 	]
 	var milestones: Array = [["2", "4", "6"], ["1", "4", "6"], ["2", "4", "6"], ["2", "3", "5", "7"], ["1", "3"], ["1", "3"]]
