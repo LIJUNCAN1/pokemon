@@ -10,6 +10,10 @@ const VERSION := "v0.1.0  ·  PRE-ALPHA"
 @onready var menu_content: VBoxContainer = $MenuContent
 @onready var status_label: Label = $MenuContent/Status
 @onready var version_label: Label = $Version
+@onready var intro_curtain: Control = $IntroCurtain
+@onready var top_curtain: ColorRect = $IntroCurtain/Top
+@onready var bottom_curtain: ColorRect = $IntroCurtain/Bottom
+@onready var press_any_key: Label = $PressAnyKey
 @onready var fade: ColorRect = $Fade
 @onready var buttons: Array[Button] = [
 	$MenuContent/MenuButtons/StartButton,
@@ -20,19 +24,25 @@ const VERSION := "v0.1.0  ·  PRE-ALPHA"
 
 var elapsed := 0.0
 var logo_base_y := 0.0
+var logo_target_position := Vector2.ZERO
+var logo_target_scale := Vector2.ONE
 var mouse_parallax := Vector2.ZERO
 var status_tween: Tween
+var waiting_for_start := false
+var logo_at_menu := false
 
 
 func _ready() -> void:
 	_build_pixel_theme()
 	_connect_buttons()
 	version_label.text = VERSION
-	logo_base_y = logo.position.y
-	_play_intro()
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	_on_viewport_resized()
-	buttons[0].grab_focus.call_deferred()
+	logo_base_y = logo.position.y
+	logo_target_position = logo.position
+	logo_target_scale = logo.scale
+	status_label.modulate.a = 0.0
+	_play_intro.call_deferred()
 
 
 func _process(delta: float) -> void:
@@ -42,10 +52,14 @@ func _process(delta: float) -> void:
 	mouse_parallax = mouse_parallax.lerp(mouse_ratio * Vector2(0.008, 0.005), delta * 2.4)
 	background_material.set_shader_parameter("parallax_offset", mouse_parallax)
 
-	var bob := sin(elapsed * 1.45) * 5.0
-	logo.position.y = logo_base_y + bob
-	logo_glow.position.y = logo.position.y + 4.0
+	if logo_at_menu:
+		var bob := sin(elapsed * 1.45) * 4.0
+		logo.position.y = logo_base_y + bob
+		logo_glow.position = logo.position + Vector2(-4.0, 4.0)
 	logo_glow.modulate.a = 0.13 + sin(elapsed * 1.8) * 0.035
+
+	if waiting_for_start:
+		press_any_key.modulate.a = 0.48 + (sin(elapsed * 3.2) + 1.0) * 0.26
 
 
 func _build_pixel_theme() -> void:
@@ -76,7 +90,7 @@ func _build_pixel_theme() -> void:
 		button.add_theme_stylebox_override("pressed", pressed)
 		button.add_theme_stylebox_override("focus", focus)
 
-	for label in [$MenuContent/MenuHint, status_label, version_label]:
+	for label in [$MenuContent/MenuHint, status_label, version_label, press_any_key]:
 		label.add_theme_font_override("font", pixel_font)
 
 
@@ -111,21 +125,69 @@ func _connect_buttons() -> void:
 
 
 func _play_intro() -> void:
+	for button in buttons:
+		button.disabled = true
 	logo.modulate.a = 0.0
 	logo_glow.modulate.a = 0.0
 	menu_band.modulate.a = 0.0
 	menu_content.modulate.a = 0.0
 	version_label.modulate.a = 0.0
-	logo.position.y -= 22.0
+	press_any_key.modulate.a = 0.0
 
-	var tween := create_tween().set_parallel(true)
-	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(logo, "modulate:a", 1.0, 0.75).set_delay(0.15)
-	tween.tween_property(logo, "position:y", logo_base_y, 0.85).set_delay(0.15)
-	tween.tween_property(logo_glow, "modulate:a", 0.15, 1.0).set_delay(0.3)
-	tween.tween_property(menu_band, "modulate:a", 1.0, 0.65).set_delay(0.55)
-	tween.tween_property(menu_content, "modulate:a", 1.0, 0.65).set_delay(0.72)
-	tween.tween_property(version_label, "modulate:a", 1.0, 0.6).set_delay(0.95)
+	await get_tree().process_frame
+	var viewport_size := get_viewport_rect().size
+	logo.position = (viewport_size - logo.size) * 0.5
+	logo.scale = logo_target_scale * 1.15
+	logo_glow.position = logo.position + Vector2(-4.0, 4.0)
+	logo_glow.scale = logo.scale
+
+	var appear := create_tween().set_parallel(true)
+	appear.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	appear.tween_property(logo, "modulate:a", 1.0, 0.7)
+	appear.tween_property(logo_glow, "modulate:a", 0.15, 0.9)
+	await appear.finished
+	await get_tree().create_timer(1.8).timeout
+
+	var move_logo := create_tween().set_parallel(true)
+	move_logo.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_IN_OUT)
+	move_logo.tween_property(logo, "position", logo_target_position, 0.95)
+	move_logo.tween_property(logo, "scale", logo_target_scale, 0.95)
+	move_logo.tween_property(logo_glow, "position", logo_target_position + Vector2(-4.0, 4.0), 0.95)
+	move_logo.tween_property(logo_glow, "scale", logo_target_scale, 0.95)
+	await move_logo.finished
+	logo_base_y = logo_target_position.y
+	logo_at_menu = true
+	await get_tree().create_timer(0.2).timeout
+
+	var open_curtain := create_tween().set_parallel(true)
+	open_curtain.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_IN_OUT)
+	open_curtain.tween_property(top_curtain, "position:y", -top_curtain.size.y - 4.0, 1.15)
+	open_curtain.tween_property(bottom_curtain, "position:y", bottom_curtain.position.y + bottom_curtain.size.y + 4.0, 1.15)
+	await open_curtain.finished
+	waiting_for_start = true
+	press_any_key.modulate.a = 1.0
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not waiting_for_start or not event.is_pressed():
+		return
+	if event is InputEventKey or event is InputEventMouseButton or event is InputEventJoypadButton:
+		waiting_for_start = false
+		get_viewport().set_input_as_handled()
+		_show_main_menu()
+
+
+func _show_main_menu() -> void:
+	var reveal := create_tween().set_parallel(true)
+	reveal.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	reveal.tween_property(press_any_key, "modulate:a", 0.0, 0.25)
+	reveal.tween_property(menu_band, "modulate:a", 1.0, 0.55).set_delay(0.15)
+	reveal.tween_property(menu_content, "modulate:a", 1.0, 0.6).set_delay(0.3)
+	reveal.tween_property(version_label, "modulate:a", 1.0, 0.5).set_delay(0.45)
+	await reveal.finished
+	for button in buttons:
+		button.disabled = false
+	buttons[0].grab_focus()
 
 
 func _on_button_highlighted(button: Button) -> void:
@@ -179,3 +241,7 @@ func _on_viewport_resized() -> void:
 	logo_glow.scale = Vector2.ONE * scale_factor
 	logo.pivot_offset = logo.size * 0.5
 	logo_glow.pivot_offset = logo_glow.size * 0.5
+	if logo_at_menu:
+		logo_target_position = logo.position
+		logo_target_scale = logo.scale
+		logo_base_y = logo.position.y
