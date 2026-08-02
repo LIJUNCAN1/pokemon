@@ -26,7 +26,9 @@ const ENEMY_TEAM: Array[String] = [
 	POKEMON + "图层 2.png", POKEMON + "图层 3.png", POKEMON + "图层 4.png",
 	POKEMON + "图层 5.png", POKEMON + "图层 6.png", POKEMON + "图层 7.png",
 ]
-const X_POSITIONS: Array[float] = [164.0, 359.0, 548.0, 750.0, 938.0, 1120.0]
+const TOP_X_POSITIONS: Array[float] = [240.0, 402.0, 560.0, 740.0, 902.0, 1060.0]
+const BOTTOM_X_POSITIONS: Array[float] = [237.0, 394.0, 550.0, 737.0, 894.0, 1050.0]
+const ROW_POSITIONS: Array[float] = [335.0, 435.0]
 
 var pixel_font: FontFile
 var fighters: Array[Fighter] = []
@@ -72,19 +74,9 @@ func _build_battlefield() -> void:
 
 
 func _build_platforms() -> void:
-	var platform_texture := load("res://assets/battle/platform.png") as Texture2D
-	for row_y in [330.0, 425.0]:
-		for center_x in X_POSITIONS:
-			var platform := TextureRect.new()
-			platform.position = Vector2(center_x - 76.0, row_y - 25.0)
-			platform.size = Vector2(152, 70)
-			platform.texture = platform_texture
-			platform.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			platform.stretch_mode = TextureRect.STRETCH_SCALE
-			platform.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-			platform.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			platform.z_index = 4
-			add_child(platform)
+	for group_x in [180.0, 680.0]:
+		_add_texture(SCENE_ASSETS + "图层 6.png", Rect2(group_x, 307, 440, 52), 4, TextureRect.STRETCH_SCALE)
+		_add_texture(SCENE_ASSETS + "图层 7.png", Rect2(group_x, 407, 432, 53), 4, TextureRect.STRETCH_SCALE)
 
 
 func _spawn_teams() -> void:
@@ -92,9 +84,11 @@ func _spawn_teams() -> void:
 	if player_team.size() != 6:
 		player_team = FALLBACK_TEAM.duplicate()
 	for index in 6:
-		_create_fighter(ENEMY_TEAM[index], Vector2(X_POSITIONS[index], 330), false, index)
-	for index in 6:
-		_create_fighter(player_team[index], Vector2(X_POSITIONS[index], 425), true, index)
+		var row := index / 3
+		var column := index % 3
+		var row_x_positions := TOP_X_POSITIONS if row == 0 else BOTTOM_X_POSITIONS
+		_create_fighter(player_team[index], Vector2(row_x_positions[column], ROW_POSITIONS[row]), true, index)
+		_create_fighter(ENEMY_TEAM[index], Vector2(row_x_positions[column + 3], ROW_POSITIONS[row]), false, index)
 
 
 func _create_fighter(texture_path: String, center: Vector2, player_side: bool, index: int) -> void:
@@ -150,8 +144,8 @@ func _build_hud() -> void:
 	top_bar.z_index = 40
 	add_child(top_bar)
 	_add_label("第 1 天 · 战斗", Rect2(430, 7, 420, 48), 30, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 45)
-	_add_label("敌方", Rect2(14, 268, 120, 28), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 45)
-	_add_label("我方", Rect2(14, 458, 120, 28), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 45)
+	_add_label("我方", Rect2(14, 270, 120, 28), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 45)
+	_add_label("敌方", Rect2(1146, 270, 120, 28), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT, 45)
 	status_label = _add_label("技能条充满后自动攻击随机目标", Rect2(360, 665, 560, 34), 14, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 45)
 	var exit_button := Button.new()
 	exit_button.position = Vector2(1150, 10)
