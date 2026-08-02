@@ -13,6 +13,11 @@ const CREATURE_TEXTURES: Array[String] = [
 	POKEMON + "1 (10).png", POKEMON + "图层 2.png", POKEMON + "图层 3.png",
 	POKEMON + "图层 4.png", POKEMON + "图层 5.png", POKEMON + "图层 6.png",
 ]
+const ATTRIBUTE_COLORS: Array[Color] = [
+	Color("e59a64"), Color("8eb9d1"), Color("a9b85f"),
+	Color("b99b78"), Color("aebd57"), Color("aa91c5"),
+]
+const CREATURE_ATTRIBUTE_INDEX: Array[int] = [2, 3, 5, 3, 5, 1, 2, 1, 3, 0, 2, 4, 5, 2, 0]
 
 var pixel_font: FontFile
 var creature_buttons: Array[Button] = []
@@ -26,6 +31,7 @@ var selected_slot := -1
 var shop_sprites: Array[TextureRect] = []
 var shop_hp_labels: Array[Label] = []
 var shop_special_labels: Array[Label] = []
+var shop_attribute_layers: Array[TextureRect] = []
 var shop_data: Array[String] = []
 var notice_label: Label
 var coin_label: Label
@@ -126,8 +132,8 @@ func _build_synergy() -> void:
 	var names: Array[String] = ["火焰", "水流", "自然", "猛兽", "虫群", "精神"]
 	var counts: Array[String] = ["2/4", "1/4", "2/4", "3/5", "1/3", "1/3"]
 	var icon_paths: Array[String] = [
-		"res://assets/ui/synergy_fire.png", UI + "图层 6.png", UI + "图层 7.png",
-		UI + "图层 8.png", UI + "图层 3.png", UI + "属性.png",
+		"res://assets/ui/synergy_fire.png", "res://assets/ui/synergy_water.png", UI + "图层 7.png",
+		UI + "图层 8.png", "res://assets/ui/synergy_bug.png", UI + "属性.png",
 	]
 	var milestones: Array = [["2", "4", "6"], ["1", "4", "6"], ["2", "4", "6"], ["2", "3", "5", "7"], ["1", "3"], ["1", "3"]]
 	var active_steps: Array[int] = [0, 0, 0, 1, 0, 0]
@@ -253,40 +259,50 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	button.add_theme_stylebox_override("normal", _slot_style(Color(0, 0, 0, 0), Color(0, 0, 0, 0)))
 	button.add_theme_stylebox_override("hover", _slot_style(Color(1.0, 0.93, 0.66, 0.16), Color(1.0, 0.75, 0.12), 3))
 	add_child(button)
-	var card_path := UI + ("刷新框 (4).png" if index == 4 else "刷新框 (3).png")
-	_add_texture(button, card_path, Rect2(Vector2.ZERO, rect.size), TextureRect.STRETCH_SCALE)
+	var top_height := 82.0
+	var footer_height := rect.size.y - top_height
+	var content_path := "res://assets/ui/shop_item_upper.png" if index == 4 else UI + "图层 3.png"
+	var content_layer := _add_texture(button, content_path, Rect2(4, 4, rect.size.x - 8, top_height - 7), TextureRect.STRETCH_SCALE)
 	if index < 4:
-		_add_texture(button, UI + "刷新框 (2).png", Rect2(1, rect.size.y - 24, rect.size.x - 2, 23), TextureRect.STRETCH_SCALE)
+		_add_texture(button, UI + "图层 5.png", Rect2(4, 4, rect.size.x - 8, top_height - 7), TextureRect.STRETCH_SCALE)
+	_add_texture(button, UI + "图层 4.png", Rect2(4, top_height - 3, rect.size.x - 8, footer_height), TextureRect.STRETCH_SCALE)
 	var sprite := TextureRect.new()
-	sprite.position = Vector2(26, 5)
-	sprite.size = Vector2(rect.size.x - 52, rect.size.y - 29)
+	sprite.position = Vector2(22, 4)
+	sprite.size = Vector2(rect.size.x - 44, top_height - 9)
 	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	sprite.visible = index < 4
 	button.add_child(sprite)
-	var hp_label := _add_label(button, "", Rect2(52, 40, 30, 18), 9, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-	var special_label := _add_label(button, "", Rect2(85, 40, 30, 18), 9, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	var stat_width := 30.0
+	var stat_gap := 4.0
+	var stat_x := (rect.size.x - stat_width * 2.0 - stat_gap) * 0.5
+	var stat_y := top_height - 21.0
+	var hp_label := _add_label(button, "", Rect2(stat_x, stat_y, stat_width, 18), 9, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	var special_label := _add_label(button, "", Rect2(stat_x + stat_width + stat_gap, stat_y, stat_width, 18), 9, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	if index < 4:
-		_add_texture(button, UI + "血量.png", Rect2(52, 39, 30, 20), TextureRect.STRETCH_SCALE)
-		_add_texture(button, UI + "攻击力 (1).png", Rect2(85, 39, 30, 20), TextureRect.STRETCH_SCALE)
+		_add_texture(button, UI + "血量.png", Rect2(stat_x, stat_y - 1, stat_width, 20), TextureRect.STRETCH_SCALE)
+		_add_texture(button, UI + "攻击力 (1).png", Rect2(stat_x + stat_width + stat_gap, stat_y - 1, stat_width, 20), TextureRect.STRETCH_SCALE)
 		hp_label.move_to_front()
 		special_label.move_to_front()
 	else:
 		hp_label.visible = false
 		special_label.visible = false
-	_add_label(button, "道具券" if index == 4 else "精灵 %d" % (index + 1), Rect2(5, rect.size.y - 22, 88, 18), 9, Color.WHITE)
-	_add_label(button, "$5" if index == 4 else "$3", Rect2(rect.size.x - 42, rect.size.y - 22, 35, 18), 9, Color(1.0, 0.86, 0.25), HORIZONTAL_ALIGNMENT_RIGHT)
+	_add_label(button, "道具券" if index == 4 else "精灵 %d" % (index + 1), Rect2(5, top_height + 5, 88, 22), 9, Color.WHITE)
+	_add_label(button, "$5" if index == 4 else "$3", Rect2(rect.size.x - 42, top_height + 5, 35, 22), 9, Color(1.0, 0.86, 0.25), HORIZONTAL_ALIGNMENT_RIGHT)
 	var card_outline := Panel.new()
 	card_outline.position = Vector2.ZERO
 	card_outline.size = rect.size
 	card_outline.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card_outline.add_theme_stylebox_override("panel", _slot_style(Color(0, 0, 0, 0), Color(0.66, 0.67, 0.72, 1.0), 3))
 	button.add_child(card_outline)
+	var outer_path := UI + ("图层 6.png" if index == 4 else "图层 6 拷贝.png")
+	_add_texture(button, outer_path, Rect2(Vector2.ZERO, rect.size), TextureRect.STRETCH_SCALE).move_to_front()
 	shop_sprites.append(sprite)
 	shop_hp_labels.append(hp_label)
 	shop_special_labels.append(special_label)
+	shop_attribute_layers.append(content_layer)
 	button.pressed.connect(_on_shop_card_pressed.bind(index))
 	_render_shop_card(index)
 
@@ -413,6 +429,7 @@ func _render_creature_slot(index: int) -> void:
 func _render_shop_card(index: int) -> void:
 	shop_sprites[index].texture = load(shop_data[index]) as Texture2D
 	var data_index := maxi(CREATURE_TEXTURES.find(shop_data[index]), 0)
+	shop_attribute_layers[index].modulate = Color.WHITE if index == 4 else ATTRIBUTE_COLORS[CREATURE_ATTRIBUTE_INDEX[data_index]]
 	shop_hp_labels[index].text = "%d" % (20 + data_index * 3)
 	shop_special_labels[index].text = "%d" % (5 + data_index * 2)
 
