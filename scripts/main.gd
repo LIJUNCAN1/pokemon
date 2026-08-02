@@ -1,7 +1,8 @@
 extends Control
 
 const VERSION := "v0.1.0  ·  PRE-ALPHA"
-const PIXEL_FONT: FontFile = preload("res://assets/fonts/ark-pixel-12px-proportional-zh_cn.ttf")
+const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
+const SETTINGS_OVERLAY_SCENE: PackedScene = preload("res://settings_overlay.tscn")
 const DESIGN_SIZE := Vector2(1280, 720)
 const FULL_HD_SCALE := Vector2(1.5, 1.5)
 
@@ -33,6 +34,9 @@ var mouse_parallax := Vector2.ZERO
 var status_tween: Tween
 var waiting_for_start := false
 var logo_at_menu := false
+var intro_running := false
+var intro_tween: Tween
+var settings_overlay: Control
 
 
 func _ready() -> void:
@@ -72,35 +76,40 @@ func _process(delta: float) -> void:
 
 
 func _build_pixel_theme() -> void:
-	var pixel_font := PIXEL_FONT.duplicate() as FontFile
-	pixel_font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	pixel_font.hinting = TextServer.HINTING_NONE
-	pixel_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	pixel_font.oversampling = 1.0
-	pixel_font.allow_system_fallback = false
+	var source_han_font := SOURCE_HAN_FONT.duplicate() as FontFile
+	source_han_font.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
+	source_han_font.hinting = TextServer.HINTING_NORMAL
+	source_han_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+	source_han_font.oversampling = FULL_HD_SCALE.x
+	source_han_font.allow_system_fallback = false
 
 	var normal := _make_button_box(Color(0.025, 0.05, 0.065, 0.48), Color(0.38, 0.68, 0.75, 0.45), 2)
 	var hover := _make_button_box(Color(0.04, 0.16, 0.20, 0.82), Color(0.42, 0.93, 1.0, 0.95), 3)
 	var pressed := _make_button_box(Color(0.09, 0.25, 0.28, 0.95), Color(1.0, 0.87, 0.32, 1.0), 3)
-	var focus := hover.duplicate()
-
 	for button in buttons:
-		button.add_theme_font_override("font", pixel_font)
+		button.focus_mode = Control.FOCUS_NONE
+		button.add_theme_font_override("font", source_han_font)
 		button.add_theme_font_size_override("font_size", 24)
 		button.add_theme_color_override("font_color", Color.WHITE)
 		button.add_theme_color_override("font_hover_color", Color.WHITE)
 		button.add_theme_color_override("font_focus_color", Color.WHITE)
 		button.add_theme_color_override("font_pressed_color", Color.WHITE)
 		button.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
-		button.add_theme_constant_override("shadow_offset_x", 3)
-		button.add_theme_constant_override("shadow_offset_y", 3)
+		button.add_theme_color_override("font_outline_color", Color.BLACK)
+		button.add_theme_constant_override("outline_size", 1)
+		button.add_theme_constant_override("shadow_offset_x", 1)
+		button.add_theme_constant_override("shadow_offset_y", 1)
 		button.add_theme_stylebox_override("normal", normal)
 		button.add_theme_stylebox_override("hover", hover)
 		button.add_theme_stylebox_override("pressed", pressed)
-		button.add_theme_stylebox_override("focus", focus)
+		button.add_theme_stylebox_override("focus", normal)
 
 	for label in [$MenuContent/MenuHint, status_label, version_label, press_any_key]:
-		label.add_theme_font_override("font", pixel_font)
+		label.add_theme_font_override("font", source_han_font)
+		label.add_theme_color_override("font_outline_color", Color.BLACK)
+		label.add_theme_constant_override("outline_size", 1)
+		label.add_theme_constant_override("shadow_offset_x", 1)
+		label.add_theme_constant_override("shadow_offset_y", 1)
 
 
 func _make_button_box(fill_color: Color, border_color: Color, border_width: int) -> StyleBoxFlat:
@@ -123,9 +132,7 @@ func _make_button_box(fill_color: Color, border_color: Color, border_width: int)
 func _connect_buttons() -> void:
 	for button in buttons:
 		button.mouse_entered.connect(_on_button_highlighted.bind(button))
-		button.focus_entered.connect(_on_button_highlighted.bind(button))
 		button.mouse_exited.connect(_on_button_unhighlighted.bind(button))
-		button.focus_exited.connect(_on_button_unhighlighted.bind(button))
 
 	buttons[0].pressed.connect(_on_start_pressed)
 	buttons[1].pressed.connect(_on_settings_pressed)
@@ -134,6 +141,7 @@ func _connect_buttons() -> void:
 
 
 func _play_intro() -> void:
+	intro_running = true
 	for button in buttons:
 		button.disabled = true
 	logo.modulate.a = 0.0
@@ -143,30 +151,40 @@ func _play_intro() -> void:
 	press_any_key.modulate.a = 0.0
 
 	await get_tree().process_frame
-	var viewport_size := get_viewport_rect().size
-	logo.position = (viewport_size - logo.size) * 0.5
+	logo.position = (DESIGN_SIZE - logo.size) * 0.5
 	logo.scale = logo_target_scale * 1.15
 
-	var appear := create_tween()
-	appear.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	appear.tween_property(logo, "modulate:a", 1.0, 0.7)
-	await appear.finished
+	intro_tween = create_tween()
+	intro_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	intro_tween.tween_property(logo, "modulate:a", 1.0, 0.7)
+	await intro_tween.finished
+	if not intro_running:
+		return
 	await get_tree().create_timer(1.8).timeout
+	if not intro_running:
+		return
 
-	var move_logo := create_tween().set_parallel(true)
-	move_logo.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_IN_OUT)
-	move_logo.tween_property(logo, "position", logo_target_position, 0.95)
-	move_logo.tween_property(logo, "scale", logo_target_scale, 0.95)
-	await move_logo.finished
+	intro_tween = create_tween().set_parallel(true)
+	intro_tween.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_IN_OUT)
+	intro_tween.tween_property(logo, "position", logo_target_position, 0.95)
+	intro_tween.tween_property(logo, "scale", logo_target_scale, 0.95)
+	await intro_tween.finished
+	if not intro_running:
+		return
 	logo_base_y = logo_target_position.y
 	logo_at_menu = true
 	await get_tree().create_timer(0.2).timeout
+	if not intro_running:
+		return
 
-	var open_curtain := create_tween().set_parallel(true)
-	open_curtain.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_IN_OUT)
-	open_curtain.tween_property(top_curtain, "position:y", -top_curtain.size.y - 4.0, 1.15)
-	open_curtain.tween_property(bottom_curtain, "position:y", bottom_curtain.position.y + bottom_curtain.size.y + 4.0, 1.15)
-	await open_curtain.finished
+	intro_tween = create_tween().set_parallel(true)
+	intro_tween.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_IN_OUT)
+	intro_tween.tween_property(top_curtain, "position:y", -top_curtain.size.y - 4.0, 1.15)
+	intro_tween.tween_property(bottom_curtain, "position:y", bottom_curtain.position.y + bottom_curtain.size.y + 4.0, 1.15)
+	await intro_tween.finished
+	if not intro_running:
+		return
+	intro_running = false
 	_start_menu_music()
 	waiting_for_start = true
 	press_any_key.modulate.a = 1.0
@@ -175,6 +193,10 @@ func _play_intro() -> void:
 func _start_menu_music() -> void:
 	if menu_music.playing:
 		return
+	if AudioServer.get_bus_index("Music") < 0:
+		AudioServer.add_bus()
+		AudioServer.set_bus_name(AudioServer.bus_count - 1, "Music")
+	menu_music.bus = "Music"
 	var mp3_stream := menu_music.stream as AudioStreamMP3
 	if mp3_stream:
 		mp3_stream.loop = true
@@ -186,12 +208,40 @@ func _start_menu_music() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not waiting_for_start or not event.is_pressed():
+	if not _is_any_button_press(event):
 		return
-	if event is InputEventKey or event is InputEventMouseButton or event is InputEventJoypadButton:
+	if intro_running:
+		get_viewport().set_input_as_handled()
+		_skip_intro()
+		return
+	if waiting_for_start:
 		waiting_for_start = false
 		get_viewport().set_input_as_handled()
 		_show_main_menu()
+
+
+func _is_any_button_press(event: InputEvent) -> bool:
+	if not event.is_pressed():
+		return false
+	if event is InputEventKey:
+		return not event.echo
+	return event is InputEventMouseButton or event is InputEventJoypadButton
+
+
+func _skip_intro() -> void:
+	intro_running = false
+	if intro_tween and intro_tween.is_valid():
+		intro_tween.kill()
+	logo.position = logo_target_position
+	logo.scale = logo_target_scale
+	logo.modulate.a = 1.0
+	logo_base_y = logo_target_position.y
+	logo_at_menu = true
+	top_curtain.position.y = -top_curtain.size.y - 4.0
+	bottom_curtain.position.y = DESIGN_SIZE.y + 4.0
+	_start_menu_music()
+	waiting_for_start = true
+	press_any_key.modulate.a = 1.0
 
 
 func _show_main_menu() -> void:
@@ -204,7 +254,8 @@ func _show_main_menu() -> void:
 	await reveal.finished
 	for button in buttons:
 		button.disabled = false
-	buttons[0].grab_focus()
+	for button in buttons:
+		button.release_focus()
 
 
 func _on_button_highlighted(button: Button) -> void:
@@ -244,7 +295,11 @@ func _on_start_pressed() -> void:
 
 
 func _on_settings_pressed() -> void:
-	_show_status("设置菜单正在制作中")
+	if not is_instance_valid(settings_overlay):
+		settings_overlay = SETTINGS_OVERLAY_SCENE.instantiate() as Control
+		add_child(settings_overlay)
+	else:
+		settings_overlay.move_to_front()
 
 
 func _on_roadmap_pressed() -> void:

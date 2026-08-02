@@ -13,9 +13,14 @@ class Fighter:
 	var alive := true
 	var home_position: Vector2
 	var base_scale := Vector2.ONE
+	var traits := PackedStringArray()
+	var damage_multiplier := 1.0
+	var damage_reduction := 0.0
+	var heal_on_cast := 0.0
 
 
-const PIXEL_FONT: FontFile = preload("res://assets/fonts/ark-pixel-12px-proportional-zh_cn.ttf")
+const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
+const CATALOG = preload("res://scripts/creature_catalog.gd")
 const DESIGN_SIZE := Vector2(1280, 720)
 const FULL_HD_SCALE := Vector2(1.5, 1.5)
 const SCENE_ASSETS := "res://素材/场景/"
@@ -32,21 +37,23 @@ const TOP_X_POSITIONS: Array[float] = [230.0, 392.0, 550.0, 730.0, 892.0, 1050.0
 const BOTTOM_X_POSITIONS: Array[float] = [194.0, 356.0, 518.0, 761.0, 923.0, 1085.0]
 const ROW_POSITIONS: Array[float] = [335.0, 438.0]
 
-var pixel_font: FontFile
+var source_han_font: FontFile
 var fighters: Array[Fighter] = []
 var rng := RandomNumberGenerator.new()
 var battle_over := false
 var status_label: Label
+var player_synergies: Dictionary = {}
 
 
 func _ready() -> void:
 	_apply_full_hd_layout()
 	rng.randomize()
-	pixel_font = PIXEL_FONT.duplicate() as FontFile
-	pixel_font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	pixel_font.hinting = TextServer.HINTING_NONE
-	pixel_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	pixel_font.allow_system_fallback = false
+	source_han_font = SOURCE_HAN_FONT.duplicate() as FontFile
+	source_han_font.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
+	source_han_font.hinting = TextServer.HINTING_NORMAL
+	source_han_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+	source_han_font.oversampling = FULL_HD_SCALE.x
+	source_han_font.allow_system_fallback = false
 	_build_battlefield()
 	_play_transition_in.call_deferred()
 
@@ -92,22 +99,38 @@ func _build_platforms() -> void:
 
 func _spawn_teams() -> void:
 	var player_team: Array[String] = GameState.player_team.duplicate()
-	if player_team.size() != 6:
+	if player_team.is_empty():
 		player_team = FALLBACK_TEAM.duplicate()
+	player_synergies = CATALOG.count_synergies(player_team)
 	for index in 6:
 		var row := index / 3
 		var column := index % 3
 		var row_x_positions := TOP_X_POSITIONS if row == 0 else BOTTOM_X_POSITIONS
-		_create_fighter(player_team[index], Vector2(row_x_positions[column], ROW_POSITIONS[row]), true, index)
+		if index < player_team.size():
+			_create_fighter(player_team[index], Vector2(row_x_positions[column], ROW_POSITIONS[row]), true, index)
+		GameState.mark_creature_seen(ENEMY_TEAM[index])
 		_create_fighter(ENEMY_TEAM[index], Vector2(row_x_positions[column + 3], ROW_POSITIONS[row]), false, index)
 
 
 func _create_fighter(texture_path: String, center: Vector2, player_side: bool, index: int) -> void:
 	var fighter := Fighter.new()
 	fighter.player_side = player_side
-	fighter.max_hp = 72 + index * 7
+	fighter.traits = CATALOG.traits_for_texture(texture_path)
+	var base_hp := 72 + index * 7
+	if player_side:
+		fighter.damage_multiplier += CATALOG.effect_value("火焰", int(player_synergies.get("火焰", 0)))
+		base_hp = roundi(base_hp * (1.0 + CATALOG.effect_value("自然", int(player_synergies.get("自然", 0)))))
+		if fighter.traits.has("猛兽"):
+			fighter.damage_reduction = CATALOG.effect_value("猛兽", int(player_synergies.get("猛兽", 0)))
+		if fighter.traits.has("精神"):
+			fighter.heal_on_cast = CATALOG.effect_value("精神", int(player_synergies.get("精神", 0)))
+	fighter.max_hp = base_hp
 	fighter.hp = fighter.max_hp
 	fighter.charge_rate = rng.randf_range(0.18, 0.29)
+	if player_side and fighter.traits.has("水流"):
+		fighter.charge_rate *= 1.0 + CATALOG.effect_value("水流", int(player_synergies.get("水流", 0)))
+	if player_side and fighter.traits.has("虫群"):
+		fighter.charge_rate *= 1.0 + CATALOG.effect_value("虫群", int(player_synergies.get("虫群", 0)))
 
 	var sprite := TextureRect.new()
 	sprite.position = center + Vector2(-38, -66)
@@ -156,9 +179,11 @@ func _build_hud() -> void:
 	exit_button.position = Vector2(1150, 10)
 	exit_button.size = Vector2(110, 45)
 	exit_button.text = "撤退"
-	exit_button.add_theme_font_override("font", pixel_font)
+	exit_button.add_theme_font_override("font", source_han_font)
 	exit_button.add_theme_font_size_override("font_size", 16)
 	exit_button.add_theme_color_override("font_color", Color.WHITE)
+	exit_button.add_theme_color_override("font_outline_color", Color.BLACK)
+	exit_button.add_theme_constant_override("outline_size", 1)
 	exit_button.add_theme_stylebox_override("normal", _panel_style(Color(0.6, 0.09, 0.18, 0.95), Color.WHITE, 2))
 	exit_button.z_index = 45
 	exit_button.pressed.connect(_back_to_prep)
@@ -173,11 +198,16 @@ func _perform_skill(attacker: Fighter) -> void:
 		_finish_battle(attacker.player_side)
 		return
 	var target: Fighter = targets[rng.randi_range(0, targets.size() - 1)]
-	var damage := rng.randi_range(9, 17)
+	var damage := roundi(rng.randi_range(9, 17) * attacker.damage_multiplier * (1.0 - target.damage_reduction))
+	damage = maxi(damage, 1)
 	target.hp = maxi(target.hp - damage, 0)
 	target.hp_label.text = "%d/%d" % [target.hp, target.max_hp]
 	status_label.text = "%s发动技能，造成 %d 点伤害" % ["我方" if attacker.player_side else "敌方", damage]
 	_play_attack_animation(attacker, target, damage)
+	if attacker.heal_on_cast > 0.0 and attacker.hp > 0:
+		var healed := roundi(attacker.max_hp * attacker.heal_on_cast)
+		attacker.hp = mini(attacker.hp + healed, attacker.max_hp)
+		attacker.hp_label.text = "%d/%d" % [attacker.hp, attacker.max_hp]
 	if target.hp <= 0:
 		_defeat_fighter(target)
 	_check_battle_end()
@@ -236,6 +266,9 @@ func _finish_battle(player_won: bool) -> void:
 	if battle_over:
 		return
 	battle_over = true
+	if player_won:
+		for texture_path in GameState.player_team:
+			GameState.unlock_creature_achievement(texture_path, GameState.ACHIEVEMENT_STAR)
 	var shade := ColorRect.new()
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	shade.color = Color(0, 0, 0, 0.7)
@@ -253,9 +286,11 @@ func _create_result_button(text: String, position: Vector2) -> Button:
 	button.position = position
 	button.size = Vector2(190, 52)
 	button.text = text
-	button.add_theme_font_override("font", pixel_font)
+	button.add_theme_font_override("font", source_han_font)
 	button.add_theme_font_size_override("font_size", 18)
 	button.add_theme_color_override("font_color", Color.WHITE)
+	button.add_theme_color_override("font_outline_color", Color.BLACK)
+	button.add_theme_constant_override("outline_size", 1)
 	button.add_theme_stylebox_override("normal", _panel_style(Color(0.05, 0.35, 0.45, 1.0), Color.WHITE, 2))
 	button.z_index = 110
 	add_child(button)
@@ -305,12 +340,14 @@ func _add_label(text: String, rect: Rect2, font_size: int, _color: Color, alignm
 	label.text = text
 	label.horizontal_alignment = alignment
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_override("font", pixel_font)
+	label.add_theme_font_override("font", source_han_font)
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", Color.WHITE)
 	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
-	label.add_theme_constant_override("shadow_offset_x", 1 if font_size <= 18 else 2)
-	label.add_theme_constant_override("shadow_offset_y", 1 if font_size <= 18 else 2)
+	label.add_theme_color_override("font_outline_color", Color.BLACK)
+	label.add_theme_constant_override("outline_size", 1)
+	label.add_theme_constant_override("shadow_offset_x", 1)
+	label.add_theme_constant_override("shadow_offset_y", 1)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.z_index = z
 	add_child(label)
