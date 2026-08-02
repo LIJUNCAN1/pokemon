@@ -77,9 +77,9 @@ func _build_pixel_theme() -> void:
 	for button in buttons:
 		button.add_theme_font_override("font", pixel_font)
 		button.add_theme_font_size_override("font_size", 24)
-		button.add_theme_color_override("font_color", Color(0.9, 0.98, 1.0))
-		button.add_theme_color_override("font_hover_color", Color(1.0, 0.91, 0.42))
-		button.add_theme_color_override("font_focus_color", Color(1.0, 0.91, 0.42))
+		button.add_theme_color_override("font_color", Color.WHITE)
+		button.add_theme_color_override("font_hover_color", Color.WHITE)
+		button.add_theme_color_override("font_focus_color", Color.WHITE)
 		button.add_theme_color_override("font_pressed_color", Color.WHITE)
 		button.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
 		button.add_theme_constant_override("shadow_offset_x", 3)

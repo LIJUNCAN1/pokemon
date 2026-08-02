@@ -108,13 +108,34 @@ func _build_team() -> void:
 func _build_synergy() -> void:
 	_add_texture(self, UI + "羁绊框.png", Rect2(975, 82, 295, 493), TextureRect.STRETCH_SCALE)
 	_add_label(self, "羁 绊", Rect2(995, 93, 255, 42), 27, Color(0.95, 0.87, 1.0), HORIZONTAL_ALIGNMENT_CENTER)
-	var rows := [["●", "火焰", "2/4"], ["◆", "水流", "1/4"], ["◆", "自然", "2/4"], ["●", "猛兽", "3/5"], ["◆", "虫群", "1/3"], ["●", "精神", "1/3"]]
-	var colors := [Color(1.0, 0.36, 0.18), Color(0.28, 0.62, 1.0), Color(0.55, 0.82, 0.2), Color(0.75, 0.55, 0.38), Color(0.7, 0.85, 0.1), Color(0.72, 0.5, 1.0)]
-	for index in rows.size():
+	var names: Array[String] = ["火焰", "水流", "自然", "猛兽", "虫群", "精神"]
+	var counts: Array[String] = ["2/4", "1/4", "2/4", "3/5", "1/3", "1/3"]
+	var icon_paths: Array[String] = [
+		UI + "图层 5.png", UI + "图层 6.png", UI + "图层 7.png",
+		UI + "图层 8.png", UI + "图层 3.png", UI + "属性.png",
+	]
+	var milestones: Array = [["2", "4", "6"], ["1", "4", "6"], ["2", "4", "6"], ["2", "3", "5", "7"], ["1", "3"], ["1", "3"]]
+	var active_steps: Array[int] = [0, 0, 0, 1, 0, 0]
+	var active_colors: Array[Color] = [
+		Color(1.0, 0.66, 0.08), Color(0.38, 0.67, 1.0), Color(0.76, 0.84, 0.12),
+		Color(0.76, 0.58, 0.34), Color(0.7, 0.82, 0.08), Color(0.62, 0.46, 0.9),
+	]
+	for index in names.size():
 		var y := 150.0 + index * 68.5
-		_add_label(self, rows[index][0], Rect2(994, y, 36, 36), 21, colors[index], HORIZONTAL_ALIGNMENT_CENTER)
-		_add_label(self, rows[index][1], Rect2(1030, y, 130, 32), 18, Color.WHITE)
-		_add_label(self, rows[index][2], Rect2(1182, y, 70, 32), 18, Color(1.0, 0.86, 0.2), HORIZONTAL_ALIGNMENT_CENTER)
+		_add_texture(self, icon_paths[index], Rect2(993, y + 4, 42, 42))
+		_add_label(self, names[index], Rect2(1041, y - 1, 125, 29), 18, Color.WHITE)
+		_add_label(self, counts[index], Rect2(1181, y - 1, 68, 29), 18, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+		var row_milestones: Array = milestones[index]
+		for step_index in row_milestones.size():
+			var step_x := 1041.0 + step_index * 34.0
+			if step_index == active_steps[index]:
+				var active_box := ColorRect.new()
+				active_box.position = Vector2(step_x, y + 31)
+				active_box.size = Vector2(27, 22)
+				active_box.color = active_colors[index]
+				active_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				add_child(active_box)
+			_add_label(self, row_milestones[step_index], Rect2(step_x, y + 31, 27, 22), 12, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _build_shop() -> void:
@@ -344,7 +365,7 @@ func _add_icon_button(path: String, rect: Rect2, callback: Callable, tooltip: St
 	return button
 
 
-func _add_label(parent: Control, text: String, rect: Rect2, font_size: int, color: Color, alignment := HORIZONTAL_ALIGNMENT_LEFT) -> Label:
+func _add_label(parent: Control, text: String, rect: Rect2, font_size: int, _color: Color, alignment := HORIZONTAL_ALIGNMENT_LEFT) -> Label:
 	var label := Label.new()
 	label.position = rect.position
 	label.size = rect.size
@@ -353,10 +374,11 @@ func _add_label(parent: Control, text: String, rect: Rect2, font_size: int, colo
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.add_theme_font_override("font", pixel_font)
 	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
-	label.add_theme_constant_override("shadow_offset_x", 2)
-	label.add_theme_constant_override("shadow_offset_y", 2)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
+	var shadow_offset := 1 if font_size <= 18 else 2
+	label.add_theme_constant_override("shadow_offset_x", shadow_offset)
+	label.add_theme_constant_override("shadow_offset_y", shadow_offset)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(label)
 	return label
