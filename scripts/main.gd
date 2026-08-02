@@ -229,6 +229,7 @@ func _on_start_pressed() -> void:
 	transition.tween_property(fade, "color:a", 1.0, 0.45)
 	transition.tween_property(menu_music, "volume_db", -40.0, 0.4)
 	await transition.finished
+	GameState.reset_run()
 	get_tree().change_scene_to_file("res://battle_prep.tscn")
 
 

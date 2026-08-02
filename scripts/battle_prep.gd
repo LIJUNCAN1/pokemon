@@ -370,7 +370,22 @@ func _play_transition_in() -> void:
 
 
 func _on_battle_pressed() -> void:
-	_set_notice("队伍已准备完毕 · 战斗系统待接入")
+	var battle_team: Array[String] = []
+	for index in range(4, 10):
+		battle_team.append(creature_data[index])
+	GameState.set_player_team(battle_team)
+	_set_notice("队伍已准备完毕 · 正在进入战斗")
+	var transition := ColorRect.new()
+	transition.z_index = 200
+	transition.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	transition.color = Color(0, 0, 0, 0)
+	transition.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(transition)
+	var fade_out := create_tween()
+	fade_out.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	fade_out.tween_property(transition, "color:a", 1.0, 0.55)
+	await fade_out.finished
+	get_tree().change_scene_to_file("res://battle.tscn")
 
 
 func _on_back_pressed() -> void:
