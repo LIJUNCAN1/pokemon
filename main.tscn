@@ -1,14 +1,209 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Texture2D" path="res://assets/ui/main_menu_background.png" id="2_background"]
+[ext_resource type="Texture2D" path="res://assets/ui/monster_tactics_logo.png" id="3_logo"]
+[ext_resource type="Shader" path="res://shaders/menu_background.gdshader" id="4_background_shader"]
+[ext_resource type="Shader" path="res://shaders/menu_band.gdshader" id="5_band_shader"]
+[ext_resource type="Script" path="res://scripts/ambient_pixels.gd" id="6_particles"]
 
-[node name="Main" type="Node2D"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_background"]
+shader = ExtResource("4_background_shader")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_band"]
+shader = ExtResource("5_band_shader")
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
 script = ExtResource("1_main")
 
-[node name="Title" type="Label" parent="."]
-offset_left = 32.0
-offset_top = 28.0
-offset_right = 320.0
-offset_bottom = 68.0
-theme_override_font_sizes/font_size = 28
-text = "Pokemon"
+[node name="Background" type="TextureRect" parent="."]
+material = SubResource("ShaderMaterial_background")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -18.0
+offset_top = -18.0
+offset_right = 18.0
+offset_bottom = 18.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2_background")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Atmosphere" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.025, 0.11, 0.17, 0.08)
+
+[node name="AmbientPixels" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("6_particles")
+
+[node name="LogoGlow" type="TextureRect" parent="."]
+layout_mode = 0
+offset_left = 226.0
+offset_top = -6.0
+offset_right = 1054.0
+offset_bottom = 408.0
+mouse_filter = 2
+texture = ExtResource("3_logo")
+expand_mode = 1
+stretch_mode = 5
+self_modulate = Color(0.15, 0.75, 1, 0.18)
+
+[node name="Logo" type="TextureRect" parent="."]
+layout_mode = 0
+offset_left = 230.0
+offset_top = -10.0
+offset_right = 1050.0
+offset_bottom = 400.0
+mouse_filter = 2
+texture = ExtResource("3_logo")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="MenuBand" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_band")
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -640.0
+offset_top = -14.0
+offset_right = 640.0
+offset_bottom = 310.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="BandTopLine" type="ColorRect" parent="MenuBand"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 12.0
+offset_bottom = 14.0
+grow_horizontal = 2
+mouse_filter = 2
+color = Color(0.45, 0.9, 1, 0.22)
+
+[node name="MenuContent" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -210.0
+offset_top = 0.0
+offset_right = 210.0
+offset_bottom = 300.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 14
+
+[node name="MenuHint" type="Label" parent="MenuContent"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.9, 0.94, 0.72)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.85)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 13
+text = "—  SELECT  —"
+horizontal_alignment = 1
+
+[node name="MenuButtons" type="VBoxContainer" parent="MenuContent"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="StartButton" type="Button" parent="MenuContent/MenuButtons"]
+custom_minimum_size = Vector2(330, 48)
+layout_mode = 2
+focus_neighbor_top = NodePath("../ExitButton")
+focus_neighbor_bottom = NodePath("../SettingsButton")
+text = "开始"
+
+[node name="SettingsButton" type="Button" parent="MenuContent/MenuButtons"]
+custom_minimum_size = Vector2(330, 48)
+layout_mode = 2
+focus_neighbor_top = NodePath("../StartButton")
+focus_neighbor_bottom = NodePath("../RoadmapButton")
+text = "设置"
+
+[node name="RoadmapButton" type="Button" parent="MenuContent/MenuButtons"]
+custom_minimum_size = Vector2(330, 48)
+layout_mode = 2
+focus_neighbor_top = NodePath("../SettingsButton")
+focus_neighbor_bottom = NodePath("../ExitButton")
+text = "更新规划"
+
+[node name="ExitButton" type="Button" parent="MenuContent/MenuButtons"]
+custom_minimum_size = Vector2(330, 48)
+layout_mode = 2
+focus_neighbor_top = NodePath("../RoadmapButton")
+focus_neighbor_bottom = NodePath("../StartButton")
+text = "退出"
+
+[node name="Status" type="Label" parent="MenuContent"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.91, 0.48, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 13
+text = "准备踏上冒险旅程"
+horizontal_alignment = 1
+
+[node name="Version" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -48.0
+offset_right = -24.0
+offset_bottom = -18.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.88, 0.96, 1, 0.82)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.95)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 13
+text = "v0.1.0  ·  PRE-ALPHA"
+horizontal_alignment = 2
+
+[node name="Fade" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0)
