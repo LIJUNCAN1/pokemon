@@ -86,7 +86,7 @@ func _build_trainer_panel() -> void:
 	_add_texture(self, UI + "角色框.png", Rect2(8, 82, 244, 394), TextureRect.STRETCH_SCALE)
 	_add_label(self, "训练家 · 晴", Rect2(24, 89, 212, 28), 16, Color(0.16, 0.12, 0.08), HORIZONTAL_ALIGNMENT_CENTER)
 	_add_texture(self, "res://assets/ui/trainer_avatar_transparent.png", Rect2(35, 128, 190, 190))
-	_add_label(self, "+300 最大生命", Rect2(35, 361, 190, 40), 15, Color(0.22, 0.24, 0.3), HORIZONTAL_ALIGNMENT_CENTER)
+	_add_label(self, "+300 最大生命", Rect2(29, 334, 202, 128), 15, Color(0.22, 0.24, 0.3), HORIZONTAL_ALIGNMENT_CENTER)
 	_add_texture(self, UI + "11_切图_11.png", Rect2(8, 480, 244, 51), TextureRect.STRETCH_SCALE)
 	_add_label(self, "900", Rect2(143, 492, 82, 28), 20, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 
