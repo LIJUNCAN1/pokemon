@@ -1,11 +1,11 @@
 extends Control
 
 const VERSION := "v0.1.0  ·  PRE-ALPHA"
+const PIXEL_FONT: FontFile = preload("res://assets/fonts/ark-pixel-12px-proportional-zh_cn.ttf")
 
 @onready var background: TextureRect = $Background
 @onready var background_material: ShaderMaterial = background.material
 @onready var logo: TextureRect = $Logo
-@onready var logo_glow: TextureRect = $LogoGlow
 @onready var menu_band: ColorRect = $MenuBand
 @onready var menu_content: VBoxContainer = $MenuContent
 @onready var status_label: Label = $MenuContent/Status
@@ -55,20 +55,18 @@ func _process(delta: float) -> void:
 	if logo_at_menu:
 		var bob := sin(elapsed * 1.45) * 4.0
 		logo.position.y = logo_base_y + bob
-		logo_glow.position = logo.position + Vector2(-4.0, 4.0)
-	logo_glow.modulate.a = 0.13 + sin(elapsed * 1.8) * 0.035
 
 	if waiting_for_start:
 		press_any_key.modulate.a = 0.48 + (sin(elapsed * 3.2) + 1.0) * 0.26
 
 
 func _build_pixel_theme() -> void:
-	var pixel_font := SystemFont.new()
-	pixel_font.font_names = PackedStringArray(["SimSun", "NSimSun", "Microsoft YaHei UI"])
+	var pixel_font := PIXEL_FONT.duplicate() as FontFile
 	pixel_font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	pixel_font.hinting = TextServer.HINTING_NORMAL
+	pixel_font.hinting = TextServer.HINTING_NONE
 	pixel_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	pixel_font.oversampling = 1.0
+	pixel_font.allow_system_fallback = false
 
 	var normal := _make_button_box(Color(0.025, 0.05, 0.065, 0.48), Color(0.38, 0.68, 0.75, 0.45), 2)
 	var hover := _make_button_box(Color(0.04, 0.16, 0.20, 0.82), Color(0.42, 0.93, 1.0, 0.95), 3)
@@ -77,7 +75,7 @@ func _build_pixel_theme() -> void:
 
 	for button in buttons:
 		button.add_theme_font_override("font", pixel_font)
-		button.add_theme_font_size_override("font_size", 22)
+		button.add_theme_font_size_override("font_size", 24)
 		button.add_theme_color_override("font_color", Color(0.9, 0.98, 1.0))
 		button.add_theme_color_override("font_hover_color", Color(1.0, 0.91, 0.42))
 		button.add_theme_color_override("font_focus_color", Color(1.0, 0.91, 0.42))
@@ -128,7 +126,6 @@ func _play_intro() -> void:
 	for button in buttons:
 		button.disabled = true
 	logo.modulate.a = 0.0
-	logo_glow.modulate.a = 0.0
 	menu_band.modulate.a = 0.0
 	menu_content.modulate.a = 0.0
 	version_label.modulate.a = 0.0
@@ -138,13 +135,10 @@ func _play_intro() -> void:
 	var viewport_size := get_viewport_rect().size
 	logo.position = (viewport_size - logo.size) * 0.5
 	logo.scale = logo_target_scale * 1.15
-	logo_glow.position = logo.position + Vector2(-4.0, 4.0)
-	logo_glow.scale = logo.scale
 
-	var appear := create_tween().set_parallel(true)
+	var appear := create_tween()
 	appear.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	appear.tween_property(logo, "modulate:a", 1.0, 0.7)
-	appear.tween_property(logo_glow, "modulate:a", 0.15, 0.9)
 	await appear.finished
 	await get_tree().create_timer(1.8).timeout
 
@@ -152,8 +146,6 @@ func _play_intro() -> void:
 	move_logo.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_IN_OUT)
 	move_logo.tween_property(logo, "position", logo_target_position, 0.95)
 	move_logo.tween_property(logo, "scale", logo_target_scale, 0.95)
-	move_logo.tween_property(logo_glow, "position", logo_target_position + Vector2(-4.0, 4.0), 0.95)
-	move_logo.tween_property(logo_glow, "scale", logo_target_scale, 0.95)
 	await move_logo.finished
 	logo_base_y = logo_target_position.y
 	logo_at_menu = true
@@ -238,9 +230,7 @@ func _on_viewport_resized() -> void:
 	var viewport_width := get_viewport_rect().size.x
 	var scale_factor: float = clamp(viewport_width / 1280.0, 0.72, 1.2)
 	logo.scale = Vector2.ONE * scale_factor
-	logo_glow.scale = Vector2.ONE * scale_factor
 	logo.pivot_offset = logo.size * 0.5
-	logo_glow.pivot_offset = logo_glow.size * 0.5
 	if logo_at_menu:
 		logo_target_position = logo.position
 		logo_target_scale = logo.scale
