@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Texture2D" path="res://assets/ui/main_menu_background.png" id="2_background"]
@@ -7,6 +7,7 @@
 [ext_resource type="Shader" path="res://shaders/menu_band.gdshader" id="5_band_shader"]
 [ext_resource type="Script" path="res://scripts/ambient_pixels.gd" id="6_particles"]
 [ext_resource type="Shader" path="res://shaders/logo_key.gdshader" id="7_logo_shader"]
+[ext_resource type="AudioStream" path="res://assets/audio/echoes_of_the_pixel_kingdom.mp3" id="8_menu_music"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_background"]
 shader = ExtResource("4_background_shader")
@@ -26,6 +27,10 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
 script = ExtResource("1_main")
+
+[node name="MenuMusic" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("8_menu_music")
+volume_db = -40.0
 
 [node name="Background" type="TextureRect" parent="."]
 material = SubResource("ShaderMaterial_background")

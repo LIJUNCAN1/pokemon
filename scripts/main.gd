@@ -6,6 +6,7 @@ const PIXEL_FONT: FontFile = preload("res://assets/fonts/ark-pixel-12px-proporti
 @onready var background: TextureRect = $Background
 @onready var background_material: ShaderMaterial = background.material
 @onready var logo: TextureRect = $Logo
+@onready var menu_music: AudioStreamPlayer = $MenuMusic
 @onready var menu_band: ColorRect = $MenuBand
 @onready var menu_content: VBoxContainer = $MenuContent
 @onready var status_label: Label = $MenuContent/Status
@@ -156,8 +157,22 @@ func _play_intro() -> void:
 	open_curtain.tween_property(top_curtain, "position:y", -top_curtain.size.y - 4.0, 1.15)
 	open_curtain.tween_property(bottom_curtain, "position:y", bottom_curtain.position.y + bottom_curtain.size.y + 4.0, 1.15)
 	await open_curtain.finished
+	_start_menu_music()
 	waiting_for_start = true
 	press_any_key.modulate.a = 1.0
+
+
+func _start_menu_music() -> void:
+	if menu_music.playing:
+		return
+	var mp3_stream := menu_music.stream as AudioStreamMP3
+	if mp3_stream:
+		mp3_stream.loop = true
+	menu_music.volume_db = -40.0
+	menu_music.play()
+	var music_fade := create_tween()
+	music_fade.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	music_fade.tween_property(menu_music, "volume_db", -12.0, 2.2)
 
 
 func _unhandled_input(event: InputEvent) -> void:
