@@ -2,6 +2,8 @@ extends Control
 
 const VERSION := "v0.1.0  ·  PRE-ALPHA"
 const PIXEL_FONT: FontFile = preload("res://assets/fonts/ark-pixel-12px-proportional-zh_cn.ttf")
+const DESIGN_SIZE := Vector2(1280, 720)
+const FULL_HD_SCALE := Vector2(1.5, 1.5)
 
 @onready var background: TextureRect = $Background
 @onready var background_material: ShaderMaterial = background.material
@@ -34,6 +36,7 @@ var logo_at_menu := false
 
 
 func _ready() -> void:
+	_apply_full_hd_layout()
 	_build_pixel_theme()
 	_connect_buttons()
 	version_label.text = VERSION
@@ -44,6 +47,13 @@ func _ready() -> void:
 	logo_target_scale = logo.scale
 	status_label.modulate.a = 0.0
 	_play_intro.call_deferred()
+
+
+func _apply_full_hd_layout() -> void:
+	set_anchors_preset(Control.PRESET_TOP_LEFT)
+	position = Vector2.ZERO
+	size = DESIGN_SIZE
+	scale = FULL_HD_SCALE
 
 
 func _process(delta: float) -> void:
@@ -250,7 +260,7 @@ func _on_exit_pressed() -> void:
 
 
 func _on_viewport_resized() -> void:
-	var viewport_width := get_viewport_rect().size.x
+	var viewport_width := get_viewport_rect().size.x / FULL_HD_SCALE.x
 	var scale_factor: float = clamp(viewport_width / 1280.0, 0.72, 1.2)
 	logo.scale = Vector2.ONE * scale_factor
 	logo.pivot_offset = logo.size * 0.5

@@ -16,6 +16,8 @@ class Fighter:
 
 
 const PIXEL_FONT: FontFile = preload("res://assets/fonts/ark-pixel-12px-proportional-zh_cn.ttf")
+const DESIGN_SIZE := Vector2(1280, 720)
+const FULL_HD_SCALE := Vector2(1.5, 1.5)
 const SCENE_ASSETS := "res://素材/场景/"
 const POKEMON := "res://素材/宝可梦图/"
 const FALLBACK_TEAM: Array[String] = [
@@ -38,6 +40,7 @@ var status_label: Label
 
 
 func _ready() -> void:
+	_apply_full_hd_layout()
 	rng.randomize()
 	pixel_font = PIXEL_FONT.duplicate() as FontFile
 	pixel_font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
@@ -46,6 +49,13 @@ func _ready() -> void:
 	pixel_font.allow_system_fallback = false
 	_build_battlefield()
 	_play_transition_in.call_deferred()
+
+
+func _apply_full_hd_layout() -> void:
+	set_anchors_preset(Control.PRESET_TOP_LEFT)
+	position = Vector2.ZERO
+	size = DESIGN_SIZE
+	scale = FULL_HD_SCALE
 
 
 func _process(delta: float) -> void:

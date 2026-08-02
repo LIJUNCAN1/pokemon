@@ -2,6 +2,8 @@ extends Control
 
 const PIXEL_FONT: FontFile = preload("res://assets/fonts/ark-pixel-12px-proportional-zh_cn.ttf")
 const BACKGROUND_SHADER: Shader = preload("res://shaders/battle_prep_background.gdshader")
+const DESIGN_SIZE := Vector2(1280, 720)
+const FULL_HD_SCALE := Vector2(1.5, 1.5)
 const UI := "res://素材/主菜单/"
 const POKEMON := "res://素材/宝可梦图/"
 const CREATURE_TEXTURES: Array[String] = [
@@ -33,12 +35,20 @@ var shop_locked := false
 
 
 func _ready() -> void:
+	_apply_full_hd_layout()
 	pixel_font = PIXEL_FONT.duplicate() as FontFile
 	pixel_font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
 	pixel_font.hinting = TextServer.HINTING_NONE
 	pixel_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	pixel_font.allow_system_fallback = false
 	_build_interface()
+
+
+func _apply_full_hd_layout() -> void:
+	set_anchors_preset(Control.PRESET_TOP_LEFT)
+	position = Vector2.ZERO
+	size = DESIGN_SIZE
+	scale = FULL_HD_SCALE
 
 
 func _build_interface() -> void:
@@ -56,7 +66,7 @@ func _build_interface() -> void:
 	_build_synergy()
 	_build_shop()
 	_build_footer_actions()
-	notice_label = _add_label(self, "选择一个角色，再点击另一个位置即可互换", Rect2(338, 543, 604, 24), 12, Color(0.82, 0.96, 1.0), HORIZONTAL_ALIGNMENT_CENTER)
+	notice_label = _add_label(self, "选择一个角色，再点击另一个位置即可互换", Rect2(338, 516, 604, 20), 11, Color(0.82, 0.96, 1.0), HORIZONTAL_ALIGNMENT_CENTER)
 	_play_transition_in.call_deferred()
 
 
@@ -83,36 +93,36 @@ func _build_top_bar() -> void:
 
 
 func _build_trainer_panel() -> void:
-	_add_texture(self, UI + "角色框.png", Rect2(8, 82, 244, 394), TextureRect.STRETCH_SCALE)
-	_add_label(self, "训练家 · 晴", Rect2(24, 89, 212, 28), 16, Color(0.16, 0.12, 0.08), HORIZONTAL_ALIGNMENT_CENTER)
-	_add_texture(self, "res://assets/ui/trainer_avatar_transparent.png", Rect2(35, 128, 190, 190))
-	_add_label(self, "+300 最大生命", Rect2(29, 334, 202, 128), 15, Color(0.22, 0.24, 0.3), HORIZONTAL_ALIGNMENT_CENTER)
-	_add_texture(self, UI + "11_切图_11.png", Rect2(8, 480, 244, 51), TextureRect.STRETCH_SCALE)
-	_add_label(self, "900", Rect2(143, 492, 82, 28), 20, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	_add_texture(self, UI + "角色框.png", Rect2(6, 82, 240, 403), TextureRect.STRETCH_SCALE)
+	_add_label(self, "训练家 · 晴", Rect2(18, 89, 216, 28), 16, Color(0.16, 0.12, 0.08), HORIZONTAL_ALIGNMENT_CENTER)
+	_add_texture(self, "res://assets/ui/trainer_avatar_transparent.png", Rect2(18, 127, 216, 192))
+	_add_label(self, "+300 最大生命", Rect2(23, 334, 206, 138), 15, Color(0.22, 0.24, 0.3), HORIZONTAL_ALIGNMENT_CENTER)
+	_add_texture(self, UI + "11_切图_11.png", Rect2(6, 494, 240, 42), TextureRect.STRETCH_SCALE)
+	_add_label(self, "900", Rect2(139, 501, 84, 28), 20, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _build_bench() -> void:
-	_add_texture(self, UI + "备战框.png", Rect2(335, 82, 610, 160), TextureRect.STRETCH_SCALE)
-	_add_label(self, "备战席", Rect2(350, 88, 120, 26), 15, Color(0.18, 0.12, 0.06))
-	var rects := [Rect2(352, 121, 135, 104), Rect2(500, 121, 135, 104), Rect2(648, 121, 135, 104), Rect2(796, 121, 135, 104)]
+	_add_texture(self, UI + "备战框.png", Rect2(341, 82, 590, 155), TextureRect.STRETCH_SCALE)
+	_add_label(self, "备战席", Rect2(353, 88, 120, 26), 15, Color(0.18, 0.12, 0.06))
+	var rects := [Rect2(352, 116, 136, 108), Rect2(498, 116, 136, 108), Rect2(644, 116, 136, 108), Rect2(790, 116, 136, 108)]
 	for index in rects.size():
 		_create_creature_slot(rects[index], CREATURE_TEXTURES[index], "备战 %d" % (index + 1))
 
 
 func _build_team() -> void:
-	_add_texture(self, UI + "10_切图_10.png", Rect2(362, 247, 555, 328), TextureRect.STRETCH_SCALE)
-	_add_label(self, "队伍", Rect2(380, 252, 170, 30), 17, Color.WHITE)
+	_add_texture(self, UI + "10_切图_10.png", Rect2(414, 246, 442, 270), TextureRect.STRETCH_SCALE)
+	_add_label(self, "队伍", Rect2(432, 251, 170, 27), 17, Color.WHITE)
 	var rects := [
-		Rect2(382, 292, 158, 119), Rect2(551, 292, 158, 119), Rect2(720, 292, 158, 119),
-		Rect2(382, 425, 158, 119), Rect2(551, 425, 158, 119), Rect2(720, 425, 158, 119),
+		Rect2(424, 282, 135, 108), Rect2(568, 282, 135, 108), Rect2(712, 282, 135, 108),
+		Rect2(424, 398, 135, 108), Rect2(568, 398, 135, 108), Rect2(712, 398, 135, 108),
 	]
 	for index in rects.size():
 		_create_creature_slot(rects[index], CREATURE_TEXTURES[index + 4], "上阵 %d" % (index + 1))
 
 
 func _build_synergy() -> void:
-	_add_texture(self, UI + "羁绊框.png", Rect2(975, 82, 295, 493), TextureRect.STRETCH_SCALE)
-	_add_label(self, "羁 绊", Rect2(995, 93, 255, 42), 27, Color(0.95, 0.87, 1.0), HORIZONTAL_ALIGNMENT_CENTER)
+	_add_texture(self, UI + "羁绊框.png", Rect2(979, 82, 272, 433), TextureRect.STRETCH_SCALE)
+	_add_label(self, "羁 绊", Rect2(991, 89, 248, 36), 24, Color(0.95, 0.87, 1.0), HORIZONTAL_ALIGNMENT_CENTER)
 	var names: Array[String] = ["火焰", "水流", "自然", "猛兽", "虫群", "精神"]
 	var counts: Array[String] = ["2/4", "1/4", "2/4", "3/5", "1/3", "1/3"]
 	var icon_paths: Array[String] = [
@@ -126,46 +136,46 @@ func _build_synergy() -> void:
 		Color(0.76, 0.58, 0.34), Color(0.7, 0.82, 0.08), Color(0.62, 0.46, 0.9),
 	]
 	for index in names.size():
-		var y := 150.0 + index * 68.5
-		_add_texture(self, icon_paths[index], Rect2(993, y + 4, 42, 42))
-		_add_label(self, names[index], Rect2(1041, y - 1, 125, 29), 18, Color.WHITE)
-		_add_label(self, counts[index], Rect2(1181, y - 1, 68, 29), 18, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+		var y := 137.0 + index * 61.0
+		_add_texture(self, icon_paths[index], Rect2(993, y + 4, 40, 40))
+		_add_label(self, names[index], Rect2(1039, y - 1, 120, 27), 17, Color.WHITE)
+		_add_label(self, counts[index], Rect2(1177, y - 1, 59, 27), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 		var row_milestones: Array = milestones[index]
 		for step_index in row_milestones.size():
-			var step_x := 1041.0 + step_index * 34.0
+			var step_x := 1039.0 + step_index * 31.0
 			if step_index == active_steps[index]:
 				var active_box := ColorRect.new()
-				active_box.position = Vector2(step_x, y + 31)
-				active_box.size = Vector2(27, 22)
+				active_box.position = Vector2(step_x, y + 28)
+				active_box.size = Vector2(25, 20)
 				active_box.color = active_colors[index]
 				active_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 				add_child(active_box)
-			_add_label(self, row_milestones[step_index], Rect2(step_x, y + 31, 27, 22), 12, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+			_add_label(self, row_milestones[step_index], Rect2(step_x, y + 28, 25, 20), 11, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _build_shop() -> void:
-	_add_texture(self, UI + "刷新外框.png", Rect2(270, 620, 770, 95), TextureRect.STRETCH_SCALE)
+	_add_texture(self, UI + "刷新外框.png", Rect2(242, 584, 796, 132), TextureRect.STRETCH_SCALE)
 	shop_data.assign([CREATURE_TEXTURES[10], CREATURE_TEXTURES[11], CREATURE_TEXTURES[12], CREATURE_TEXTURES[13], CREATURE_TEXTURES[14]])
 	for index in 5:
-		_create_shop_card(index, Rect2(281 + index * 150, 627, 141, 81))
-	_add_texture(self, UI + "刷新外框.png", Rect2(272, 573, 310, 39), TextureRect.STRETCH_SCALE)
-	_add_texture(self, UI + "06_切图_6.png", Rect2(278, 579, 27, 27))
-	_add_label(self, "等级4  1★60%  2★30%  3★10%", Rect2(307, 580, 267, 24), 11, Color(0.19, 0.22, 0.3), HORIZONTAL_ALIGNMENT_CENTER)
+		_create_shop_card(index, Rect2(251 + index * 155, 592, 146, 116))
+	_add_texture(self, UI + "刷新外框.png", Rect2(248, 537, 309, 42), TextureRect.STRETCH_SCALE)
+	_add_texture(self, UI + "06_切图_6.png", Rect2(254, 544, 27, 27))
+	_add_label(self, "等级4  1★60%  2★30%  3★10%", Rect2(283, 545, 266, 24), 11, Color(0.19, 0.22, 0.3), HORIZONTAL_ALIGNMENT_CENTER)
 	var coin_panel := Panel.new()
-	coin_panel.position = Vector2(590, 569)
-	coin_panel.size = Vector2(112, 49)
+	coin_panel.position = Vector2(585, 535)
+	coin_panel.size = Vector2(108, 47)
 	coin_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	coin_panel.add_theme_stylebox_override("panel", _slot_style(Color(0.86, 0.2, 0.38, 1.0), Color(0.92, 0.93, 0.96), 3))
 	add_child(coin_panel)
-	coin_label = _add_label(self, "$%d" % coins, Rect2(592, 576, 108, 34), 23, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-	_add_icon_button(UI + "14_切图_14.png", Rect2(894, 569, 145, 49), _on_lock_pressed, "锁定商店")
-	lock_label = _add_label(self, "", Rect2(896, 574, 140, 28), 10, Color(0.25, 0.2, 0.05), HORIZONTAL_ALIGNMENT_CENTER)
+	coin_label = _add_label(self, "$%d" % coins, Rect2(587, 541, 104, 34), 23, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	_add_icon_button(UI + "14_切图_14.png", Rect2(910, 537, 119, 44), _on_lock_pressed, "锁定商店")
+	lock_label = _add_label(self, "", Rect2(912, 544, 115, 25), 10, Color(0.25, 0.2, 0.05), HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _build_footer_actions() -> void:
 	var reroll := Button.new()
-	reroll.position = Vector2(9, 590)
-	reroll.size = Vector2(214, 125)
+	reroll.position = Vector2(5, 597)
+	reroll.size = Vector2(198, 119)
 	reroll.flat = false
 	reroll.focus_mode = Control.FOCUS_NONE
 	reroll.tooltip_text = "刷新商店"
@@ -173,11 +183,11 @@ func _build_footer_actions() -> void:
 	reroll.add_theme_stylebox_override("hover", _slot_style(Color(1.0, 0.7, 0.08, 1.0), Color(1.0, 0.86, 0.28), 4))
 	add_child(reroll)
 	reroll.pressed.connect(_on_reroll_pressed)
-	_add_label(reroll, "刷新", Rect2(0, 25, 214, 36), 25, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-	_add_label(reroll, "$3", Rect2(0, 65, 214, 32), 21, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	_add_label(reroll, "刷新", Rect2(0, 23, 198, 36), 25, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	_add_label(reroll, "$3", Rect2(0, 62, 198, 32), 21, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	var battle := Button.new()
-	battle.position = Vector2(1063, 595)
-	battle.size = Vector2(208, 120)
+	battle.position = Vector2(1075, 598)
+	battle.size = Vector2(198, 118)
 	battle.flat = false
 	battle.focus_mode = Control.FOCUS_NONE
 	battle.tooltip_text = "进入战斗"
@@ -185,7 +195,7 @@ func _build_footer_actions() -> void:
 	battle.add_theme_stylebox_override("hover", _slot_style(Color(0.98, 0.2, 0.39, 1.0), Color(1.0, 0.65, 0.72), 4))
 	add_child(battle)
 	battle.pressed.connect(_on_battle_pressed)
-	_add_label(battle, "战斗！", Rect2(0, 39, 208, 42), 27, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	_add_label(battle, "战斗！", Rect2(0, 38, 198, 42), 27, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String) -> void:
