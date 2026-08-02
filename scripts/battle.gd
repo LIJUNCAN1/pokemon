@@ -27,8 +27,8 @@ const ENEMY_TEAM: Array[String] = [
 	POKEMON + "图层 5.png", POKEMON + "图层 6.png", POKEMON + "图层 7.png",
 ]
 const TOP_X_POSITIONS: Array[float] = [240.0, 402.0, 560.0, 740.0, 902.0, 1060.0]
-const BOTTOM_X_POSITIONS: Array[float] = [237.0, 394.0, 550.0, 737.0, 894.0, 1050.0]
-const ROW_POSITIONS: Array[float] = [335.0, 435.0]
+const BOTTOM_X_POSITIONS: Array[float] = [190.0, 352.0, 514.0, 757.0, 919.0, 1081.0]
+const ROW_POSITIONS: Array[float] = [335.0, 438.0]
 
 var pixel_font: FontFile
 var fighters: Array[Fighter] = []
@@ -76,7 +76,8 @@ func _build_battlefield() -> void:
 func _build_platforms() -> void:
 	for group_x in [180.0, 680.0]:
 		_add_texture(SCENE_ASSETS + "图层 6.png", Rect2(group_x, 307, 440, 52), 4, TextureRect.STRETCH_SCALE)
-		_add_texture(SCENE_ASSETS + "图层 7.png", Rect2(group_x, 407, 432, 53), 4, TextureRect.STRETCH_SCALE)
+	_add_texture(SCENE_ASSETS + "图层 7.png", Rect2(131, 410, 446, 55), 4, TextureRect.STRETCH_SCALE)
+	_add_texture(SCENE_ASSETS + "图层 7.png", Rect2(698, 410, 446, 55), 4, TextureRect.STRETCH_SCALE)
 
 
 func _spawn_teams() -> void:
