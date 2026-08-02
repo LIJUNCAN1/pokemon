@@ -222,7 +222,14 @@ func _show_status(message: String) -> void:
 
 
 func _on_start_pressed() -> void:
-	_show_status("冒险即将开始 · 敬请期待")
+	for button in buttons:
+		button.disabled = true
+	var transition := create_tween().set_parallel(true)
+	transition.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	transition.tween_property(fade, "color:a", 1.0, 0.45)
+	transition.tween_property(menu_music, "volume_db", -40.0, 0.4)
+	await transition.finished
+	get_tree().change_scene_to_file("res://battle_prep.tscn")
 
 
 func _on_settings_pressed() -> void:

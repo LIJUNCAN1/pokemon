@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dkfhl5sggwkp4"
-path="res://.godot/imported/06_切图_6.png-d4f03416732d46e78c08286cc749caf7.ctex"
+uid="uid://ch3cyrcormk6y"
+path="res://.godot/imported/图层 6.png-979a023fd9d581eded8aa3acdac65610.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://素材/事件/06_切图_6.png"
-dest_files=["res://.godot/imported/06_切图_6.png-d4f03416732d46e78c08286cc749caf7.ctex"]
+source_file="res://素材/主菜单/图层 6.png"
+dest_files=["res://.godot/imported/图层 6.png-979a023fd9d581eded8aa3acdac65610.ctex"]
 
 [params]
 

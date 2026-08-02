@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ijb8lp1m0p0q"
-path="res://.godot/imported/16_切图_16.png-b7a5a00be70a11db4656e3d3fe6264f3.ctex"
+uid="uid://bf8xr0kgfr4ly"
+path="res://.godot/imported/image-1785667710719-8qoj89bvzxi.png-f7fd232ef982d1c56e68b1b9b5af1119.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://素材/主菜单/16_切图_16.png"
-dest_files=["res://.godot/imported/16_切图_16.png-b7a5a00be70a11db4656e3d3fe6264f3.ctex"]
+source_file="res://素材/事件/image-1785667710719-8qoj89bvzxi.png"
+dest_files=["res://.godot/imported/image-1785667710719-8qoj89bvzxi.png-f7fd232ef982d1c56e68b1b9b5af1119.ctex"]
 
 [params]
 

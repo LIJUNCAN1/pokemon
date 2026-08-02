@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c3o8if26nyoel"
-path="res://.godot/imported/01_切图_1.png-ec9182ded6fab73d3d37f48c88003433.ctex"
+uid="uid://dekqdsycu4vss"
+path="res://.godot/imported/血量.png-f53056fd295ad51b0f27a39cde804b80.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://素材/事件/01_切图_1.png"
-dest_files=["res://.godot/imported/01_切图_1.png-ec9182ded6fab73d3d37f48c88003433.ctex"]
+source_file="res://素材/主菜单/血量.png"
+dest_files=["res://.godot/imported/血量.png-f53056fd295ad51b0f27a39cde804b80.ctex"]
 
 [params]
 
