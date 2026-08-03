@@ -100,6 +100,7 @@ var notice_label: Label
 var coin_label: Label
 var lock_label: Label
 var lock_button_texture: TextureRect
+var inventory_count_label: Label
 var coins := 8
 var shop_locked := false
 var dex_overlay: Control
@@ -207,14 +208,15 @@ func _build_top_bar() -> void:
 	stripe.size = Vector2(1280, 5)
 	stripe.color = Color(0.42, 0.9, 1.0, 0.9)
 	bar.add_child(stripe)
-	_add_icon_button(UI + "01_切图_1.png", Rect2(12, 5, 58, 58), _open_dex, "打开图鉴")
-	_add_label(self, "3", Rect2(5, 48, 28, 22), 18, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	_add_icon_button(UI + "01_切图_1.png", Rect2(12, 5, 58, 58), _open_inventory, "打开物品栏")
+	inventory_count_label = _add_label(self, "", Rect2(50, 43, 24, 24), 18, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	_refresh_inventory_count()
 	_add_texture(self, UI + "05_切图_5.png", Rect2(405, 12, 48, 45))
 	_add_label(self, "10", Rect2(455, 15, 70, 42), 30, Color.WHITE)
 	_add_label(self, "第 1 天", Rect2(525, 7, 230, 54), 38, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_add_texture(self, UI + "04_切图_4.png", Rect2(765, 12, 47, 47))
 	_add_label(self, "1/10", Rect2(816, 15, 110, 42), 28, Color.WHITE)
-	_add_static_icon_button("res://assets/ui/collection_book_icon.png", Rect2(1073, 7, 52, 52), _open_inventory, "打开物品栏")
+	_add_static_icon_button("res://assets/ui/collection_book_icon.png", Rect2(1073, 7, 52, 52), _open_dex, "打开图鉴")
 	_add_icon_button(UI + "02_切图_2.png", Rect2(1138, 6, 56, 56), _on_settings_pressed, "设置")
 	_add_icon_button(UI + "03_切图_3.png", Rect2(1207, 5, 58, 58), _on_back_pressed, "返回地图" if GameState.map_initialized else "返回主菜单")
 
@@ -512,7 +514,9 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String)
 		_drop_creature_data.bind(slot_index)
 	)
 	button.mouse_entered.connect(_show_creature_card_tooltip.bind(slot_index))
+	button.mouse_entered.connect(_show_creature_selection_frame.bind(slot_index))
 	button.mouse_exited.connect(_hide_card_tooltip)
+	button.mouse_exited.connect(_hide_creature_selection_frame.bind(slot_index))
 	_render_creature_slot(slot_index)
 
 
@@ -857,6 +861,7 @@ func _on_shop_card_pressed(index: int) -> void:
 		coins -= price
 		_sync_coins()
 		GameState.add_item(entry["path"])
+		_refresh_inventory_count()
 		shop_data[index] = {}
 		_render_shop_card(index)
 		_hide_card_tooltip()
@@ -985,6 +990,7 @@ func _open_dex() -> void:
 
 
 func _open_inventory() -> void:
+	_refresh_inventory_count()
 	if not is_instance_valid(inventory_popup):
 		inventory_popup = INVENTORY_POPUP_SCENE.instantiate() as Control
 		add_child(inventory_popup)
@@ -992,6 +998,14 @@ func _open_inventory() -> void:
 		inventory_popup.move_to_front()
 		if inventory_popup.has_method("refresh_items"):
 			inventory_popup.call("refresh_items")
+
+
+func _refresh_inventory_count() -> void:
+	if not inventory_count_label:
+		return
+	var item_count := GameState.item_inventory.size()
+	inventory_count_label.text = str(item_count)
+	inventory_count_label.visible = item_count > 0
 
 
 func _play_transition_in() -> void:
@@ -1174,11 +1188,36 @@ func _update_selection() -> void:
 		creature_selection_frames[index].visible = false
 		creature_selection_frames[index].scale = Vector2.ONE
 	if selected_slot >= 0 and selected_slot < creature_selection_frames.size():
-		var frame := creature_selection_frames[selected_slot]
-		frame.scale = Vector2(0.94, 0.94)
-		selection_pulse_tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-		selection_pulse_tween.tween_property(frame, "scale", Vector2(1.035, 1.035), 0.48)
-		selection_pulse_tween.tween_property(frame, "scale", Vector2(0.94, 0.94), 0.48)
+		_show_creature_selection_frame(selected_slot)
+
+
+func _show_creature_selection_frame(index: int) -> void:
+	if index < 0 or index >= creature_selection_frames.size():
+		return
+	if index >= creature_data.size() or creature_data[index].is_empty():
+		return
+	if selection_pulse_tween and selection_pulse_tween.is_valid():
+		selection_pulse_tween.kill()
+	for frame in creature_selection_frames:
+		frame.visible = false
+		frame.scale = Vector2.ONE
+	var frame := creature_selection_frames[index]
+	frame.visible = true
+	frame.scale = Vector2(0.94, 0.94)
+	selection_pulse_tween = create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	selection_pulse_tween.tween_property(frame, "scale", Vector2(1.035, 1.035), 0.48)
+	selection_pulse_tween.tween_property(frame, "scale", Vector2(0.94, 0.94), 0.48)
+
+
+func _hide_creature_selection_frame(index: int) -> void:
+	if index < 0 or index >= creature_selection_frames.size():
+		return
+	if selected_slot == index:
+		return
+	if selection_pulse_tween and selection_pulse_tween.is_valid():
+		selection_pulse_tween.kill()
+	creature_selection_frames[index].visible = false
+	creature_selection_frames[index].scale = Vector2.ONE
 
 
 func _set_notice(message: String) -> void:

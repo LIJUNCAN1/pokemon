@@ -1,19 +1,15 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Texture2D" path="res://assets/ui/main_menu_background.png" id="2_background"]
 [ext_resource type="Texture2D" path="res://assets/ui/monsteria_logo.png" id="3_logo"]
 [ext_resource type="Shader" path="res://shaders/menu_background.gdshader" id="4_background_shader"]
-[ext_resource type="Shader" path="res://shaders/menu_band.gdshader" id="5_band_shader"]
 [ext_resource type="Script" path="res://scripts/ambient_pixels.gd" id="6_particles"]
 [ext_resource type="Shader" path="res://shaders/logo_key.gdshader" id="7_logo_shader"]
 [ext_resource type="AudioStream" path="res://assets/audio/echoes_of_the_pixel_kingdom.mp3" id="8_menu_music"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_background"]
 shader = ExtResource("4_background_shader")
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_band"]
-shader = ExtResource("5_band_shader")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_logo"]
 shader = ExtResource("7_logo_shader")
@@ -82,32 +78,6 @@ texture = ExtResource("3_logo")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="MenuBand" type="ColorRect" parent="."]
-material = SubResource("ShaderMaterial_band")
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -640.0
-offset_top = -14.0
-offset_right = 640.0
-offset_bottom = 310.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-
-[node name="BandTopLine" type="ColorRect" parent="MenuBand"]
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_top = 12.0
-offset_bottom = 14.0
-grow_horizontal = 2
-mouse_filter = 2
-color = Color(0.45, 0.9, 1, 0.22)
-
 [node name="MenuContent" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 8
@@ -139,28 +109,28 @@ theme_override_constants/separation = 8
 alignment = 1
 
 [node name="StartButton" type="Button" parent="MenuContent/MenuButtons"]
-custom_minimum_size = Vector2(330, 48)
+custom_minimum_size = Vector2(330, 54)
 layout_mode = 2
 focus_neighbor_top = NodePath("../ExitButton")
 focus_neighbor_bottom = NodePath("../SettingsButton")
 text = "开始"
 
 [node name="SettingsButton" type="Button" parent="MenuContent/MenuButtons"]
-custom_minimum_size = Vector2(330, 48)
+custom_minimum_size = Vector2(330, 54)
 layout_mode = 2
 focus_neighbor_top = NodePath("../StartButton")
 focus_neighbor_bottom = NodePath("../RoadmapButton")
 text = "设置"
 
 [node name="RoadmapButton" type="Button" parent="MenuContent/MenuButtons"]
-custom_minimum_size = Vector2(330, 48)
+custom_minimum_size = Vector2(330, 54)
 layout_mode = 2
 focus_neighbor_top = NodePath("../SettingsButton")
 focus_neighbor_bottom = NodePath("../ExitButton")
 text = "更新规划"
 
 [node name="ExitButton" type="Button" parent="MenuContent/MenuButtons"]
-custom_minimum_size = Vector2(330, 48)
+custom_minimum_size = Vector2(330, 54)
 layout_mode = 2
 focus_neighbor_top = NodePath("../RoadmapButton")
 focus_neighbor_bottom = NodePath("../StartButton")
