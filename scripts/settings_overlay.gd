@@ -1,9 +1,9 @@
 extends Control
 
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
-const ROW_NAMES: Array[String] = ["全屏", "分辨率", "音效", "音乐", "语言", "按键布局"]
+const ROW_NAMES: Array[String] = ["显示模式", "分辨率", "音效", "音乐", "语言", "按键布局"]
 const OPTIONS: Array = [
-	["关", "开"],
+	["全屏", "无边框窗口化", "窗口化"],
 	["1280 x 720", "1600 x 900", "1920 x 1080"],
 	["0%", "25%", "50%", "75%", "100%"],
 	["0%", "25%", "50%", "75%", "100%"],
@@ -36,7 +36,13 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _sync_current_settings() -> void:
-	option_indices[0] = 1 if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN else 0
+	match DisplayServer.window_get_mode():
+		DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN:
+			option_indices[0] = 0
+		DisplayServer.WINDOW_MODE_FULLSCREEN:
+			option_indices[0] = 1
+		_:
+			option_indices[0] = 2
 	var current_size := DisplayServer.window_get_size()
 	var resolutions: Array = [Vector2i(1280, 720), Vector2i(1600, 900), Vector2i(1920, 1080)]
 	var closest := 0
@@ -106,7 +112,13 @@ func _change_option(row_index: int, direction: int) -> void:
 func _apply_option(row_index: int) -> void:
 	match row_index:
 		0:
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if option_indices[0] == 1 else DisplayServer.WINDOW_MODE_WINDOWED)
+			match option_indices[0]:
+				0:
+					DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
+				1:
+					DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+				_:
+					DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 		1:
 			var sizes := [Vector2i(1280, 720), Vector2i(1600, 900), Vector2i(1920, 1080)]
 			DisplayServer.window_set_size(sizes[option_indices[1]])

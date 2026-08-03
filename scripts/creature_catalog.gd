@@ -21,11 +21,11 @@ const CREATURE_TRAITS: Array = [
 
 const THRESHOLDS: Dictionary = {
 	"火焰": [2, 4, 6],
-	"水流": [1, 4, 6],
+	"水流": [2, 4, 6],
 	"自然": [2, 4, 6],
-	"猛兽": [2, 3, 5, 7],
-	"虫群": [1, 3],
-	"精神": [1, 3],
+	"猛兽": [2, 3, 5, 6],
+	"虫群": [2, 3],
+	"精神": [2, 3],
 }
 
 const EFFECT_VALUES: Dictionary = {

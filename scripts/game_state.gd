@@ -7,6 +7,7 @@ const ACHIEVEMENT_STAR := 4
 var day := 1
 var progress := 1
 var player_team: Array[String] = []
+var item_inventory: Array[String] = []
 var seen_creatures: Dictionary = {}
 var creature_achievements: Dictionary = {}
 
@@ -15,10 +16,16 @@ func reset_run() -> void:
 	day = 1
 	progress = 1
 	player_team.clear()
+	item_inventory.clear()
 
 
 func set_player_team(team: Array[String]) -> void:
 	player_team = team.duplicate()
+
+
+func add_item(texture_path: String) -> void:
+	if not texture_path.is_empty():
+		item_inventory.append(texture_path)
 
 
 func creature_key(texture_path: String) -> String:
