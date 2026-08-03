@@ -119,14 +119,29 @@ func _spawn_teams() -> void:
 	if player_team.is_empty():
 		player_team = FALLBACK_TEAM.duplicate()
 	player_synergies = CATALOG.count_synergies(player_team)
+	var enemy_count := _enemy_count_for_current_node()
 	for index in 6:
 		var row := index / 3
 		var column := index % 3
 		var row_x_positions := TOP_X_POSITIONS if row == 0 else BOTTOM_X_POSITIONS
 		if index < player_team.size():
 			_create_fighter(player_team[index], Vector2(row_x_positions[column], ROW_POSITIONS[row]), true, index)
-		GameState.mark_creature_seen(ENEMY_TEAM[index])
-		_create_fighter(ENEMY_TEAM[index], Vector2(row_x_positions[column + 3], ROW_POSITIONS[row]), false, index)
+		if index < enemy_count:
+			GameState.mark_creature_seen(ENEMY_TEAM[index])
+			_create_fighter(ENEMY_TEAM[index], Vector2(row_x_positions[column + 3], ROW_POSITIONS[row]), false, index)
+
+
+func _enemy_count_for_current_node() -> int:
+	if not GameState.map_initialized:
+		return 6
+	var node_type := GameState.current_map_node_type()
+	if node_type == "boss":
+		return 6
+	var column := int(GameState.current_map_node_data().get("column", 0))
+	var count: int = clampi(2 + floori(float(column) / 2.0), 2, 6)
+	if node_type == "elite":
+		count = mini(count + 1, 6)
+	return count
 
 
 func _create_fighter(texture_path: String, center: Vector2, player_side: bool, index: int) -> void:
@@ -138,19 +153,24 @@ func _create_fighter(texture_path: String, center: Vector2, player_side: bool, i
 		base_hp = roundi(base_hp * (1.0 + GameState.run_health_bonus))
 		fighter.damage_multiplier *= 1.0 + GameState.run_damage_bonus
 	if not player_side and GameState.map_initialized:
+		var encounter_column := int(GameState.current_map_node_data().get("column", 0))
+		base_hp = roundi(base_hp * (1.0 + encounter_column * 0.07))
+		fighter.damage_multiplier *= 1.0 + encounter_column * 0.045
 		match GameState.current_map_node_type():
 			"elite":
 				base_hp = roundi(base_hp * 1.35)
-				fighter.damage_multiplier = 1.22
+				fighter.damage_multiplier *= 1.22
 			"boss":
 				base_hp = roundi(base_hp * 1.75)
-				fighter.damage_multiplier = 1.48
+				fighter.damage_multiplier *= 1.48
 	fighter.max_hp = base_hp
 	fighter.hp = fighter.max_hp
 	fighter.base_charge_rate = rng.randf_range(0.18, 0.29)
 	if player_side:
 		fighter.base_charge_rate *= 1.0 + GameState.run_charge_bonus
 	if not player_side and GameState.map_initialized:
+		var encounter_column := int(GameState.current_map_node_data().get("column", 0))
+		fighter.base_charge_rate *= 1.0 + encounter_column * 0.035
 		if GameState.current_map_node_type() == "elite":
 			fighter.base_charge_rate *= 1.12
 		elif GameState.current_map_node_type() == "boss":

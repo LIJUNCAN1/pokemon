@@ -78,6 +78,7 @@ var creature_selection_frames: Array[TextureRect] = []
 var creature_data: Array[String] = []
 var creature_levels: Array[int] = []
 var selected_slot := -1
+var drag_source_slot := -1
 var shop_sprites: Array[TextureRect] = []
 var shop_hp_labels: Array[Label] = []
 var shop_special_labels: Array[Label] = []
@@ -505,7 +506,6 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String)
 		_can_drop_creature_data.bind(slot_index),
 		_drop_creature_data.bind(slot_index)
 	)
-	button.pressed.connect(_on_creature_slot_pressed.bind(slot_index))
 	button.mouse_entered.connect(_show_creature_card_tooltip.bind(slot_index))
 	button.mouse_exited.connect(_hide_card_tooltip)
 	_render_creature_slot(slot_index)
@@ -778,6 +778,8 @@ func _get_creature_drag_data(_at_position: Vector2, slot_index: int) -> Variant:
 	if slot_index < 0 or slot_index >= creature_data.size() or creature_data[slot_index].is_empty():
 		return null
 	_hide_card_tooltip()
+	drag_source_slot = slot_index
+	_show_drag_exchange_targets(slot_index)
 	var preview := Panel.new()
 	preview.size = Vector2(92, 92)
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -801,10 +803,26 @@ func _drop_creature_data(_at_position: Vector2, data: Variant, slot_index: int) 
 		return
 	var source_index := int(data.get("source_index", -1))
 	_swap_creature_slots(source_index, slot_index)
-	selected_slot = -1
-	_update_selection()
+	_clear_drag_exchange_targets()
 	var destination := "队伍" if slot_index >= 4 else "备战席"
 	_set_notice("角色已拖动到%s" % destination)
+
+
+func _show_drag_exchange_targets(source_index: int) -> void:
+	for index in creature_masks.size():
+		creature_masks[index].visible = index != source_index and not creature_data[index].is_empty()
+		creature_selection_frames[index].visible = false
+
+
+func _clear_drag_exchange_targets() -> void:
+	drag_source_slot = -1
+	for mask in creature_masks:
+		mask.visible = false
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_DRAG_END and drag_source_slot >= 0:
+		_clear_drag_exchange_targets()
 
 
 func _swap_creature_slots(first_index: int, second_index: int) -> void:
@@ -840,17 +858,12 @@ func _on_shop_card_pressed(index: int) -> void:
 		_set_notice("%s已放入背包" % _shop_entry_name(entry))
 		return
 	var target_slot := -1
-	for slot_index in range(4, 10):
+	for slot_index in range(0, 4):
 		if creature_data[slot_index].is_empty():
 			target_slot = slot_index
 			break
 	if target_slot < 0:
-		for slot_index in range(0, 4):
-			if creature_data[slot_index].is_empty():
-				target_slot = slot_index
-				break
-	if target_slot < 0:
-		_set_notice("队伍和备战席都已满")
+		_set_notice("备战席已满，请先拖动角色到队伍")
 		return
 	creature_data[target_slot] = entry["path"]
 	creature_levels[target_slot] = 1
@@ -865,7 +878,7 @@ func _on_shop_card_pressed(index: int) -> void:
 	selected_slot = -1
 	_update_selection()
 	_hide_card_tooltip()
-	_set_notice("角色已加入%s" % ("队伍" if target_slot >= 4 else "备战席"))
+	_set_notice("角色已加入备战席")
 
 
 func _on_reroll_pressed() -> void:
@@ -1083,7 +1096,7 @@ func _render_creature_slot(index: int) -> void:
 		creature_extra_trait_icons[index].texture = load(TRAIT_ICON_PATHS[elements[1]]) as Texture2D
 	creature_element_icons[index].visible = true
 	creature_race_icons[index].visible = true
-	creature_trait_backgrounds[index].texture = _make_trait_background(CATALOG.traits_for_texture(creature_data[index]))
+	creature_trait_backgrounds[index].texture = _make_trait_background(elements)
 	creature_trait_backgrounds[index].visible = true
 
 
@@ -1143,7 +1156,7 @@ func _render_shop_card(index: int) -> void:
 		shop_extra_trait_icons[index].texture = load(TRAIT_ICON_PATHS[elements[1]]) as Texture2D
 	shop_element_icons[index].visible = true
 	shop_race_icons[index].visible = true
-	shop_trait_backgrounds[index].texture = _make_trait_background(CATALOG.traits_for_texture(texture_path))
+	shop_trait_backgrounds[index].texture = _make_trait_background(elements)
 	shop_trait_backgrounds[index].visible = true
 
 
@@ -1152,8 +1165,8 @@ func _update_selection() -> void:
 		selection_pulse_tween.kill()
 	for index in creature_buttons.size():
 		creature_buttons[index].add_theme_stylebox_override("normal", _slot_style(Color(0, 0, 0, 0), Color(0, 0, 0, 0)))
-		creature_masks[index].visible = index == selected_slot
-		creature_selection_frames[index].visible = index == selected_slot
+		creature_masks[index].visible = false
+		creature_selection_frames[index].visible = false
 		creature_selection_frames[index].scale = Vector2.ONE
 	if selected_slot >= 0 and selected_slot < creature_selection_frames.size():
 		var frame := creature_selection_frames[selected_slot]
