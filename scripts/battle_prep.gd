@@ -191,7 +191,7 @@ func _build_interface() -> void:
 	_build_synergy()
 	_build_shop()
 	_build_footer_actions()
-	notice_label = _add_label(self, "选择一个角色，再点击另一个位置即可互换", Rect2(338, 516, 604, 20), 11, Color(0.82, 0.96, 1.0), HORIZONTAL_ALIGNMENT_CENTER)
+	notice_label = _add_label(self, "拖动角色即可在队伍与备战席之间换位", Rect2(338, 516, 604, 20), 11, Color(0.82, 0.96, 1.0), HORIZONTAL_ALIGNMENT_CENTER)
 	_build_card_tooltip()
 	_play_transition_in.call_deferred()
 
@@ -241,8 +241,8 @@ func _build_team() -> void:
 	_add_texture(self, UI + "10_切图_10.png", Rect2(414, 246, 442, 270), TextureRect.STRETCH_SCALE)
 	_add_label(self, "队伍", Rect2(432, 251, 170, 27), 17, Color.WHITE)
 	var rects := [
-		Rect2(424, 282, 135, 108), Rect2(568, 282, 135, 108), Rect2(712, 282, 135, 108),
-		Rect2(424, 398, 135, 108), Rect2(568, 398, 135, 108), Rect2(712, 398, 135, 108),
+		Rect2(435, 296, 119, 86), Rect2(574, 296, 121, 86), Rect2(715, 296, 120, 86),
+		Rect2(435, 405, 119, 87), Rect2(574, 405, 121, 87), Rect2(715, 405, 120, 87),
 	]
 	for index in rects.size():
 		var saved_texture := GameState.player_team[index] if index < GameState.player_team.size() else ""
@@ -432,6 +432,7 @@ func _build_footer_actions() -> void:
 
 
 func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String) -> void:
+	var compact_card := rect.size.y < 100.0
 	var button := Button.new()
 	button.position = rect.position
 	button.size = rect.size
@@ -451,27 +452,31 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String)
 	trait_background.visible = false
 	button.add_child(trait_background)
 	var sprite := TextureRect.new()
-	sprite.position = Vector2(30, 18)
-	sprite.size = Vector2(rect.size.x - 60, rect.size.y - 48)
+	sprite.position = Vector2(24, 10) if compact_card else Vector2(30, 18)
+	sprite.size = Vector2(rect.size.x - 48, rect.size.y - 36) if compact_card else Vector2(rect.size.x - 60, rect.size.y - 48)
 	sprite.pivot_offset = sprite.size * 0.5
 	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(sprite)
-	var level_label := _add_label(button, "", Rect2(7, 3, 54, 19), 10, Color.WHITE)
-	var badge_width := 34.0
+	var level_label := _add_label(button, "", Rect2(5, 2, 48, 17) if compact_card else Rect2(7, 3, 54, 19), 9 if compact_card else 10, Color.WHITE)
+	var badge_width := 30.0 if compact_card else 34.0
 	var badge_gap := 3.0
 	var badge_x := (rect.size.x - badge_width * 2.0 - badge_gap) * 0.5
-	var hp_badge := _add_stat_badge(button, Rect2(badge_x, rect.size.y - 27, badge_width, 24), Color("ef3f67"))
-	var special_badge := _add_stat_badge(button, Rect2(badge_x + badge_width + badge_gap, rect.size.y - 27, badge_width, 24), Color("3184a4"))
-	var hp_label := _add_label(button, "", Rect2(badge_x, rect.size.y - 26, badge_width, 20), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-	var special_label := _add_label(button, "", Rect2(badge_x + badge_width + badge_gap, rect.size.y - 26, badge_width, 20), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	var badge_height := 21.0 if compact_card else 24.0
+	var badge_y := rect.size.y - (23.0 if compact_card else 27.0)
+	var hp_badge := _add_stat_badge(button, Rect2(badge_x, badge_y, badge_width, badge_height), Color("ef3f67"))
+	var special_badge := _add_stat_badge(button, Rect2(badge_x + badge_width + badge_gap, badge_y, badge_width, badge_height), Color("3184a4"))
+	var hp_label := _add_label(button, "", Rect2(badge_x, badge_y + 1, badge_width, badge_height - 3), 9 if compact_card else 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	var special_label := _add_label(button, "", Rect2(badge_x + badge_width + badge_gap, badge_y + 1, badge_width, badge_height - 3), 9 if compact_card else 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_apply_stat_pixel_font(hp_label)
 	_apply_stat_pixel_font(special_label)
-	var element_icon := _add_texture(button, TRAIT_ICON_PATHS["自然"], Rect2(rect.size.x - 28, 5, 22, 22))
-	var extra_trait_icon := _add_texture(button, TRAIT_ICON_PATHS["雷"], Rect2(rect.size.x - 28, 31, 22, 22))
-	var race_icon := _add_texture(button, TRAIT_ICON_PATHS["机械"], Rect2(rect.size.x - 28, 57, 22, 22))
+	var trait_icon_size := 18.0 if compact_card else 22.0
+	var trait_icon_x := rect.size.x - (23.0 if compact_card else 28.0)
+	var element_icon := _add_texture(button, TRAIT_ICON_PATHS["自然"], Rect2(trait_icon_x, 4 if compact_card else 5, trait_icon_size, trait_icon_size))
+	var extra_trait_icon := _add_texture(button, TRAIT_ICON_PATHS["雷"], Rect2(trait_icon_x, 24 if compact_card else 31, trait_icon_size, trait_icon_size))
+	var race_icon := _add_texture(button, TRAIT_ICON_PATHS["机械"], Rect2(trait_icon_x, 44 if compact_card else 57, trait_icon_size, trait_icon_size))
 	element_icon.visible = false
 	extra_trait_icon.visible = false
 	race_icon.visible = false
