@@ -207,7 +207,7 @@ func _start_menu_music() -> void:
 	music_fade.tween_property(menu_music, "volume_db", -12.0, 2.2)
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if not _is_any_button_press(event):
 		return
 	if intro_running:
@@ -225,7 +225,15 @@ func _is_any_button_press(event: InputEvent) -> bool:
 		return false
 	if event is InputEventKey:
 		return not event.echo
-	return event is InputEventMouseButton or event is InputEventJoypadButton
+	if event is InputEventMouseButton:
+		return event.button_index in [
+			MOUSE_BUTTON_LEFT,
+			MOUSE_BUTTON_RIGHT,
+			MOUSE_BUTTON_MIDDLE,
+			MOUSE_BUTTON_XBUTTON1,
+			MOUSE_BUTTON_XBUTTON2,
+		]
+	return event is InputEventJoypadButton
 
 
 func _skip_intro() -> void:
@@ -291,7 +299,7 @@ func _on_start_pressed() -> void:
 	transition.tween_property(menu_music, "volume_db", -40.0, 0.4)
 	await transition.finished
 	GameState.reset_run()
-	get_tree().change_scene_to_file("res://battle_prep.tscn")
+	get_tree().change_scene_to_file("res://map.tscn")
 
 
 func _on_settings_pressed() -> void:

@@ -42,7 +42,7 @@ func _sync_current_settings() -> void:
 		DisplayServer.WINDOW_MODE_FULLSCREEN:
 			option_indices[0] = 1
 		_:
-			option_indices[0] = 2
+			option_indices[0] = 1 if DisplayServer.window_get_flag(DisplayServer.WINDOW_FLAG_BORDERLESS) else 2
 	var current_size := DisplayServer.window_get_size()
 	var resolutions: Array = [Vector2i(1280, 720), Vector2i(1600, 900), Vector2i(1920, 1080)]
 	var closest := 0
@@ -112,20 +112,39 @@ func _change_option(row_index: int, direction: int) -> void:
 func _apply_option(row_index: int) -> void:
 	match row_index:
 		0:
-			match option_indices[0]:
-				0:
-					DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
-				1:
-					DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
-				_:
-					DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			_apply_display_mode()
 		1:
-			var sizes := [Vector2i(1280, 720), Vector2i(1600, 900), Vector2i(1920, 1080)]
-			DisplayServer.window_set_size(sizes[option_indices[1]])
+			if option_indices[0] != 0:
+				_apply_windowed_size()
 		2:
 			_set_bus_volume("SFX", option_indices[2] * 0.25)
 		3:
 			_set_bus_volume("Music", option_indices[3] * 0.25)
+
+
+func _apply_display_mode() -> void:
+	match option_indices[0]:
+		0:
+			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false)
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
+		1:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, true)
+			_apply_windowed_size()
+		_:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false)
+			_apply_windowed_size()
+
+
+func _apply_windowed_size() -> void:
+	var sizes := [Vector2i(1280, 720), Vector2i(1600, 900), Vector2i(1920, 1080)]
+	var target_size: Vector2i = sizes[option_indices[1]]
+	DisplayServer.window_set_size(target_size)
+	var screen := DisplayServer.window_get_current_screen()
+	var usable_rect := DisplayServer.screen_get_usable_rect(screen)
+	var centered_position := usable_rect.position + (usable_rect.size - target_size) / 2
+	DisplayServer.window_set_position(centered_position)
 
 
 func _set_bus_volume(bus_name: String, linear_volume: float) -> void:

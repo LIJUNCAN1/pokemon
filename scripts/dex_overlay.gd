@@ -283,11 +283,14 @@ func _select_creature(index: int) -> void:
 	detail_sprite.texture = load(CREATURES[index]) as Texture2D
 	detail_unknown.visible = false
 	detail_name.text = NAMES[index]
-	var traits: PackedStringArray = CATALOG.traits_for_texture(CREATURES[index])
-	detail_type.text = "%s·%s" % [traits[0], traits[1]]
+	var elements: PackedStringArray = CATALOG.elements_for_texture(CREATURES[index])
+	var races: PackedStringArray = CATALOG.races_for_texture(CREATURES[index])
+	var element_text := "/".join(elements)
+	var race_text := races[0] if not races.is_empty() else "未知"
+	detail_type.text = "%s·%s" % [element_text, race_text]
 	detail_cooldown.text = "%.1f\n秒" % [4.0 + index * 0.2]
 	detail_stats.text = "技能强度  %d" % [20 + index * 3]
-	detail_description.text = "释放技能时\n为队伍提供%s与%s加成" % [traits[0], traits[1]]
+	detail_description.text = "释放技能时\n为队伍提供%s与%s加成" % [element_text, race_text]
 	for frame_index in selection_frames.size():
 		selection_frames[frame_index].visible = frame_index == index
 

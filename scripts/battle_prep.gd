@@ -38,12 +38,26 @@ const SHOP_ITEM_CHANCE := 0.20
 const SHOP_RARITY_NAMES: Array[String] = ["普通", "稀有", "史诗"]
 const ITEM_DIRECTORY := "res://assets/items/64x64"
 const TRAIT_ICON_PATHS: Dictionary = {
-	"火焰": "res://assets/ui/synergy_fire.png",
-	"水流": "res://assets/ui/synergy_water.png",
-	"自然": UI + "图层 7.png",
-	"猛兽": UI + "图层 8.png",
-	"虫群": "res://assets/ui/synergy_bug.png",
-	"精神": UI + "属性.png",
+	"自然": UI + "图层 8.png",
+	"火": "res://assets/ui/synergy_fire.png",
+	"雷": "res://assets/ui/synergy_water.png",
+	"岩": UI + "图层 4.png",
+	"植物": UI + "图层 7.png",
+	"虫群": UI + "图层 2.png",
+	"龙族": UI + "图层 3.png",
+	"机械": UI + "图层 5.png",
+	"亡灵": UI + "图层 6.png",
+}
+const TRAIT_COLORS: Dictionary = {
+	"自然": Color("a8c957"),
+	"火": Color("ef6a3a"),
+	"雷": Color("4fa6dc"),
+	"岩": Color("aab0b8"),
+	"植物": Color("5fae55"),
+	"虫群": Color("91b83e"),
+	"龙族": Color("7954aa"),
+	"机械": Color("768392"),
+	"亡灵": Color("474357"),
 }
 
 var source_han_font: FontFile
@@ -57,6 +71,8 @@ var creature_hp_badges: Array[TextureRect] = []
 var creature_special_badges: Array[TextureRect] = []
 var creature_element_icons: Array[TextureRect] = []
 var creature_race_icons: Array[TextureRect] = []
+var creature_extra_trait_icons: Array[TextureRect] = []
+var creature_trait_backgrounds: Array[TextureRect] = []
 var creature_masks: Array[ColorRect] = []
 var creature_selection_frames: Array[TextureRect] = []
 var creature_data: Array[String] = []
@@ -70,6 +86,8 @@ var shop_special_badges: Array[TextureRect] = []
 var shop_level_labels: Array[Label] = []
 var shop_element_icons: Array[TextureRect] = []
 var shop_race_icons: Array[TextureRect] = []
+var shop_extra_trait_icons: Array[TextureRect] = []
+var shop_trait_backgrounds: Array[TextureRect] = []
 var shop_attribute_layers: Array[TextureRect] = []
 var shop_creature_overlays: Array[TextureRect] = []
 var shop_outer_layers: Array[TextureRect] = []
@@ -95,6 +113,8 @@ var synergy_step_labels: Dictionary = {}
 var synergy_hover_buttons: Dictionary = {}
 var synergy_row_positions: Dictionary = {}
 var synergy_current_counts: Dictionary = {}
+var synergy_scroll: ScrollContainer
+var synergy_list: Control
 var synergy_tooltip: Panel
 var synergy_tooltip_title: Label
 var synergy_tooltip_body: Label
@@ -121,6 +141,7 @@ var card_tooltip_info_panel: Panel
 func _ready() -> void:
 	_apply_full_hd_layout()
 	rng.randomize()
+	coins = GameState.coins
 	source_han_font = SOURCE_HAN_FONT.duplicate() as FontFile
 	source_han_font.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
 	source_han_font.hinting = TextServer.HINTING_NORMAL
@@ -194,7 +215,7 @@ func _build_top_bar() -> void:
 	_add_label(self, "1/10", Rect2(816, 15, 110, 42), 28, Color.WHITE)
 	_add_static_icon_button("res://assets/ui/collection_book_icon.png", Rect2(1073, 7, 52, 52), _open_inventory, "打开物品栏")
 	_add_icon_button(UI + "02_切图_2.png", Rect2(1138, 6, 56, 56), _on_settings_pressed, "设置")
-	_add_icon_button(UI + "03_切图_3.png", Rect2(1207, 5, 58, 58), _on_back_pressed, "返回主菜单")
+	_add_icon_button(UI + "03_切图_3.png", Rect2(1207, 5, 58, 58), _on_back_pressed, "返回地图" if GameState.map_initialized else "返回主菜单")
 
 
 func _build_trainer_panel() -> void:
@@ -211,7 +232,8 @@ func _build_bench() -> void:
 	_add_label(self, "备战席", Rect2(353, 88, 120, 26), 15, Color.WHITE)
 	var rects := [Rect2(352, 116, 136, 108), Rect2(498, 116, 136, 108), Rect2(644, 116, 136, 108), Rect2(790, 116, 136, 108)]
 	for index in rects.size():
-		_create_creature_slot(rects[index], "", "备战 %d" % (index + 1))
+		var saved_texture := GameState.player_bench[index] if index < GameState.player_bench.size() else ""
+		_create_creature_slot(rects[index], saved_texture, "备战 %d" % (index + 1))
 
 
 func _build_team() -> void:
@@ -222,26 +244,30 @@ func _build_team() -> void:
 		Rect2(424, 398, 135, 108), Rect2(568, 398, 135, 108), Rect2(712, 398, 135, 108),
 	]
 	for index in rects.size():
-		_create_creature_slot(rects[index], "", "上阵 %d" % (index + 1))
+		var saved_texture := GameState.player_team[index] if index < GameState.player_team.size() else ""
+		_create_creature_slot(rects[index], saved_texture, "上阵 %d" % (index + 1))
 
 
 func _build_synergy() -> void:
 	_add_texture(self, UI + "羁绊框.png", Rect2(979, 82, 272, 433), TextureRect.STRETCH_SCALE)
 	_add_label(self, "羁 绊", Rect2(991, 89, 248, 36), 24, Color(0.95, 0.87, 1.0), HORIZONTAL_ALIGNMENT_CENTER)
-	var icon_paths: Array[String] = [
-		"res://assets/ui/synergy_fire.png", "res://assets/ui/synergy_water.png", UI + "图层 7.png",
-		UI + "图层 8.png", "res://assets/ui/synergy_bug.png", UI + "属性.png",
-	]
-	var active_colors: Array[Color] = [
-		Color(1.0, 0.66, 0.08), Color(0.38, 0.67, 1.0), Color(0.76, 0.84, 0.12),
-		Color(0.76, 0.58, 0.34), Color(0.7, 0.82, 0.08), Color(0.62, 0.46, 0.9),
-	]
+	synergy_scroll = ScrollContainer.new()
+	synergy_scroll.position = Vector2(986, 136)
+	synergy_scroll.size = Vector2(258, 368)
+	synergy_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	synergy_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	synergy_scroll.clip_contents = true
+	add_child(synergy_scroll)
+	synergy_list = Control.new()
+	synergy_list.custom_minimum_size = Vector2(244, 368)
+	synergy_list.size = synergy_list.custom_minimum_size
+	synergy_scroll.add_child(synergy_list)
 	for index in CATALOG.SYNERGY_ORDER.size():
 		var synergy: String = CATALOG.SYNERGY_ORDER[index]
-		var y := 137.0 + index * 61.0
-		var icon := _add_texture(self, icon_paths[index], Rect2(993, y + 4, 40, 40))
-		var name_label := _add_label(self, synergy, Rect2(1039, y - 1, 120, 27), 17, Color.WHITE)
-		var count_label := _add_label(self, "", Rect2(1167, y - 1, 70, 27), 17, Color("f3a62f"), HORIZONTAL_ALIGNMENT_CENTER)
+		var y := index * 61.0
+		var icon := _add_texture(synergy_list, TRAIT_ICON_PATHS[synergy], Rect2(8, y + 10, 38, 38))
+		var name_label := _add_label(synergy_list, synergy, Rect2(50, y + 4, 112, 26), 16, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+		var count_label := _add_label(synergy_list, "", Rect2(174, y + 4, 62, 26), 16, Color("f3a62f"), HORIZONTAL_ALIGNMENT_CENTER)
 		synergy_icons[synergy] = icon
 		synergy_name_labels[synergy] = name_label
 		synergy_count_labels[synergy] = count_label
@@ -249,28 +275,28 @@ func _build_synergy() -> void:
 		var boxes: Array[ColorRect] = []
 		var step_labels: Array[Label] = []
 		for step_index in thresholds.size():
-			var step_x := 1039.0 + step_index * 31.0
+			var step_x := 57.0 + step_index * 31.0
 			var active_box := ColorRect.new()
-			active_box.position = Vector2(step_x, y + 28)
-			active_box.size = Vector2(25, 20)
-			active_box.color = active_colors[index]
+			active_box.position = Vector2(step_x, y + 33)
+			active_box.size = Vector2(25, 19)
+			active_box.color = TRAIT_COLORS[synergy]
 			active_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			active_box.visible = false
-			add_child(active_box)
+			synergy_list.add_child(active_box)
 			boxes.append(active_box)
-			var step_label := _add_label(self, "%d" % thresholds[step_index], Rect2(step_x, y + 28, 25, 20), 11, Color("777b83"), HORIZONTAL_ALIGNMENT_CENTER)
+			var step_label := _add_label(synergy_list, "%d" % thresholds[step_index], Rect2(step_x, y + 33, 25, 19), 11, Color("777b83"), HORIZONTAL_ALIGNMENT_CENTER)
 			step_labels.append(step_label)
 		synergy_step_boxes[synergy] = boxes
 		synergy_step_labels[synergy] = step_labels
 		var hover := Button.new()
-		hover.position = Vector2(986, y - 3)
-		hover.size = Vector2(256, 57)
+		hover.position = Vector2(0, y)
+		hover.size = Vector2(244, 60)
 		hover.flat = true
 		hover.focus_mode = Control.FOCUS_NONE
 		hover.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		hover.mouse_entered.connect(_show_synergy_tooltip.bind(synergy))
 		hover.mouse_exited.connect(_hide_synergy_tooltip)
-		add_child(hover)
+		synergy_list.add_child(hover)
 		synergy_hover_buttons[synergy] = hover
 	_build_synergy_tooltip()
 	_update_synergies()
@@ -293,7 +319,7 @@ func _build_synergy_tooltip() -> void:
 
 func _show_synergy_tooltip(synergy: String) -> void:
 	hovered_synergy = synergy
-	var row_y := float(synergy_row_positions.get(synergy, 137.0))
+	var row_y := float(synergy_row_positions.get(synergy, 136.0)) - float(synergy_scroll.scroll_vertical)
 	synergy_tooltip.position.y = clampf(row_y - 8.0, 112.0, 337.0)
 	synergy_tooltip_title.text = "%s羁绊" % synergy
 	synergy_tooltip_body.text = CATALOG.tooltip_text(synergy, int(synergy_current_counts.get(synergy, 0)))
@@ -315,7 +341,7 @@ func _update_synergies() -> void:
 	for synergy in CATALOG.SYNERGY_ORDER:
 		var count := int(synergy_current_counts.get(synergy, 0))
 		var row_visible := count > 0
-		var row_y := 137.0 + visible_row * 61.0
+		var row_y := visible_row * 61.0
 		var icon: TextureRect = synergy_icons[synergy]
 		var name_label: Label = synergy_name_labels[synergy]
 		var count_label: Label = synergy_count_labels[synergy]
@@ -325,25 +351,28 @@ func _update_synergies() -> void:
 		count_label.visible = row_visible
 		hover.visible = row_visible
 		if row_visible:
-			icon.position = Vector2(993, row_y + 4)
-			name_label.position = Vector2(1039, row_y - 1)
-			count_label.position = Vector2(1167, row_y - 1)
-			hover.position = Vector2(986, row_y - 3)
-			synergy_row_positions[synergy] = row_y
+			icon.position = Vector2(8, row_y + 10)
+			name_label.position = Vector2(50, row_y + 4)
+			count_label.position = Vector2(174, row_y + 4)
+			hover.position = Vector2(0, row_y)
+			synergy_row_positions[synergy] = 136.0 + row_y
 			visible_row += 1
 		var thresholds: Array = CATALOG.THRESHOLDS[synergy]
 		count_label.text = "%d/%d" % [count, thresholds[thresholds.size() - 1]]
+		count_label.add_theme_color_override("font_color", Color("f3a62f") if count >= thresholds[0] else Color("777b83"))
 		var boxes: Array = synergy_step_boxes[synergy]
 		var step_labels: Array = synergy_step_labels[synergy]
 		for index in boxes.size():
-			var step_x := 1039.0 + index * 31.0
+			var step_x := 57.0 + index * 31.0
 			var box := boxes[index] as ColorRect
 			var step_label := step_labels[index] as Label
-			box.position = Vector2(step_x, row_y + 28)
-			step_label.position = Vector2(step_x, row_y + 28)
+			box.position = Vector2(step_x, row_y + 33)
+			step_label.position = Vector2(step_x, row_y + 33)
 			box.visible = row_visible and count >= thresholds[index]
 			step_label.visible = row_visible
 			step_label.add_theme_color_override("font_color", Color.WHITE if count >= thresholds[index] else Color("777b83"))
+	synergy_list.custom_minimum_size = Vector2(244, maxf(368.0, visible_row * 61.0))
+	synergy_list.size = synergy_list.custom_minimum_size
 	if not hovered_synergy.is_empty():
 		if int(synergy_current_counts.get(hovered_synergy, 0)) > 0:
 			_show_synergy_tooltip(hovered_synergy)
@@ -391,10 +420,14 @@ func _build_footer_actions() -> void:
 	reroll.pressed.connect(_on_reroll_pressed)
 	_add_label(reroll, "刷新", Rect2(0, 23, 198, 36), 25, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_add_label(reroll, "$3", Rect2(0, 62, 198, 32), 21, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-	var battle := _add_texture_button(UI + "血量.png", Rect2(1075, 598, 198, 118), "进入战斗")
+	var shop_node := GameState.map_initialized and GameState.current_map_node_type() == "shop"
+	var battle := _add_texture_button(UI + "血量.png", Rect2(1075, 598, 198, 118), "离开商店" if shop_node else "进入战斗")
 	battle.focus_mode = Control.FOCUS_NONE
-	battle.pressed.connect(_on_battle_pressed)
-	_add_label(battle, "战斗！", Rect2(0, 38, 198, 42), 27, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	if shop_node:
+		battle.pressed.connect(_leave_shop)
+	else:
+		battle.pressed.connect(_on_battle_pressed)
+	_add_label(battle, "返回地图" if shop_node else "战斗！", Rect2(0, 38, 198, 42), 27, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String) -> void:
@@ -407,6 +440,15 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String)
 	button.add_theme_stylebox_override("normal", _slot_style(Color(0, 0, 0, 0), Color(0, 0, 0, 0)))
 	button.add_theme_stylebox_override("hover", _slot_style(Color(0.1, 0.65, 0.8, 0.08), Color(0.3, 0.9, 1.0, 0.8), 2))
 	add_child(button)
+	var trait_background := TextureRect.new()
+	trait_background.position = Vector2(3, 3)
+	trait_background.size = rect.size - Vector2(6, 6)
+	trait_background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	trait_background.stretch_mode = TextureRect.STRETCH_SCALE
+	trait_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	trait_background.modulate = Color(1, 1, 1, 0.72)
+	trait_background.visible = false
+	button.add_child(trait_background)
 	var sprite := TextureRect.new()
 	sprite.position = Vector2(30, 18)
 	sprite.size = Vector2(rect.size.x - 60, rect.size.y - 48)
@@ -427,8 +469,10 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String)
 	_apply_stat_pixel_font(hp_label)
 	_apply_stat_pixel_font(special_label)
 	var element_icon := _add_texture(button, TRAIT_ICON_PATHS["自然"], Rect2(rect.size.x - 28, 5, 22, 22))
-	var race_icon := _add_texture(button, TRAIT_ICON_PATHS["猛兽"], Rect2(rect.size.x - 28, 31, 22, 22))
+	var extra_trait_icon := _add_texture(button, TRAIT_ICON_PATHS["雷"], Rect2(rect.size.x - 28, 31, 22, 22))
+	var race_icon := _add_texture(button, TRAIT_ICON_PATHS["机械"], Rect2(rect.size.x - 28, 57, 22, 22))
 	element_icon.visible = false
+	extra_trait_icon.visible = false
 	race_icon.visible = false
 	var replace_mask := ColorRect.new()
 	replace_mask.position = Vector2(3, 3)
@@ -449,11 +493,18 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String)
 	creature_special_badges.append(special_badge)
 	creature_element_icons.append(element_icon)
 	creature_race_icons.append(race_icon)
+	creature_extra_trait_icons.append(extra_trait_icon)
+	creature_trait_backgrounds.append(trait_background)
 	creature_masks.append(replace_mask)
 	creature_selection_frames.append(selection_frame)
 	creature_data.append(texture_path)
 	creature_levels.append(0 if texture_path.is_empty() else 1)
 	var slot_index := creature_buttons.size() - 1
+	button.set_drag_forwarding(
+		_get_creature_drag_data.bind(slot_index),
+		_can_drop_creature_data.bind(slot_index),
+		_drop_creature_data.bind(slot_index)
+	)
 	button.pressed.connect(_on_creature_slot_pressed.bind(slot_index))
 	button.mouse_entered.connect(_show_creature_card_tooltip.bind(slot_index))
 	button.mouse_exited.connect(_hide_card_tooltip)
@@ -472,9 +523,25 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	add_child(button)
 	var top_height := 82.0
 	var footer_height := rect.size.y - top_height
-	var content_layer := _add_texture(button, UI + "图层 3.png", Rect2(4, 4, rect.size.x - 8, top_height - 7), TextureRect.STRETCH_SCALE)
-	var creature_overlay := _add_texture(button, UI + "图层 5.png", Rect2(4, 4, rect.size.x - 8, top_height - 7), TextureRect.STRETCH_SCALE)
-	_add_texture(button, UI + "图层 4.png", Rect2(4, top_height - 3, rect.size.x - 8, footer_height), TextureRect.STRETCH_SCALE)
+	var content_layer := _add_texture(button, "res://assets/ui/shop_item_upper.png", Rect2(4, 4, rect.size.x - 8, top_height - 7), TextureRect.STRETCH_SCALE)
+	var trait_background := TextureRect.new()
+	trait_background.position = Vector2(4, 4)
+	trait_background.size = Vector2(rect.size.x - 8, top_height - 7)
+	trait_background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	trait_background.stretch_mode = TextureRect.STRETCH_SCALE
+	trait_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	trait_background.modulate = Color(1, 1, 1, 0.78)
+	trait_background.visible = false
+	button.add_child(trait_background)
+	var creature_overlay := TextureRect.new()
+	creature_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(creature_overlay)
+	var footer := ColorRect.new()
+	footer.position = Vector2(4, top_height - 3)
+	footer.size = Vector2(rect.size.x - 8, footer_height)
+	footer.color = Color(0.10, 0.11, 0.15, 0.96)
+	footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(footer)
 	var sprite := TextureRect.new()
 	sprite.position = Vector2(22, 4)
 	sprite.size = Vector2(rect.size.x - 44, top_height - 9)
@@ -484,8 +551,10 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(sprite)
 	var element_icon := _add_texture(button, TRAIT_ICON_PATHS["自然"], Rect2(rect.size.x - 26, 8, 19, 19))
-	var race_icon := _add_texture(button, TRAIT_ICON_PATHS["猛兽"], Rect2(rect.size.x - 26, 31, 19, 19))
+	var extra_trait_icon := _add_texture(button, TRAIT_ICON_PATHS["雷"], Rect2(rect.size.x - 26, 30, 19, 19))
+	var race_icon := _add_texture(button, TRAIT_ICON_PATHS["机械"], Rect2(rect.size.x - 26, 52, 19, 19))
 	element_icon.visible = false
+	extra_trait_icon.visible = false
 	race_icon.visible = false
 	var stat_width := 27.0
 	var stat_gap := 3.0
@@ -520,6 +589,8 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	shop_level_labels.append(shop_level)
 	shop_element_icons.append(element_icon)
 	shop_race_icons.append(race_icon)
+	shop_extra_trait_icons.append(extra_trait_icon)
+	shop_trait_backgrounds.append(trait_background)
 	shop_attribute_layers.append(content_layer)
 	shop_creature_overlays.append(creature_overlay)
 	shop_outer_layers.append(outer_layer)
@@ -569,7 +640,7 @@ func _build_card_tooltip() -> void:
 	card_tooltip_race_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card_tooltip_race_panel.add_theme_stylebox_override("panel", _slot_style(Color("8eafe0"), Color(0.53, 0.64, 0.82), 1))
 	card_tooltip.add_child(card_tooltip_race_panel)
-	card_tooltip_race_icon = _add_texture(card_tooltip_race_panel, TRAIT_ICON_PATHS["猛兽"], Rect2(9, 7, 30, 30))
+	card_tooltip_race_icon = _add_texture(card_tooltip_race_panel, TRAIT_ICON_PATHS["机械"], Rect2(9, 7, 30, 30))
 	card_tooltip_race = _add_label(card_tooltip_race_panel, "", Rect2(42, 4, 66, 36), 14, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	card_tooltip_info_panel = Panel.new()
 	card_tooltip_info_panel.position = Vector2(16, 199)
@@ -603,7 +674,8 @@ func _show_shop_card_tooltip(index: int) -> void:
 
 func _show_card_tooltip(texture_path: String, level: int) -> void:
 	var data_index := maxi(CREATURE_TEXTURES.find(texture_path), 0)
-	var traits: PackedStringArray = CATALOG.traits_for_texture(texture_path)
+	var elements: PackedStringArray = CATALOG.elements_for_texture(texture_path)
+	var races: PackedStringArray = CATALOG.races_for_texture(texture_path)
 	var rarity_index := 0
 	for pool_index in SHOP_RARITY_POOLS.size():
 		if data_index in SHOP_RARITY_POOLS[pool_index]:
@@ -614,15 +686,17 @@ func _show_card_tooltip(texture_path: String, level: int) -> void:
 	card_tooltip_name.text = CREATURE_NAMES[data_index]
 	card_tooltip_rarity.text = SHOP_RARITY_NAMES[rarity_index]
 	card_tooltip_sprite.texture = load(texture_path) as Texture2D
-	card_tooltip_element_icon.texture = load(TRAIT_ICON_PATHS[traits[0]]) as Texture2D
-	card_tooltip_element.text = traits[0]
-	card_tooltip_race_icon.texture = load(TRAIT_ICON_PATHS[traits[1]]) as Texture2D
-	card_tooltip_race.text = traits[1]
+	card_tooltip_element_icon.texture = load(TRAIT_ICON_PATHS[elements[0]]) as Texture2D
+	card_tooltip_element.text = "/".join(elements)
+	card_tooltip_element_panel.add_theme_stylebox_override("panel", _slot_style(TRAIT_COLORS[elements[0]], TRAIT_COLORS[elements[0]].lightened(0.18), 1))
+	card_tooltip_race_icon.texture = load(TRAIT_ICON_PATHS[races[0]]) as Texture2D
+	card_tooltip_race.text = races[0]
+	card_tooltip_race_panel.add_theme_stylebox_override("panel", _slot_style(TRAIT_COLORS[races[0]], TRAIT_COLORS[races[0]].lightened(0.18), 1))
 	var cooldown := 3.0 + float(data_index % 5) * 0.5
 	var damage := (15 + data_index * 2) * maxi(level, 1)
 	card_tooltip_cooldown.text = "%.1f\n秒" % cooldown
 	card_tooltip_damage.text = "造成 %d 点伤害" % damage
-	card_tooltip_extra.text = _creature_extra_text(traits, rarity_index)
+	card_tooltip_extra.text = _creature_extra_text(texture_path, rarity_index)
 	_position_card_tooltip()
 
 
@@ -648,12 +722,17 @@ func _position_card_tooltip() -> void:
 	card_tooltip.move_to_front()
 
 
-func _creature_extra_text(traits: PackedStringArray, rarity_index: int) -> String:
+func _creature_extra_text(texture_path: String, rarity_index: int) -> String:
 	var releases := 1 + rarity_index
-	match traits[1]:
-		"猛兽": return "多重释放：%d\n受到伤害降低" % releases
-		"虫群": return "多重释放：%d\n技能充能加快" % releases
-		_: return "多重释放：%d\n施法后恢复生命" % releases
+	var races: PackedStringArray = CATALOG.races_for_texture(texture_path)
+	var race := races[0] if not races.is_empty() else ""
+	match race:
+		"植物": return "多重释放：%d\n战斗中持续成长" % releases
+		"机械": return "多重释放：%d\n获得额外护甲" % releases
+		"虫群": return "多重释放：%d\n为同族加速充能" % releases
+		"龙族": return "多重释放：%d\n技能伤害与溅射强化" % releases
+		"亡灵": return "多重释放：%d\n吸血并具有复生能力" % releases
+		_: return "多重释放：%d\n羁绊能力强化" % releases
 
 
 func _hide_card_tooltip() -> void:
@@ -689,18 +768,57 @@ func _on_creature_slot_pressed(index: int) -> void:
 		_update_selection()
 		_set_notice("已取消选择")
 		return
-	var held := creature_data[selected_slot]
-	var held_level := creature_levels[selected_slot]
-	creature_data[selected_slot] = creature_data[index]
-	creature_levels[selected_slot] = creature_levels[index]
-	creature_data[index] = held
-	creature_levels[index] = held_level
-	_render_creature_slot(selected_slot)
-	_render_creature_slot(index)
-	_update_synergies()
+	_swap_creature_slots(selected_slot, index)
 	selected_slot = -1
 	_update_selection()
 	_set_notice("角色位置已交换")
+
+
+func _get_creature_drag_data(_at_position: Vector2, slot_index: int) -> Variant:
+	if slot_index < 0 or slot_index >= creature_data.size() or creature_data[slot_index].is_empty():
+		return null
+	_hide_card_tooltip()
+	var preview := Panel.new()
+	preview.size = Vector2(92, 92)
+	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	preview.add_theme_stylebox_override("panel", _slot_style(Color(0.05, 0.08, 0.12, 0.94), Color("ffd45f"), 3))
+	var portrait := _add_texture(preview, creature_data[slot_index], Rect2(10, 10, 72, 64))
+	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_add_label(preview, "Lv.%d" % creature_levels[slot_index], Rect2(8, 68, 76, 18), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	creature_buttons[slot_index].set_drag_preview(preview)
+	return {"kind": "creature_slot", "source_index": slot_index}
+
+
+func _can_drop_creature_data(_at_position: Vector2, data: Variant, slot_index: int) -> bool:
+	if not data is Dictionary or String(data.get("kind", "")) != "creature_slot":
+		return false
+	var source_index := int(data.get("source_index", -1))
+	return source_index >= 0 and source_index < creature_data.size() and source_index != slot_index
+
+
+func _drop_creature_data(_at_position: Vector2, data: Variant, slot_index: int) -> void:
+	if not _can_drop_creature_data(_at_position, data, slot_index):
+		return
+	var source_index := int(data.get("source_index", -1))
+	_swap_creature_slots(source_index, slot_index)
+	selected_slot = -1
+	_update_selection()
+	var destination := "队伍" if slot_index >= 4 else "备战席"
+	_set_notice("角色已拖动到%s" % destination)
+
+
+func _swap_creature_slots(first_index: int, second_index: int) -> void:
+	if first_index == second_index:
+		return
+	var held_path := creature_data[first_index]
+	var held_level := creature_levels[first_index]
+	creature_data[first_index] = creature_data[second_index]
+	creature_levels[first_index] = creature_levels[second_index]
+	creature_data[second_index] = held_path
+	creature_levels[second_index] = held_level
+	_render_creature_slot(first_index)
+	_render_creature_slot(second_index)
+	_update_synergies()
 
 
 func _on_shop_card_pressed(index: int) -> void:
@@ -714,7 +832,7 @@ func _on_shop_card_pressed(index: int) -> void:
 		return
 	if entry["kind"] == "item":
 		coins -= price
-		coin_label.text = "$%d" % coins
+		_sync_coins()
 		GameState.add_item(entry["path"])
 		shop_data[index] = {}
 		_render_shop_card(index)
@@ -738,7 +856,7 @@ func _on_shop_card_pressed(index: int) -> void:
 	creature_levels[target_slot] = 1
 	shop_data[index] = {}
 	coins -= price
-	coin_label.text = "$%d" % coins
+	_sync_coins()
 	_render_creature_slot(target_slot)
 	_render_shop_card(index)
 	GameState.mark_creature_seen(creature_data[target_slot])
@@ -758,7 +876,7 @@ func _on_reroll_pressed() -> void:
 		_set_notice("金币不足")
 		return
 	coins -= 3
-	coin_label.text = "$%d" % coins
+	_sync_coins()
 	for index in 5:
 		shop_data[index] = _draw_shop_entry()
 		_mark_shop_creature_seen(shop_data[index])
@@ -882,7 +1000,7 @@ func _on_battle_pressed() -> void:
 		return
 	for texture_path in battle_team:
 		GameState.unlock_creature_achievement(texture_path, GameState.ACHIEVEMENT_MEDAL)
-	GameState.set_player_team(battle_team)
+	_save_current_team()
 	_set_notice("队伍已准备完毕 · 正在进入战斗")
 	var transition := ColorRect.new()
 	transition.z_index = 200
@@ -897,8 +1015,39 @@ func _on_battle_pressed() -> void:
 	get_tree().change_scene_to_file("res://battle.tscn")
 
 
+func _leave_shop() -> void:
+	_save_current_team()
+	GameState.complete_current_map_node()
+	get_tree().change_scene_to_file("res://map.tscn")
+
+
 func _on_back_pressed() -> void:
-	get_tree().change_scene_to_file("res://main.tscn")
+	if GameState.map_initialized:
+		_save_current_team()
+		if GameState.current_map_node_type() == "shop":
+			GameState.complete_current_map_node()
+		get_tree().change_scene_to_file("res://map.tscn")
+	else:
+		get_tree().change_scene_to_file("res://main.tscn")
+
+
+func _save_current_team() -> void:
+	var saved_bench: Array[String] = []
+	for index in range(0, mini(creature_data.size(), 4)):
+		if not creature_data[index].is_empty():
+			saved_bench.append(creature_data[index])
+	var saved_team: Array[String] = []
+	for index in range(4, mini(creature_data.size(), 10)):
+		if not creature_data[index].is_empty():
+			saved_team.append(creature_data[index])
+	GameState.set_player_bench(saved_bench)
+	GameState.set_player_team(saved_team)
+
+
+func _sync_coins() -> void:
+	GameState.coins = coins
+	if coin_label:
+		coin_label.text = "$%d" % coins
 
 
 func _render_creature_slot(index: int) -> void:
@@ -910,7 +1059,9 @@ func _render_creature_slot(index: int) -> void:
 		creature_hp_labels[index].text = ""
 		creature_special_labels[index].text = ""
 		creature_element_icons[index].visible = false
+		creature_extra_trait_icons[index].visible = false
 		creature_race_icons[index].visible = false
+		creature_trait_backgrounds[index].visible = false
 		return
 	creature_hp_badges[index].visible = true
 	creature_special_badges[index].visible = true
@@ -923,11 +1074,17 @@ func _render_creature_slot(index: int) -> void:
 	creature_special_labels[index].text = "%d" % (5 + data_index * 2)
 	_set_stat_badge_value(creature_hp_badges[index], 20 + data_index * 3, true)
 	_set_stat_badge_value(creature_special_badges[index], 5 + data_index * 2, false)
-	var traits: PackedStringArray = CATALOG.traits_for_texture(creature_data[index])
-	creature_element_icons[index].texture = load(TRAIT_ICON_PATHS[traits[0]]) as Texture2D
-	creature_race_icons[index].texture = load(TRAIT_ICON_PATHS[traits[1]]) as Texture2D
+	var elements: PackedStringArray = CATALOG.elements_for_texture(creature_data[index])
+	var races: PackedStringArray = CATALOG.races_for_texture(creature_data[index])
+	creature_element_icons[index].texture = load(TRAIT_ICON_PATHS[elements[0]]) as Texture2D
+	creature_race_icons[index].texture = load(TRAIT_ICON_PATHS[races[0]]) as Texture2D
+	creature_extra_trait_icons[index].visible = elements.size() > 1
+	if elements.size() > 1:
+		creature_extra_trait_icons[index].texture = load(TRAIT_ICON_PATHS[elements[1]]) as Texture2D
 	creature_element_icons[index].visible = true
 	creature_race_icons[index].visible = true
+	creature_trait_backgrounds[index].texture = _make_trait_background(CATALOG.traits_for_texture(creature_data[index]))
+	creature_trait_backgrounds[index].visible = true
 
 
 func _render_shop_card(index: int) -> void:
@@ -938,46 +1095,56 @@ func _render_shop_card(index: int) -> void:
 		shop_special_badges[index].visible = false
 		shop_level_labels[index].visible = false
 		shop_element_icons[index].visible = false
+		shop_extra_trait_icons[index].visible = false
 		shop_race_icons[index].visible = false
+		shop_trait_backgrounds[index].visible = false
 		shop_hp_labels[index].text = ""
 		shop_special_labels[index].text = ""
 		shop_name_labels[index].text = "已售出"
 		shop_price_labels[index].text = ""
 		return
 	var entry: Dictionary = shop_data[index]
-	var is_creature := entry["kind"] == "creature"
+	var is_creature: bool = String(entry["kind"]) == "creature"
 	var texture_path: String = entry["path"]
 	shop_sprites[index].texture = load(texture_path) as Texture2D
 	shop_sprites[index].visible = true
 	shop_name_labels[index].text = _shop_entry_name(entry)
 	shop_price_labels[index].text = "$%d" % int(entry["price"])
 	shop_creature_overlays[index].visible = is_creature
-	var content_path := UI + "图层 3.png" if is_creature else "res://assets/ui/shop_item_upper.png"
+	var content_path := "res://assets/ui/shop_item_upper.png"
 	shop_attribute_layers[index].texture = load(content_path) as Texture2D
-	shop_outer_layers[index].texture = load(UI + ("图层 6 拷贝.png" if is_creature else "图层 6.png")) as Texture2D
+	shop_outer_layers[index].texture = load(UI + "图层 6 拷贝.png") as Texture2D
 	shop_hp_badges[index].visible = is_creature
 	shop_special_badges[index].visible = is_creature
 	shop_level_labels[index].visible = is_creature
 	shop_hp_labels[index].visible = is_creature
 	shop_special_labels[index].visible = is_creature
 	shop_element_icons[index].visible = false
+	shop_extra_trait_icons[index].visible = false
 	shop_race_icons[index].visible = false
+	shop_trait_backgrounds[index].visible = false
 	if not is_creature:
 		shop_attribute_layers[index].modulate = Color.WHITE
 		shop_hp_labels[index].text = ""
 		shop_special_labels[index].text = ""
 		return
 	var data_index := maxi(CREATURE_TEXTURES.find(texture_path), 0)
-	shop_attribute_layers[index].modulate = ATTRIBUTE_COLORS[CREATURE_ATTRIBUTE_INDEX[data_index]]
+	shop_attribute_layers[index].modulate = Color(1, 1, 1, 0.16)
 	shop_hp_labels[index].text = "%d" % (20 + data_index * 3)
 	shop_special_labels[index].text = "%d" % (5 + data_index * 2)
 	_set_stat_badge_value(shop_hp_badges[index], 20 + data_index * 3, true)
 	_set_stat_badge_value(shop_special_badges[index], 5 + data_index * 2, false)
-	var traits: PackedStringArray = CATALOG.traits_for_texture(texture_path)
-	shop_element_icons[index].texture = load(TRAIT_ICON_PATHS[traits[0]]) as Texture2D
-	shop_race_icons[index].texture = load(TRAIT_ICON_PATHS[traits[1]]) as Texture2D
+	var elements: PackedStringArray = CATALOG.elements_for_texture(texture_path)
+	var races: PackedStringArray = CATALOG.races_for_texture(texture_path)
+	shop_element_icons[index].texture = load(TRAIT_ICON_PATHS[elements[0]]) as Texture2D
+	shop_race_icons[index].texture = load(TRAIT_ICON_PATHS[races[0]]) as Texture2D
+	shop_extra_trait_icons[index].visible = elements.size() > 1
+	if elements.size() > 1:
+		shop_extra_trait_icons[index].texture = load(TRAIT_ICON_PATHS[elements[1]]) as Texture2D
 	shop_element_icons[index].visible = true
 	shop_race_icons[index].visible = true
+	shop_trait_backgrounds[index].texture = _make_trait_background(CATALOG.traits_for_texture(texture_path))
+	shop_trait_backgrounds[index].visible = true
 
 
 func _update_selection() -> void:
@@ -1012,6 +1179,40 @@ func _add_texture(parent: Control, path: String, rect: Rect2, stretch := Texture
 	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(node)
 	return node
+
+
+func _make_trait_background(traits: PackedStringArray) -> GradientTexture2D:
+	var colors := PackedColorArray()
+	var offsets := PackedFloat32Array()
+	var valid_traits: Array[String] = []
+	for trait_name in traits:
+		if TRAIT_COLORS.has(trait_name):
+			valid_traits.append(trait_name)
+	if valid_traits.is_empty():
+		valid_traits.append("自然")
+	for index in valid_traits.size():
+		var color: Color = TRAIT_COLORS[valid_traits[index]]
+		var section_start := float(index) / float(valid_traits.size())
+		var section_end := float(index + 1) / float(valid_traits.size())
+		if index > 0:
+			section_start += 0.002
+		if index < valid_traits.size() - 1:
+			section_end -= 0.002
+		offsets.append(section_start)
+		colors.append(color)
+		offsets.append(section_end)
+		colors.append(color)
+	var gradient := Gradient.new()
+	gradient.offsets = offsets
+	gradient.colors = colors
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.width = 128
+	texture.height = 128
+	texture.fill = GradientTexture2D.FILL_LINEAR
+	texture.fill_from = Vector2(0.0, 0.0)
+	texture.fill_to = Vector2(1.0, 1.0)
+	return texture
 
 
 func _add_texture_button(path: String, rect: Rect2, tooltip: String) -> TextureButton:
