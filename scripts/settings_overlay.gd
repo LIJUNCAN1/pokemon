@@ -14,6 +14,7 @@ const OPTIONS: Array = [
 var option_indices: Array[int] = [0, 2, 4, 3, 0, 0]
 var value_labels: Array[Label] = []
 var source_han_font: FontFile
+var exit_scene_path := ""
 
 
 func _ready() -> void:
@@ -85,7 +86,7 @@ func _build_interface() -> void:
 
 	var done := Button.new()
 	done.position = Vector2(16, 383)
-	done.size = Vector2(452, 82)
+	done.size = Vector2(220, 82) if not exit_scene_path.is_empty() else Vector2(452, 82)
 	done.text = "完成"
 	done.focus_mode = Control.FOCUS_NONE
 	done.add_theme_font_override("font", source_han_font)
@@ -100,6 +101,27 @@ func _build_interface() -> void:
 	done.add_theme_stylebox_override("hover", _panel_style(Color("ff547c"), Color(0.18, 0.16, 0.18, 1.0), 4))
 	done.pressed.connect(queue_free)
 	frame.add_child(done)
+
+	if not exit_scene_path.is_empty():
+		var exit_button := Button.new()
+		exit_button.position = Vector2(248, 383)
+		exit_button.size = Vector2(220, 82)
+		exit_button.text = "退出战斗"
+		exit_button.focus_mode = Control.FOCUS_NONE
+		exit_button.add_theme_font_override("font", source_han_font)
+		exit_button.add_theme_font_size_override("font_size", 25)
+		exit_button.add_theme_color_override("font_color", Color.WHITE)
+		exit_button.add_theme_color_override("font_outline_color", Color.BLACK)
+		exit_button.add_theme_constant_override("outline_size", 1)
+		exit_button.add_theme_stylebox_override("normal", _panel_style(Color(0.38, 0.12, 0.16, 1.0), Color(0.18, 0.16, 0.18, 1.0), 4))
+		exit_button.add_theme_stylebox_override("hover", _panel_style(Color(0.53, 0.16, 0.22, 1.0), Color(0.18, 0.16, 0.18, 1.0), 4))
+		exit_button.pressed.connect(_exit_current_mode)
+		frame.add_child(exit_button)
+
+
+func _exit_current_mode() -> void:
+	if not exit_scene_path.is_empty():
+		get_tree().change_scene_to_file(exit_scene_path)
 
 
 func _change_option(row_index: int, direction: int) -> void:

@@ -22,6 +22,7 @@ var completed_map_nodes: Dictionary = {}
 var run_health_bonus := 0.0
 var run_damage_bonus := 0.0
 var run_charge_bonus := 0.0
+var battle_victories := 0
 
 
 func reset_run() -> void:
@@ -41,6 +42,7 @@ func reset_run() -> void:
 	run_health_bonus = 0.0
 	run_damage_bonus = 0.0
 	run_charge_bonus = 0.0
+	battle_victories = 0
 
 
 func set_player_team(team: Array[String]) -> void:
@@ -67,6 +69,10 @@ func add_creature_reward(texture_path: String) -> bool:
 	if player_bench.size() < 4:
 		player_bench.append(texture_path)
 		return true
+	for index in player_team.size():
+		if player_team[index].is_empty():
+			player_team[index] = texture_path
+			return true
 	if player_team.size() < 6:
 		player_team.append(texture_path)
 		return true

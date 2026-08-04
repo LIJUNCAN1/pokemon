@@ -659,7 +659,7 @@ func _build_card_tooltip() -> void:
 	card_tooltip.add_child(card_tooltip_info_panel)
 	card_tooltip_cooldown = _add_label(card_tooltip_info_panel, "", Rect2(12, 7, 78, 53), 17, Color("252631"), HORIZONTAL_ALIGNMENT_CENTER)
 	card_tooltip_damage = _add_label(card_tooltip_info_panel, "", Rect2(93, 7, 153, 32), 15, Color("ef3f64"))
-	card_tooltip_extra = _add_label(card_tooltip_info_panel, "", Rect2(93, 39, 153, 47), 13, Color("5579b9"))
+	card_tooltip_extra = _add_label(card_tooltip_info_panel, "", Rect2(93, 36, 153, 53), 12, Color("5579b9"))
 	card_tooltip_extra.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 
@@ -705,7 +705,7 @@ func _show_card_tooltip(texture_path: String, level: int) -> void:
 	var damage := (15 + data_index * 2) * maxi(level, 1)
 	card_tooltip_cooldown.text = "%.1f\n秒" % cooldown
 	card_tooltip_damage.text = "造成 %d 点伤害" % damage
-	card_tooltip_extra.text = _creature_extra_text(texture_path, rarity_index)
+	card_tooltip_extra.text = "定位：%s\n%s" % [CATALOG.combat_role_name(texture_path), _creature_extra_text(texture_path, rarity_index)]
 	_position_card_tooltip()
 
 
@@ -1070,8 +1070,7 @@ func _save_current_team() -> void:
 			saved_bench.append(creature_data[index])
 	var saved_team: Array[String] = []
 	for index in range(4, mini(creature_data.size(), 10)):
-		if not creature_data[index].is_empty():
-			saved_team.append(creature_data[index])
+		saved_team.append(creature_data[index])
 	GameState.set_player_bench(saved_bench)
 	GameState.set_player_team(saved_team)
 
