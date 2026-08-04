@@ -19,6 +19,13 @@ const CREATURE_TRAITS: Array = [
 	["雷", "火", "机械"], ["自然", "虫群"], ["火", "岩", "虫群"],
 ]
 
+# Parallel to CREATURE_FILES. Combat roles affect target selection, not synergies.
+const CREATURE_ATTACK_RANGES: Array[String] = [
+	"melee", "melee", "ranged", "melee", "ranged",
+	"ranged", "ranged", "ranged", "ranged", "melee",
+	"melee", "melee", "ranged", "melee", "ranged",
+]
+
 const THRESHOLDS: Dictionary = {
 	"自然": [2, 4, 6],
 	"火": [2, 4, 6],
@@ -59,6 +66,15 @@ const EFFECT_LINES: Dictionary = {
 static func traits_for_texture(texture_path: String) -> PackedStringArray:
 	var index := CREATURE_FILES.find(texture_path.get_file())
 	return PackedStringArray(CREATURE_TRAITS[index]) if index >= 0 else PackedStringArray()
+
+
+static func attack_range_for_texture(texture_path: String) -> String:
+	var index := CREATURE_FILES.find(texture_path.get_file())
+	return CREATURE_ATTACK_RANGES[index] if index >= 0 else "melee"
+
+
+static func combat_role_name(texture_path: String) -> String:
+	return "远程" if attack_range_for_texture(texture_path) == "ranged" else "近战"
 
 
 static func elements_for_texture(texture_path: String) -> PackedStringArray:

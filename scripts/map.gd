@@ -34,7 +34,7 @@ const NODE_LABELS := {
 	"elite": "精英",
 	"shop": "商店",
 	"event": "事件",
-	"route": "路线",
+	"chest": "宝箱",
 	"boss": "BOSS",
 }
 const NODE_COLORS := {
@@ -43,7 +43,7 @@ const NODE_COLORS := {
 	"elite": Color("ad5de0"),
 	"shop": Color("e2ad45"),
 	"event": Color("58a8df"),
-	"route": Color("7a8796"),
+	"chest": Color("d9982f"),
 	"boss": Color("ef3d45"),
 }
 
@@ -73,6 +73,8 @@ var event_creature_name := ""
 var event_item_name := ""
 var event_result_text := ""
 var event_result_kind := "story"
+var chest_event := false
+var chest_coin_amount := 0
 
 
 func _ready() -> void:
@@ -162,7 +164,7 @@ func _roll_node_type(column: int) -> String:
 		return "shop"
 	if roll < 0.91:
 		return "event"
-	return "route"
+	return "chest"
 
 
 func _nearest_node_id(nodes: Array[Dictionary], source_id: int, candidates: Array) -> int:
@@ -355,9 +357,9 @@ func _dispatch_current_node() -> void:
 	match GameState.current_map_node_type():
 		"start":
 			get_tree().change_scene_to_file("res://battle_prep.tscn")
-		"route":
-			GameState.complete_current_map_node()
-			get_tree().reload_current_scene()
+		"chest":
+			chest_event = true
+			_show_event_popup()
 		"event":
 			_show_event_popup()
 		"shop", "battle", "elite", "boss":
@@ -446,9 +448,12 @@ func _prepare_event_rewards() -> void:
 		var item_file := item_files[rng.randi_range(0, item_files.size() - 1)]
 		event_item_path = "res://assets/items/64x64/%s" % item_file
 		event_item_name = item_file.get_basename().replace("_", " ").capitalize()
+	chest_coin_amount = rng.randi_range(5, 9)
 
 
 func _event_title() -> String:
+	if chest_event:
+		return "遗失的宝箱"
 	return ["月光遗迹", "暴雨中的旧驿站", "沉睡的孵化庭院"][event_story_id]
 
 
@@ -457,6 +462,22 @@ func _event_stage_data() -> Dictionary:
 		return {
 			"story": event_result_text,
 			"options": [{"text": "收好所得，继续远征", "tag": "", "kind": event_result_kind, "action": "finish", "detail": "本次事件已经结束。\n奖励已经加入本次远征。"}],
+		}
+	if chest_event:
+		var chest_roll := posmod(GameState.map_seed + GameState.current_map_node * 37, 10)
+		if chest_roll < 4:
+			return {
+				"story": "道路旁放着一只被遗忘的宝箱，锁扣已经松动，里面传来金币碰撞的声音。",
+				"options": [{"text": "打开宝箱", "tag": "（金币：+%d）" % chest_coin_amount, "kind": "coins", "amount": chest_coin_amount, "detail": "获得宝箱中的金币。"}],
+			}
+		if chest_roll < 8:
+			return {
+				"story": "宝箱缝隙中透出微光，一件保存完好的装备正静静躺在其中。",
+				"options": [{"text": "打开宝箱", "tag": "（道具：%s）" % event_item_name, "kind": "item", "detail": "获得一件随机道具并放入背包。"}],
+			}
+		return {
+			"story": "宝箱突然轻轻晃动，里面似乎藏着一位等待同行的伙伴。",
+			"options": [{"text": "打开宝箱", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得一张角色卡；队伍已满时转化为 8 金币。"}],
 		}
 	match event_story_id:
 		0:
@@ -603,7 +624,7 @@ func _clear_event_option_selection() -> void:
 func _show_event_stage_overview(first_option: Dictionary) -> void:
 	event_detail_title.text = _event_title()
 	event_detail_title.add_theme_color_override("font_color", Color.WHITE)
-	event_detail_type.text = "随机事件"
+	event_detail_type.text = "宝箱奖励" if chest_event else "随机事件"
 	event_detail_summary.text = "[center][color=#667080]将鼠标放到选项上\n查看可能的结果[/color][/center]"
 	event_detail_effect.text = "[center][color=#31343e]%s[/color][/center]" % String(first_option.get("detail", "探索故事并作出选择。"))
 	event_detail_icon.visible = false

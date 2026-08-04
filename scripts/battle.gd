@@ -24,10 +24,14 @@ class Fighter:
 	var revived_as_spirit := false
 	var mechanical_shock_ready := false
 	var rock_armor_stacks := 0
+	var formation_index := 0
+	var attack_range := "melee"
+	var locked_target: Fighter
 
 
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
 const CATALOG = preload("res://scripts/creature_catalog.gd")
+const SETTINGS_OVERLAY_SCENE: PackedScene = preload("res://settings_overlay.tscn")
 const DESIGN_SIZE := Vector2(1280, 720)
 const FULL_HD_SCALE := Vector2(1.5, 1.5)
 const SCENE_ASSETS := "res://素材/场景/"
@@ -55,6 +59,10 @@ var burn_elapsed := 0.0
 var plant_growth_elapsed := 0.0
 var healing_zone_elapsed := 0.0
 var healing_zone_ticks := 0
+var battle_speed := 1.0
+var battle_speed_button: Button
+var settings_overlay: Control
+var victory_reward_text := ""
 
 
 func _ready() -> void:
@@ -80,6 +88,7 @@ func _apply_full_hd_layout() -> void:
 func _process(delta: float) -> void:
 	if battle_over:
 		return
+	delta *= battle_speed
 	_process_synergy_timers(delta)
 	var team_speed_bonus := _mechanical_team_speed_bonus() + _insect_team_speed_bonus()
 	for fighter in fighters:
@@ -124,7 +133,7 @@ func _spawn_teams() -> void:
 		var row := index / 3
 		var column := index % 3
 		var row_x_positions := TOP_X_POSITIONS if row == 0 else BOTTOM_X_POSITIONS
-		if index < player_team.size():
+		if index < player_team.size() and not player_team[index].is_empty():
 			_create_fighter(player_team[index], Vector2(row_x_positions[column], ROW_POSITIONS[row]), true, index)
 		if index < enemy_count:
 			GameState.mark_creature_seen(ENEMY_TEAM[index])
@@ -138,15 +147,25 @@ func _enemy_count_for_current_node() -> int:
 	if node_type == "boss":
 		return 6
 	var column := int(GameState.current_map_node_data().get("column", 0))
+	if node_type == "battle" and column == 0:
+		return 1
 	var count: int = clampi(2 + floori(float(column) / 2.0), 2, 6)
 	if node_type == "elite":
 		count = mini(count + 1, 6)
 	return count
 
 
+func _is_first_battle_node() -> bool:
+	if not GameState.map_initialized or GameState.current_map_node_type() != "battle":
+		return false
+	return int(GameState.current_map_node_data().get("column", -1)) == 0
+
+
 func _create_fighter(texture_path: String, center: Vector2, player_side: bool, index: int) -> void:
 	var fighter := Fighter.new()
 	fighter.player_side = player_side
+	fighter.formation_index = index
+	fighter.attack_range = CATALOG.attack_range_for_texture(texture_path)
 	fighter.traits = CATALOG.traits_for_texture(texture_path)
 	var base_hp := 72 + index * 7
 	if player_side:
@@ -163,6 +182,9 @@ func _create_fighter(texture_path: String, center: Vector2, player_side: bool, i
 			"boss":
 				base_hp = roundi(base_hp * 1.75)
 				fighter.damage_multiplier *= 1.48
+		if _is_first_battle_node():
+			base_hp = maxi(roundi(base_hp * 0.45), 18)
+			fighter.damage_multiplier *= 0.45
 	fighter.max_hp = base_hp
 	fighter.hp = fighter.max_hp
 	fighter.base_charge_rate = rng.randf_range(0.18, 0.29)
@@ -175,6 +197,8 @@ func _create_fighter(texture_path: String, center: Vector2, player_side: bool, i
 			fighter.base_charge_rate *= 1.12
 		elif GameState.current_map_node_type() == "boss":
 			fighter.base_charge_rate *= 1.25
+		if _is_first_battle_node():
+			fighter.base_charge_rate *= 0.72
 	fighter.charge_rate = fighter.base_charge_rate
 	if player_side and fighter.traits.has("岩"):
 		fighter.damage_reduction = CATALOG.effect_value("岩", int(player_synergies.get("岩", 0)))
@@ -239,19 +263,60 @@ func _build_hud() -> void:
 	_add_label("我方", Rect2(14, 270, 120, 28), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 45)
 	_add_label("敌方", Rect2(1146, 270, 120, 28), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT, 45)
 	status_label = _add_label("技能条充满后自动攻击随机目标", Rect2(360, 665, 560, 34), 14, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 45)
-	var exit_button := Button.new()
-	exit_button.position = Vector2(1150, 10)
-	exit_button.size = Vector2(110, 45)
-	exit_button.text = "撤退"
-	exit_button.add_theme_font_override("font", source_han_font)
-	exit_button.add_theme_font_size_override("font_size", 16)
-	exit_button.add_theme_color_override("font_color", Color.WHITE)
-	exit_button.add_theme_color_override("font_outline_color", Color.BLACK)
-	exit_button.add_theme_constant_override("outline_size", 1)
-	exit_button.add_theme_stylebox_override("normal", _panel_style(Color(0.6, 0.09, 0.18, 0.95), Color.WHITE, 2))
-	exit_button.z_index = 45
-	exit_button.pressed.connect(_back_to_prep)
-	add_child(exit_button)
+	battle_speed_button = Button.new()
+	battle_speed_button.position = Vector2(1135, 10)
+	battle_speed_button.size = Vector2(125, 45)
+	battle_speed_button.text = "倍速 1x"
+	battle_speed_button.tooltip_text = "点击切换战斗速度"
+	battle_speed_button.add_theme_font_override("font", source_han_font)
+	battle_speed_button.add_theme_font_size_override("font_size", 16)
+	battle_speed_button.add_theme_color_override("font_color", Color.WHITE)
+	battle_speed_button.add_theme_color_override("font_outline_color", Color.BLACK)
+	battle_speed_button.add_theme_constant_override("outline_size", 1)
+	battle_speed_button.add_theme_stylebox_override("normal", _panel_style(Color(0.12, 0.38, 0.52, 0.95), Color.WHITE, 2))
+	battle_speed_button.add_theme_stylebox_override("hover", _panel_style(Color(0.18, 0.50, 0.64, 0.98), Color.WHITE, 2))
+	battle_speed_button.add_theme_stylebox_override("pressed", _panel_style(Color(0.08, 0.27, 0.38, 1.0), Color.WHITE, 2))
+	battle_speed_button.z_index = 45
+	battle_speed_button.pressed.connect(_cycle_battle_speed)
+	add_child(battle_speed_button)
+
+	var settings_button := Button.new()
+	settings_button.position = Vector2(1065, 10)
+	settings_button.size = Vector2(60, 45)
+	settings_button.text = "设置"
+	settings_button.tooltip_text = "设置"
+	settings_button.add_theme_font_override("font", source_han_font)
+	settings_button.add_theme_font_size_override("font_size", 15)
+	settings_button.add_theme_color_override("font_color", Color.WHITE)
+	settings_button.add_theme_color_override("font_outline_color", Color.BLACK)
+	settings_button.add_theme_constant_override("outline_size", 1)
+	settings_button.add_theme_stylebox_override("normal", _panel_style(Color(0.18, 0.20, 0.24, 0.95), Color.WHITE, 2))
+	settings_button.add_theme_stylebox_override("hover", _panel_style(Color(0.28, 0.31, 0.36, 0.98), Color.WHITE, 2))
+	settings_button.add_theme_stylebox_override("pressed", _panel_style(Color(0.10, 0.12, 0.15, 1.0), Color.WHITE, 2))
+	settings_button.z_index = 45
+	settings_button.pressed.connect(_open_battle_settings)
+	add_child(settings_button)
+
+
+func _cycle_battle_speed() -> void:
+	match battle_speed:
+		1.0:
+			battle_speed = 2.0
+		2.0:
+			battle_speed = 3.0
+		_:
+			battle_speed = 1.0
+	if is_instance_valid(battle_speed_button):
+		battle_speed_button.text = "倍速 %dx" % int(battle_speed)
+
+
+func _open_battle_settings() -> void:
+	if not is_instance_valid(settings_overlay):
+		settings_overlay = SETTINGS_OVERLAY_SCENE.instantiate() as Control
+		settings_overlay.set("exit_scene_path", "res://map.tscn" if GameState.map_initialized else "res://battle_prep.tscn")
+		add_child(settings_overlay)
+	else:
+		settings_overlay.move_to_front()
 
 
 func _perform_skill(attacker: Fighter) -> void:
@@ -261,7 +326,9 @@ func _perform_skill(attacker: Fighter) -> void:
 	if targets.is_empty():
 		_finish_battle(attacker.player_side)
 		return
-	var target: Fighter = targets[rng.randi_range(0, targets.size() - 1)]
+	var target := _select_attack_target(attacker, targets)
+	if target == null:
+		return
 	var attack_multiplier := attacker.damage_multiplier
 	if attacker.player_side and attacker.traits.has("龙族") and attacker.hp * 2 < attacker.max_hp and CATALOG.active_tier("龙族", int(player_synergies.get("龙族", 0))) >= 2:
 		attack_multiplier *= 1.35
@@ -280,6 +347,63 @@ func _perform_skill(attacker: Fighter) -> void:
 	if target.hp <= 0:
 		_defeat_fighter(target)
 	_check_battle_end()
+
+
+func _select_attack_target(attacker: Fighter, targets: Array[Fighter]) -> Fighter:
+	if attacker.locked_target != null and attacker.locked_target.alive and attacker.locked_target in targets:
+		return attacker.locked_target
+	var candidates: Array[Fighter] = []
+	if attacker.attack_range == "ranged" and rng.randf() < 0.35:
+		candidates = _backline_targets(targets)
+	if candidates.is_empty():
+		if attacker.attack_range == "melee":
+			candidates = _melee_lane_targets(attacker, targets)
+		else:
+			candidates = _frontline_targets(targets)
+	if candidates.is_empty():
+		candidates = targets
+	attacker.locked_target = candidates[rng.randi_range(0, candidates.size() - 1)]
+	return attacker.locked_target
+
+
+func _melee_lane_targets(attacker: Fighter, targets: Array[Fighter]) -> Array[Fighter]:
+	var attacker_row := attacker.formation_index / 3
+	var same_lane: Array[Fighter] = []
+	for target in targets:
+		if target.formation_index / 3 == attacker_row:
+			same_lane.append(target)
+	if not same_lane.is_empty():
+		return _frontline_targets(same_lane)
+	return _frontline_targets(targets)
+
+
+func _frontline_targets(targets: Array[Fighter]) -> Array[Fighter]:
+	var result: Array[Fighter] = []
+	for row in 2:
+		var row_targets: Array[Fighter] = []
+		for target in targets:
+			if target.formation_index / 3 == row:
+				row_targets.append(target)
+		if row_targets.is_empty():
+			continue
+		var target_is_player := row_targets[0].player_side
+		var front_column := -1 if target_is_player else 3
+		for target in row_targets:
+			var column := target.formation_index % 3
+			front_column = maxi(front_column, column) if target_is_player else mini(front_column, column)
+		for target in row_targets:
+			if target.formation_index % 3 == front_column:
+				result.append(target)
+	return result
+
+
+func _backline_targets(targets: Array[Fighter]) -> Array[Fighter]:
+	var result: Array[Fighter] = []
+	for target in targets:
+		var column := target.formation_index % 3
+		if (target.player_side and column < 2) or (not target.player_side and column > 0):
+			result.append(target)
+	return result
 
 
 func _play_attack_animation(attacker: Fighter, target: Fighter, damage: int) -> void:
@@ -616,25 +740,68 @@ func _finish_battle(player_won: bool) -> void:
 	battle_over = true
 	if player_won:
 		for texture_path in GameState.player_team:
-			GameState.unlock_creature_achievement(texture_path, GameState.ACHIEVEMENT_STAR)
+			if not texture_path.is_empty():
+				GameState.unlock_creature_achievement(texture_path, GameState.ACHIEVEMENT_STAR)
+		var interest_gold := floori(float(GameState.coins) / 10.0)
+		var victory_gold := 5 + interest_gold
+		GameState.coins += victory_gold
+		victory_reward_text = "战斗金币：基础 +5，利息 +%d" % interest_gold
+		GameState.battle_victories += 1
+		if GameState.battle_victories % 3 == 0:
+			victory_reward_text += "\n三战奖励：%s" % _grant_battle_streak_item()
 		if GameState.map_initialized:
 			GameState.complete_current_map_node()
-			match GameState.current_map_node_type():
-				"battle": GameState.coins += 2
-				"elite": GameState.coins += 5
-				"boss": GameState.coins += 10
+			if _is_first_battle_node():
+				victory_reward_text += "\n" + _grant_first_battle_chest()
 	var shade := ColorRect.new()
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	shade.color = Color(0, 0, 0, 0.7)
 	shade.z_index = 100
 	add_child(shade)
 	_add_label("胜 利" if player_won else "战斗失败", Rect2(390, 245, 500, 80), 38, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 110)
+	if not victory_reward_text.is_empty():
+		_add_label(victory_reward_text, Rect2(300, 315, 680, 58), 15, Color("ffd159"), HORIZONTAL_ALIGNMENT_CENTER, 110)
+	var result_button_y := 390.0 if not victory_reward_text.is_empty() else 350.0
 	if not player_won or not GameState.map_initialized:
-		var retry := _create_result_button("重新战斗", Vector2(435, 350))
+		var retry := _create_result_button("重新战斗", Vector2(435, result_button_y))
 		retry.pressed.connect(_restart_battle)
-	var back_position := Vector2(545, 350) if player_won and GameState.map_initialized else Vector2(655, 350)
+	var back_position := Vector2(545, result_button_y) if player_won and GameState.map_initialized else Vector2(655, result_button_y)
 	var back := _create_result_button("返回地图" if GameState.map_initialized else "返回备战", back_position)
 	back.pressed.connect(_back_to_prep)
+
+
+func _grant_first_battle_chest() -> String:
+	var item_files: Array[String] = []
+	for file_name in DirAccess.get_files_at("res://assets/items/64x64"):
+		if file_name.ends_with(".png"):
+			item_files.append(file_name)
+	item_files.sort()
+	var reward_rng := RandomNumberGenerator.new()
+	reward_rng.seed = GameState.map_seed + 17041
+	var item_names: Array[String] = []
+	for reward_index in mini(2, item_files.size()):
+		var selected_index := reward_rng.randi_range(0, item_files.size() - 1)
+		var item_file: String = item_files.pop_at(selected_index)
+		GameState.add_item("res://assets/items/64x64/%s" % item_file)
+		item_names.append(item_file.get_basename().replace("_", " ").capitalize())
+	var coin_reward := 5
+	GameState.coins += coin_reward
+	return "获得开局宝箱：%s，金币 +%d" % ["、".join(item_names), coin_reward]
+
+
+func _grant_battle_streak_item() -> String:
+	var item_files: Array[String] = []
+	for file_name in DirAccess.get_files_at("res://assets/items/64x64"):
+		if file_name.ends_with(".png"):
+			item_files.append(file_name)
+	if item_files.is_empty():
+		return "暂无可用道具"
+	item_files.sort()
+	var reward_rng := RandomNumberGenerator.new()
+	reward_rng.seed = GameState.map_seed + GameState.battle_victories * 7919 + GameState.current_map_node * 101
+	var item_file := item_files[reward_rng.randi_range(0, item_files.size() - 1)]
+	GameState.add_item("res://assets/items/64x64/%s" % item_file)
+	return item_file.get_basename().replace("_", " ").capitalize()
 
 
 func _create_result_button(text: String, position: Vector2) -> Button:
