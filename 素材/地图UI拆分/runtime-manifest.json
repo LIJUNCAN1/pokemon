@@ -1,0 +1,2104 @@
+{
+  "canvas": {
+    "width": 1672,
+    "height": 941
+  },
+  "components": [
+    {
+      "id": "map-screen-base",
+      "role": "background",
+      "rect": [
+        0,
+        0,
+        1672,
+        941
+      ],
+      "z_index": 0,
+      "output": "background/map-screen-base.png",
+      "mode": "crop",
+      "position": [
+        0,
+        0
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        1672,
+        941
+      ]
+    },
+    {
+      "id": "run-counter",
+      "role": "counter",
+      "rect": [
+        39,
+        61,
+        182,
+        64
+      ],
+      "hitbox": [
+        39,
+        61,
+        182,
+        64
+      ],
+      "z_index": 20,
+      "output": "header/run-counter.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          5,
+          0
+        ],
+        [
+          177,
+          0
+        ],
+        [
+          181,
+          5
+        ],
+        [
+          181,
+          59
+        ],
+        [
+          176,
+          63
+        ],
+        [
+          5,
+          63
+        ],
+        [
+          0,
+          58
+        ],
+        [
+          0,
+          5
+        ]
+      ],
+      "action": "show-run-info",
+      "baked_text": true,
+      "position": [
+        39,
+        61
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        182,
+        64
+      ]
+    },
+    {
+      "id": "currency-counter",
+      "role": "counter",
+      "rect": [
+        230,
+        63,
+        150,
+        62
+      ],
+      "hitbox": [
+        230,
+        63,
+        150,
+        62
+      ],
+      "z_index": 20,
+      "output": "header/currency-counter.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          4,
+          0
+        ],
+        [
+          145,
+          0
+        ],
+        [
+          149,
+          4
+        ],
+        [
+          149,
+          57
+        ],
+        [
+          145,
+          61
+        ],
+        [
+          4,
+          61
+        ],
+        [
+          0,
+          57
+        ],
+        [
+          0,
+          4
+        ]
+      ],
+      "action": "show-currency-info",
+      "baked_text": true,
+      "position": [
+        230,
+        63
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "tab-map",
+      "role": "tab",
+      "rect": [
+        498,
+        59,
+        255,
+        67
+      ],
+      "hitbox": [
+        498,
+        59,
+        255,
+        67
+      ],
+      "z_index": 30,
+      "output": "header/tab-map-selected.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          7,
+          0
+        ],
+        [
+          248,
+          0
+        ],
+        [
+          254,
+          7
+        ],
+        [
+          254,
+          60
+        ],
+        [
+          248,
+          66
+        ],
+        [
+          7,
+          66
+        ],
+        [
+          0,
+          59
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "action": "open-map",
+      "states": {
+        "selected": "header/tab-map-selected.png"
+      },
+      "position": [
+        498,
+        59
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        255,
+        67
+      ]
+    },
+    {
+      "id": "tab-team",
+      "role": "tab",
+      "rect": [
+        763,
+        59,
+        248,
+        67
+      ],
+      "hitbox": [
+        763,
+        59,
+        248,
+        67
+      ],
+      "z_index": 30,
+      "output": "header/tab-team.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          7,
+          0
+        ],
+        [
+          241,
+          0
+        ],
+        [
+          247,
+          7
+        ],
+        [
+          247,
+          60
+        ],
+        [
+          241,
+          66
+        ],
+        [
+          7,
+          66
+        ],
+        [
+          0,
+          59
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "action": "open-team",
+      "position": [
+        763,
+        59
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        248,
+        67
+      ]
+    },
+    {
+      "id": "tab-bag",
+      "role": "tab",
+      "rect": [
+        1019,
+        59,
+        248,
+        67
+      ],
+      "hitbox": [
+        1019,
+        59,
+        248,
+        67
+      ],
+      "z_index": 30,
+      "output": "header/tab-bag.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          7,
+          0
+        ],
+        [
+          241,
+          0
+        ],
+        [
+          247,
+          7
+        ],
+        [
+          247,
+          60
+        ],
+        [
+          241,
+          66
+        ],
+        [
+          7,
+          66
+        ],
+        [
+          0,
+          59
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "action": "open-bag",
+      "position": [
+        1019,
+        59
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        248,
+        67
+      ]
+    },
+    {
+      "id": "tab-relics",
+      "role": "tab",
+      "rect": [
+        1275,
+        59,
+        249,
+        67
+      ],
+      "hitbox": [
+        1275,
+        59,
+        249,
+        67
+      ],
+      "z_index": 30,
+      "output": "header/tab-relics.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          7,
+          0
+        ],
+        [
+          242,
+          0
+        ],
+        [
+          248,
+          7
+        ],
+        [
+          248,
+          60
+        ],
+        [
+          242,
+          66
+        ],
+        [
+          7,
+          66
+        ],
+        [
+          0,
+          59
+        ],
+        [
+          0,
+          7
+        ]
+      ],
+      "action": "open-relics",
+      "position": [
+        1275,
+        59
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        249,
+        67
+      ]
+    },
+    {
+      "id": "close-button",
+      "role": "button",
+      "rect": [
+        1565,
+        59,
+        73,
+        67
+      ],
+      "hitbox": [
+        1565,
+        59,
+        73,
+        67
+      ],
+      "z_index": 30,
+      "output": "header/close-button.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          8,
+          0
+        ],
+        [
+          65,
+          0
+        ],
+        [
+          72,
+          7
+        ],
+        [
+          72,
+          59
+        ],
+        [
+          65,
+          66
+        ],
+        [
+          8,
+          66
+        ],
+        [
+          0,
+          58
+        ],
+        [
+          0,
+          8
+        ]
+      ],
+      "action": "close-map",
+      "position": [
+        1565,
+        59
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        73,
+        67
+      ]
+    },
+    {
+      "id": "trail-title",
+      "role": "label",
+      "rect": [
+        39,
+        149,
+        395,
+        64
+      ],
+      "z_index": 15,
+      "output": "map/trail-title.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          5,
+          0
+        ],
+        [
+          390,
+          0
+        ],
+        [
+          394,
+          5
+        ],
+        [
+          394,
+          59
+        ],
+        [
+          390,
+          63
+        ],
+        [
+          5,
+          63
+        ],
+        [
+          0,
+          58
+        ],
+        [
+          0,
+          5
+        ]
+      ],
+      "baked_text": true,
+      "position": [
+        39,
+        149
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        395,
+        64
+      ]
+    },
+    {
+      "id": "progress-counter",
+      "role": "counter",
+      "rect": [
+        1330,
+        151,
+        305,
+        66
+      ],
+      "z_index": 15,
+      "output": "map/progress-counter.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          5,
+          0
+        ],
+        [
+          300,
+          0
+        ],
+        [
+          304,
+          5
+        ],
+        [
+          304,
+          61
+        ],
+        [
+          300,
+          65
+        ],
+        [
+          5,
+          65
+        ],
+        [
+          0,
+          60
+        ],
+        [
+          0,
+          5
+        ]
+      ],
+      "baked_text": true,
+      "position": [
+        1330,
+        151
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        305,
+        66
+      ]
+    },
+    {
+      "id": "start-node",
+      "role": "node",
+      "rect": [
+        84,
+        390,
+        111,
+        119
+      ],
+      "hitbox": [
+        84,
+        390,
+        111,
+        119
+      ],
+      "z_index": 40,
+      "output": "nodes/start-node.png",
+      "mode": "crop",
+      "action": "select-start",
+      "position": [
+        84,
+        390
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        111,
+        119
+      ]
+    },
+    {
+      "id": "boss-node",
+      "role": "node",
+      "rect": [
+        1525,
+        406,
+        96,
+        96
+      ],
+      "hitbox": [
+        1525,
+        406,
+        96,
+        96
+      ],
+      "z_index": 40,
+      "output": "nodes/boss-node.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          87,
+          0
+        ],
+        [
+          95,
+          9
+        ],
+        [
+          95,
+          87
+        ],
+        [
+          87,
+          95
+        ],
+        [
+          9,
+          95
+        ],
+        [
+          0,
+          87
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-boss",
+      "position": [
+        1525,
+        406
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        96,
+        96
+      ]
+    },
+    {
+      "id": "node-r1-c1-normal",
+      "role": "node",
+      "rect": [
+        292,
+        264,
+        78,
+        87
+      ],
+      "hitbox": [
+        292,
+        264,
+        78,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r1-c1-normal.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          68,
+          0
+        ],
+        [
+          77,
+          9
+        ],
+        [
+          77,
+          77
+        ],
+        [
+          68,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r1-c1",
+      "position": [
+        292,
+        264
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        78,
+        87
+      ]
+    },
+    {
+      "id": "node-r1-c2-treasure",
+      "role": "node",
+      "rect": [
+        478,
+        264,
+        78,
+        87
+      ],
+      "hitbox": [
+        478,
+        264,
+        78,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r1-c2-treasure.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          68,
+          0
+        ],
+        [
+          77,
+          9
+        ],
+        [
+          77,
+          77
+        ],
+        [
+          68,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r1-c2",
+      "position": [
+        478,
+        264
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        78,
+        87
+      ]
+    },
+    {
+      "id": "node-r1-c3-elite",
+      "role": "node",
+      "rect": [
+        659,
+        264,
+        79,
+        87
+      ],
+      "hitbox": [
+        659,
+        264,
+        79,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r1-c3-elite.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          69,
+          0
+        ],
+        [
+          78,
+          9
+        ],
+        [
+          78,
+          77
+        ],
+        [
+          69,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r1-c3",
+      "position": [
+        659,
+        264
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        79,
+        87
+      ]
+    },
+    {
+      "id": "node-r1-c4-shop",
+      "role": "node",
+      "rect": [
+        869,
+        264,
+        78,
+        87
+      ],
+      "hitbox": [
+        869,
+        264,
+        78,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r1-c4-shop.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          68,
+          0
+        ],
+        [
+          77,
+          9
+        ],
+        [
+          77,
+          77
+        ],
+        [
+          68,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r1-c4",
+      "position": [
+        869,
+        264
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        78,
+        87
+      ]
+    },
+    {
+      "id": "node-r1-c5-normal",
+      "role": "node",
+      "rect": [
+        1058,
+        264,
+        79,
+        87
+      ],
+      "hitbox": [
+        1058,
+        264,
+        79,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r1-c5-normal.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          69,
+          0
+        ],
+        [
+          78,
+          9
+        ],
+        [
+          78,
+          77
+        ],
+        [
+          69,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r1-c5",
+      "position": [
+        1058,
+        264
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        79,
+        87
+      ]
+    },
+    {
+      "id": "node-r1-c6-rest",
+      "role": "node",
+      "rect": [
+        1241,
+        264,
+        79,
+        87
+      ],
+      "hitbox": [
+        1241,
+        264,
+        79,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r1-c6-rest.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          69,
+          0
+        ],
+        [
+          78,
+          9
+        ],
+        [
+          78,
+          77
+        ],
+        [
+          69,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r1-c6",
+      "position": [
+        1241,
+        264
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        79,
+        87
+      ]
+    },
+    {
+      "id": "node-r1-c7-normal",
+      "role": "node",
+      "rect": [
+        1407,
+        264,
+        78,
+        87
+      ],
+      "hitbox": [
+        1407,
+        264,
+        78,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r1-c7-normal.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          68,
+          0
+        ],
+        [
+          77,
+          9
+        ],
+        [
+          77,
+          77
+        ],
+        [
+          68,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r1-c7",
+      "position": [
+        1407,
+        264
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        78,
+        87
+      ]
+    },
+    {
+      "id": "node-r2-c1-event",
+      "role": "node",
+      "rect": [
+        294,
+        407,
+        78,
+        87
+      ],
+      "hitbox": [
+        294,
+        407,
+        78,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r2-c1-event.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          68,
+          0
+        ],
+        [
+          77,
+          9
+        ],
+        [
+          77,
+          77
+        ],
+        [
+          68,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r2-c1",
+      "position": [
+        294,
+        407
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        78,
+        87
+      ]
+    },
+    {
+      "id": "node-r2-c2-rest",
+      "role": "node",
+      "rect": [
+        478,
+        407,
+        78,
+        87
+      ],
+      "hitbox": [
+        478,
+        407,
+        78,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r2-c2-rest.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          68,
+          0
+        ],
+        [
+          77,
+          9
+        ],
+        [
+          77,
+          77
+        ],
+        [
+          68,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r2-c2",
+      "position": [
+        478,
+        407
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        78,
+        87
+      ]
+    },
+    {
+      "id": "node-r2-c3-normal",
+      "role": "node",
+      "rect": [
+        662,
+        407,
+        79,
+        87
+      ],
+      "hitbox": [
+        662,
+        407,
+        79,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r2-c3-normal.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          69,
+          0
+        ],
+        [
+          78,
+          9
+        ],
+        [
+          78,
+          77
+        ],
+        [
+          69,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r2-c3",
+      "position": [
+        662,
+        407
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        79,
+        87
+      ]
+    },
+    {
+      "id": "node-r2-c4-treasure",
+      "role": "node",
+      "rect": [
+        871,
+        407,
+        78,
+        87
+      ],
+      "hitbox": [
+        871,
+        407,
+        78,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r2-c4-treasure.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          68,
+          0
+        ],
+        [
+          77,
+          9
+        ],
+        [
+          77,
+          77
+        ],
+        [
+          68,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r2-c4",
+      "position": [
+        871,
+        407
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        78,
+        87
+      ]
+    },
+    {
+      "id": "node-r2-c5-treasure",
+      "role": "node",
+      "rect": [
+        1059,
+        407,
+        78,
+        87
+      ],
+      "hitbox": [
+        1059,
+        407,
+        78,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r2-c5-treasure.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          68,
+          0
+        ],
+        [
+          77,
+          9
+        ],
+        [
+          77,
+          77
+        ],
+        [
+          68,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r2-c5",
+      "position": [
+        1059,
+        407
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        78,
+        87
+      ]
+    },
+    {
+      "id": "node-r2-c6-normal",
+      "role": "node",
+      "rect": [
+        1243,
+        407,
+        78,
+        87
+      ],
+      "hitbox": [
+        1243,
+        407,
+        78,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r2-c6-normal.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          68,
+          0
+        ],
+        [
+          77,
+          9
+        ],
+        [
+          77,
+          77
+        ],
+        [
+          68,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r2-c6",
+      "position": [
+        1243,
+        407
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        78,
+        87
+      ]
+    },
+    {
+      "id": "node-r2-c7-normal",
+      "role": "node",
+      "rect": [
+        1408,
+        407,
+        78,
+        87
+      ],
+      "hitbox": [
+        1408,
+        407,
+        78,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r2-c7-normal.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          68,
+          0
+        ],
+        [
+          77,
+          9
+        ],
+        [
+          77,
+          77
+        ],
+        [
+          68,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r2-c7",
+      "position": [
+        1408,
+        407
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        78,
+        87
+      ]
+    },
+    {
+      "id": "node-r3-c1-normal",
+      "role": "node",
+      "rect": [
+        296,
+        552,
+        78,
+        87
+      ],
+      "hitbox": [
+        296,
+        552,
+        78,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r3-c1-normal.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          68,
+          0
+        ],
+        [
+          77,
+          9
+        ],
+        [
+          77,
+          77
+        ],
+        [
+          68,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r3-c1",
+      "position": [
+        296,
+        552
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        78,
+        87
+      ]
+    },
+    {
+      "id": "node-r3-c2-rest",
+      "role": "node",
+      "rect": [
+        479,
+        552,
+        78,
+        87
+      ],
+      "hitbox": [
+        479,
+        552,
+        78,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r3-c2-rest.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          68,
+          0
+        ],
+        [
+          77,
+          9
+        ],
+        [
+          77,
+          77
+        ],
+        [
+          68,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r3-c2",
+      "position": [
+        479,
+        552
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        78,
+        87
+      ]
+    },
+    {
+      "id": "node-r3-c3-event",
+      "role": "node",
+      "rect": [
+        664,
+        552,
+        79,
+        87
+      ],
+      "hitbox": [
+        664,
+        552,
+        79,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r3-c3-event.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          69,
+          0
+        ],
+        [
+          78,
+          9
+        ],
+        [
+          78,
+          77
+        ],
+        [
+          69,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r3-c3",
+      "position": [
+        664,
+        552
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        79,
+        87
+      ]
+    },
+    {
+      "id": "node-r3-c4-shop",
+      "role": "node",
+      "rect": [
+        870,
+        552,
+        79,
+        87
+      ],
+      "hitbox": [
+        870,
+        552,
+        79,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r3-c4-shop.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          69,
+          0
+        ],
+        [
+          78,
+          9
+        ],
+        [
+          78,
+          77
+        ],
+        [
+          69,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r3-c4",
+      "position": [
+        870,
+        552
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        79,
+        87
+      ]
+    },
+    {
+      "id": "node-r3-c5-elite",
+      "role": "node",
+      "rect": [
+        1057,
+        552,
+        79,
+        87
+      ],
+      "hitbox": [
+        1057,
+        552,
+        79,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r3-c5-elite.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          69,
+          0
+        ],
+        [
+          78,
+          9
+        ],
+        [
+          78,
+          77
+        ],
+        [
+          69,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r3-c5",
+      "position": [
+        1057,
+        552
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        79,
+        87
+      ]
+    },
+    {
+      "id": "node-r3-c6-shop",
+      "role": "node",
+      "rect": [
+        1243,
+        552,
+        78,
+        87
+      ],
+      "hitbox": [
+        1243,
+        552,
+        78,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r3-c6-shop.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          68,
+          0
+        ],
+        [
+          77,
+          9
+        ],
+        [
+          77,
+          77
+        ],
+        [
+          68,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r3-c6",
+      "position": [
+        1243,
+        552
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        78,
+        87
+      ]
+    },
+    {
+      "id": "node-r3-c7-normal",
+      "role": "node",
+      "rect": [
+        1407,
+        552,
+        79,
+        87
+      ],
+      "hitbox": [
+        1407,
+        552,
+        79,
+        87
+      ],
+      "z_index": 40,
+      "output": "nodes/r3-c7-normal.png",
+      "mode": "polygon",
+      "polygon": [
+        [
+          9,
+          0
+        ],
+        [
+          69,
+          0
+        ],
+        [
+          78,
+          9
+        ],
+        [
+          78,
+          77
+        ],
+        [
+          69,
+          86
+        ],
+        [
+          9,
+          86
+        ],
+        [
+          0,
+          77
+        ],
+        [
+          0,
+          9
+        ]
+      ],
+      "action": "select-node-r3-c7",
+      "position": [
+        1407,
+        552
+      ],
+      "content_offset": [
+        0,
+        0
+      ],
+      "output_size": [
+        79,
+        87
+      ]
+    }
+  ]
+}

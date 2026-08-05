@@ -1,0 +1,3 @@
+mean_absolute_channel_error=0.4114
+max_channel_error=173
+changed_pixels_over_8=1.2019%
