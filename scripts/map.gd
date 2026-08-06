@@ -49,12 +49,13 @@ const NODE_COLORS := {
 const NODE_FRAME_ASSET := SCENE_ASSETS + "选项底图.png"
 const NODE_HOVER_ASSET := SCENE_ASSETS + "选项选中框.png"
 const NODE_ICON_ASSETS := {
+	"start": SCENE_ASSETS + "起点icon.png",
 	"battle": SCENE_ASSETS + "战斗icon.png",
 	"elite": SCENE_ASSETS + "精英icon.png",
-	"shop": SCENE_ASSETS + "奖励icon.png",
+	"shop": SCENE_ASSETS + "休息icon.png",
 	"event": SCENE_ASSETS + "事件icon.png",
 	"chest": SCENE_ASSETS + "奖励icon.png",
-	"rest": SCENE_ASSETS + "休息icon.png",
+	"rest": SCENE_ASSETS + "休息节点icon.png",
 }
 
 var source_han_font: FontFile
@@ -64,6 +65,7 @@ var map_content: Control
 var hero: Panel
 var node_buttons: Dictionary = {}
 var node_hover_frames: Dictionary = {}
+var node_state_overlays: Dictionary = {}
 var input_locked := false
 var status_label: Label
 var coin_label: Label
@@ -282,10 +284,19 @@ func _build_nodes() -> void:
 		hover_frame.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		hover_frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		hover_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		hover_frame.z_index = 42
+		hover_frame.z_index = 43
 		hover_frame.visible = false
 		map_content.add_child(hover_frame)
 		node_hover_frames[node_id] = hover_frame
+
+		var state_overlay := ColorRect.new()
+		state_overlay.position = center - node_size * 0.5
+		state_overlay.size = node_size
+		state_overlay.color = Color(0, 0, 0, 0.48)
+		state_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		state_overlay.z_index = 42
+		map_content.add_child(state_overlay)
+		node_state_overlays[node_id] = state_overlay
 		_refresh_single_node(node_id)
 	_update_node_info(GameState.current_map_node)
 
@@ -436,10 +447,13 @@ func _refresh_single_node(node_id: int) -> void:
 	var button := node_buttons.get(node_id) as TextureButton
 	if button == null:
 		return
-	if GameState.is_map_node_completed(node_id):
-		button.modulate = Color(0.58, 0.58, 0.62, 1.0)
-	else:
-		button.modulate = Color.WHITE
+	button.modulate = Color.WHITE
+	var overlay := node_state_overlays.get(node_id) as ColorRect
+	if overlay != null:
+		var completed := GameState.is_map_node_completed(node_id)
+		var unavailable := node_id not in _selectable_node_ids()
+		overlay.visible = completed or unavailable
+		overlay.color = Color(0, 0, 0, 0.38 if completed else 0.55)
 
 
 func _on_node_hovered(node_id: int) -> void:
