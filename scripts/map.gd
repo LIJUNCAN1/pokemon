@@ -5,7 +5,6 @@ const DESIGN_SIZE := Vector2(1280, 720)
 const FULL_HD_SCALE := Vector2(1.5, 1.5)
 const REFERENCE_SIZE := Vector2(1672, 941)
 const REFERENCE_SCALE := Vector2(DESIGN_SIZE.x / REFERENCE_SIZE.x, DESIGN_SIZE.y / REFERENCE_SIZE.y)
-const MAP_UI := "res://assets/ui/map/"
 const EVENT := "res://素材/事件/"
 const SCENE_ASSETS := "res://素材/场景/"
 const POKEMON := "res://素材/宝可梦图/"
@@ -47,12 +46,24 @@ const NODE_COLORS := {
 	"rest": Color("9a65dc"),
 	"boss": Color("ef3d45"),
 }
+const NODE_FRAME_ASSET := SCENE_ASSETS + "选项底图.png"
+const NODE_HOVER_ASSET := SCENE_ASSETS + "选项选中框.png"
+const NODE_ICON_ASSETS := {
+	"battle": SCENE_ASSETS + "战斗icon.png",
+	"elite": SCENE_ASSETS + "精英icon.png",
+	"shop": SCENE_ASSETS + "奖励icon.png",
+	"event": SCENE_ASSETS + "事件icon.png",
+	"chest": SCENE_ASSETS + "奖励icon.png",
+	"rest": SCENE_ASSETS + "休息icon.png",
+}
 
 var source_han_font: FontFile
 var rng := RandomNumberGenerator.new()
 var world: Control
+var map_content: Control
 var hero: Panel
 var node_buttons: Dictionary = {}
+var node_hover_frames: Dictionary = {}
 var input_locked := false
 var status_label: Label
 var coin_label: Label
@@ -76,6 +87,8 @@ var event_result_text := ""
 var event_result_kind := "story"
 var chest_event := false
 var chest_coin_amount := 0
+var node_info_detail: Label
+var node_info_hint: Label
 
 
 func _ready() -> void:
@@ -160,26 +173,27 @@ func _build_interface() -> void:
 	world.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(world)
 
-	_add_map_texture(world, MAP_UI + "full-background-completed.png", Rect2(Vector2.ZERO, REFERENCE_SIZE), 0)
+	var map_background := _add_map_texture(world, SCENE_ASSETS + "底图-地图内容.png", Rect2(Vector2.ZERO, REFERENCE_SIZE), 0)
+	map_background.stretch_mode = TextureRect.STRETCH_SCALE
+	map_content = Control.new()
+	map_content.position = Vector2.ZERO
+	map_content.size = REFERENCE_SIZE
+	map_content.pivot_offset = REFERENCE_SIZE * 0.5
+	map_content.scale = Vector2(1.1, 1.0)
+	map_content.mouse_filter = Control.MOUSE_FILTER_PASS
+	world.add_child(map_content)
 	_build_paths()
-	_add_map_texture(world, MAP_UI + "panels/trail-title-panel.png", Rect2(39, 149, 394, 64), 15)
-	_add_map_texture(world, MAP_UI + "panels/progress-panel.png", Rect2(1330, 151, 305, 66), 15)
-	_add_map_texture(world, MAP_UI + "panels/legend-background-content.png", Rect2(56, 765, 1562, 107), 16)
+	_build_node_info_panel()
+	_build_map_title()
 
-	_add_map_texture(world, MAP_UI + "header/run-counter.png", Rect2(39, 61, 182, 64), 30)
-	_add_map_texture(world, MAP_UI + "header/currency-counter.png", Rect2(230, 63, 150, 62), 30)
-	_add_map_texture(world, MAP_UI + "header/tab-map-selected.png", Rect2(498, 59, 255, 67), 30)
-	_add_map_texture(world, MAP_UI + "header/tab-team.png", Rect2(763, 59, 248, 67), 30)
-	_add_map_texture(world, MAP_UI + "header/tab-bag.png", Rect2(1019, 59, 248, 67), 30)
-	_add_map_texture(world, MAP_UI + "header/tab-relics.png", Rect2(1275, 59, 248, 67), 30)
-	var close_button := _add_map_texture_button(world, MAP_UI + "header/close-button.png", Rect2(1565, 59, 72, 67), 31)
-	close_button.tooltip_text = "返回主菜单"
-	close_button.pressed.connect(_return_to_main)
+	var settings_button := _add_map_texture_button(world, SCENE_ASSETS + "设置icon.png", Rect2(1580, 42, 50, 46), 31)
+	settings_button.tooltip_text = "设置"
+	settings_button.pressed.connect(_open_map_settings)
 
 	_build_nodes()
 	_build_hero()
-	_add_map_texture(world, MAP_UI + "labels/start-label.png", Rect2(111, 514, 54, 20), 41)
-	_add_map_texture(world, MAP_UI + "labels/boss-label.png", Rect2(1546, 508, 50, 21), 41)
+	var map_frame := _add_map_texture(world, SCENE_ASSETS + "底图-边框覆盖.png", Rect2(Vector2.ZERO, REFERENCE_SIZE), 60)
+	map_frame.stretch_mode = TextureRect.STRETCH_SCALE
 
 	status_label = Label.new()
 	status_label.visible = false
@@ -190,45 +204,100 @@ func _build_interface() -> void:
 
 
 func _build_paths() -> void:
-	_add_map_texture(world, MAP_UI + "map/route-connectors-runtime.png", Rect2(Vector2.ZERO, REFERENCE_SIZE), 20)
+	for source_id in GameState.map_edges:
+		var source_position := _node_position(int(source_id))
+		for target_id in GameState.map_edges[source_id]:
+			_add_dashed_path(source_position, _node_position(int(target_id)))
+
+
+func _add_dashed_path(start: Vector2, finish: Vector2) -> void:
+	var direction := finish - start
+	var length := direction.length()
+	var normal := direction.normalized()
+	var dash_texture := load(SCENE_ASSETS + "虚线.png") as Texture2D
+	var offset := 0.0
+	while offset < length:
+		var dash := TextureRect.new()
+		dash.position = start + normal * offset
+		dash.size = Vector2(minf(8.0, length - offset), 3)
+		dash.pivot_offset = Vector2(0, 1.5)
+		dash.rotation = direction.angle()
+		dash.texture = dash_texture
+		dash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		dash.stretch_mode = TextureRect.STRETCH_SCALE
+		dash.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		dash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		dash.z_index = 20
+		map_content.add_child(dash)
+		offset += 15.0
 
 
 func _build_nodes() -> void:
 	var selectable := _selectable_node_ids()
 	for spec in _reference_node_specs():
 		var node_id := int(spec["id"])
-		var rect: Rect2 = spec["rect"]
-		var texture := load(MAP_UI + "nodes/" + String(spec["asset"])) as Texture2D
+		var node_type := String(spec["type"])
+		var center: Vector2 = spec["center"]
+		var node_size := Vector2(92, 83) if node_type != "boss" else Vector2(120, 108)
+		var frame_path := SCENE_ASSETS + "boss.png" if node_type == "boss" else NODE_FRAME_ASSET
 		var button := TextureButton.new()
-		button.position = rect.position
-		button.size = rect.size
-		button.texture_normal = texture
-		button.texture_hover = texture
-		button.texture_pressed = texture
-		button.texture_disabled = texture
+		button.position = center - node_size * 0.5
+		button.size = node_size
+		button.texture_normal = load(frame_path) as Texture2D
+		button.texture_hover = button.texture_normal
+		button.texture_pressed = button.texture_normal
+		button.texture_disabled = button.texture_normal
 		button.ignore_texture_size = true
 		button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		button.focus_mode = Control.FOCUS_NONE
 		button.z_index = 40
-		button.disabled = input_locked or node_id not in selectable
-		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if not button.disabled else Control.CURSOR_ARROW
+		button.disabled = input_locked
+		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if node_id in selectable else Control.CURSOR_ARROW
 		button.tooltip_text = String(NODE_LABELS.get(spec["type"], "节点"))
 		button.pressed.connect(_on_node_pressed.bind(node_id))
 		button.mouse_entered.connect(_on_node_hovered.bind(node_id))
 		button.mouse_exited.connect(_on_node_unhovered.bind(node_id))
-		world.add_child(button)
+		map_content.add_child(button)
 		node_buttons[node_id] = button
+
+		if node_type in NODE_ICON_ASSETS:
+			var icon := TextureRect.new()
+			icon.position = center - Vector2(27, 27)
+			icon.size = Vector2(54, 54)
+			icon.texture = load(String(NODE_ICON_ASSETS[node_type])) as Texture2D
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			icon.z_index = 41
+			map_content.add_child(icon)
+
+		var hover_frame := TextureRect.new()
+		var hover_size := Vector2(110, 86) if node_type != "boss" else Vector2(136, 112)
+		hover_frame.position = center - hover_size * 0.5
+		hover_frame.size = hover_size
+		hover_frame.texture = load(NODE_HOVER_ASSET) as Texture2D
+		hover_frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		hover_frame.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		hover_frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		hover_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		hover_frame.z_index = 42
+		hover_frame.visible = false
+		map_content.add_child(hover_frame)
+		node_hover_frames[node_id] = hover_frame
 		_refresh_single_node(node_id)
+	_update_node_info(GameState.current_map_node)
 
 
 func _build_hero() -> void:
 	hero = Panel.new()
-	hero.size = Vector2(96, 105)
+	hero.size = Vector2(112, 96)
 	hero.position = _node_position(GameState.current_map_node) - hero.size * 0.5
 	hero.z_index = 39
 	hero.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hero.add_theme_stylebox_override("panel", _panel_style(Color.TRANSPARENT, Color("f0a71d"), 3))
-	world.add_child(hero)
+	map_content.add_child(hero)
 
 
 func _add_map_texture(parent: Control, path: String, rect: Rect2, layer: int) -> TextureRect:
@@ -262,12 +331,85 @@ func _add_map_texture_button(parent: Control, path: String, rect: Rect2, layer: 
 	return button
 
 
+func _build_node_info_panel() -> void:
+	node_info_detail = Label.new()
+	node_info_detail.position = Vector2(76, 790)
+	node_info_detail.size = Vector2(1120, 44)
+	node_info_detail.add_theme_font_override("font", source_han_font)
+	node_info_detail.add_theme_font_size_override("font_size", 21)
+	node_info_detail.add_theme_color_override("font_color", Color("24313d"))
+	node_info_detail.z_index = 20
+	world.add_child(node_info_detail)
+
+	node_info_hint = Label.new()
+	node_info_hint.position = Vector2(1240, 812)
+	node_info_hint.size = Vector2(320, 28)
+	node_info_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	node_info_hint.add_theme_font_override("font", source_han_font)
+	node_info_hint.add_theme_font_size_override("font_size", 15)
+	node_info_hint.add_theme_color_override("font_color", Color("687681"))
+	node_info_hint.z_index = 20
+	world.add_child(node_info_hint)
+
+
+func _update_node_info(node_id: int) -> void:
+	if node_info_detail == null or node_id < 0 or node_id >= GameState.map_nodes.size():
+		return
+	var node_type := String(GameState.map_nodes[node_id].get("type", ""))
+	node_info_detail.text = _node_description(node_type)
+	node_info_hint.text = "点击节点开始" if node_id in _selectable_node_ids() and not input_locked else ""
+
+
+func _build_map_title() -> void:
+	var title := Label.new()
+	title.position = Vector2(48, 39)
+	title.size = Vector2(180, 54)
+	title.text = "MAP"
+	title.add_theme_font_override("font", source_han_font)
+	title.add_theme_font_size_override("font_size", 33)
+	title.add_theme_color_override("font_color", Color.WHITE)
+	title.add_theme_color_override("font_outline_color", Color("27313a"))
+	title.add_theme_constant_override("outline_size", 2)
+	title.z_index = 30
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	world.add_child(title)
+
+
+func _node_description(node_type: String) -> String:
+	match node_type:
+		"start": return "整备队伍并开始本次探索"
+		"battle": return "与野生宝可梦战斗，获得奖励"
+		"elite": return "挑战精英敌人，奖励更加丰厚"
+		"shop": return "购买道具并调整队伍状态"
+		"event": return "触发随机事件并作出选择"
+		"chest": return "打开宝箱，获得随机资源"
+		"rest": return "恢复状态，为下一段路程做准备"
+		"boss": return "最终首领战，完成本区域"
+		_: return "选择一个地图节点"
+
+
+func _open_map_settings() -> void:
+	var overlay := preload("res://settings_overlay.tscn").instantiate() as Control
+	overlay.set("exit_scene_path", "res://map.tscn")
+	add_child(overlay)
+
+
 func _position_map_on_entry() -> void:
 	await get_tree().process_frame
-	world.position = Vector2.ZERO
+	var play_intro := input_locked
+	if play_intro:
+		# Start focused on the boss side, then pan left until the full route is visible.
+		map_content.position = Vector2(-735, 0)
+		var camera_tween := create_tween()
+		camera_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		camera_tween.tween_property(map_content, "position", Vector2.ZERO, 1.6)
+		await camera_tween.finished
+	else:
+		map_content.position = Vector2.ZERO
 	GameState.map_intro_played = true
 	input_locked = false
 	_refresh_node_interaction()
+	_update_node_info(GameState.current_map_node)
 	if GameState.current_map_node_type() == "boss" and GameState.is_map_node_completed(GameState.current_map_node):
 		_show_run_complete()
 
@@ -285,8 +427,8 @@ func _refresh_node_interaction() -> void:
 	var selectable := _selectable_node_ids()
 	for node_id in node_buttons:
 		var button: TextureButton = node_buttons[node_id]
-		button.disabled = input_locked or int(node_id) not in selectable
-		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if not button.disabled else Control.CURSOR_ARROW
+		button.disabled = input_locked
+		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if int(node_id) in selectable and not input_locked else Control.CURSOR_ARROW
 		_refresh_single_node(int(node_id))
 
 
@@ -302,12 +444,20 @@ func _refresh_single_node(node_id: int) -> void:
 
 func _on_node_hovered(node_id: int) -> void:
 	var button := node_buttons.get(node_id) as TextureButton
+	var hover_frame := node_hover_frames.get(node_id) as TextureRect
+	if hover_frame != null:
+		hover_frame.visible = true
 	if button != null and not button.disabled:
 		button.modulate = Color(1.12, 1.08, 0.90, 1.0)
+	_update_node_info(node_id)
 
 
 func _on_node_unhovered(node_id: int) -> void:
+	var hover_frame := node_hover_frames.get(node_id) as TextureRect
+	if hover_frame != null:
+		hover_frame.visible = false
 	_refresh_single_node(node_id)
+	_update_node_info(GameState.current_map_node)
 
 
 func _on_node_pressed(node_id: int) -> void:
