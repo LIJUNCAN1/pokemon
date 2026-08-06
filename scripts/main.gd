@@ -3,6 +3,8 @@ extends Control
 const VERSION := "v0.1.0  ·  PRE-ALPHA"
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
 const SETTINGS_OVERLAY_SCENE: PackedScene = preload("res://settings_overlay.tscn")
+const MENU_BUTTON_NORMAL: Texture2D = preload("res://素材/图鉴/image-1785689601756-qiebwnuc88d.png")
+const MENU_BUTTON_PRESSED: Texture2D = preload("res://素材/图鉴/image-1785689604613-bfsan608w6.png")
 const DESIGN_SIZE := Vector2(1280, 720)
 const FULL_HD_SCALE := Vector2(1.5, 1.5)
 
@@ -10,7 +12,6 @@ const FULL_HD_SCALE := Vector2(1.5, 1.5)
 @onready var background_material: ShaderMaterial = background.material
 @onready var logo: TextureRect = $Logo
 @onready var menu_music: AudioStreamPlayer = $MenuMusic
-@onready var menu_band: ColorRect = $MenuBand
 @onready var menu_content: VBoxContainer = $MenuContent
 @onready var status_label: Label = $MenuContent/Status
 @onready var version_label: Label = $Version
@@ -83,9 +84,8 @@ func _build_pixel_theme() -> void:
 	source_han_font.oversampling = FULL_HD_SCALE.x
 	source_han_font.allow_system_fallback = false
 
-	var normal := _make_button_box(Color(0.025, 0.05, 0.065, 0.48), Color(0.38, 0.68, 0.75, 0.45), 2)
-	var hover := _make_button_box(Color(0.04, 0.16, 0.20, 0.82), Color(0.42, 0.93, 1.0, 0.95), 3)
-	var pressed := _make_button_box(Color(0.09, 0.25, 0.28, 0.95), Color(1.0, 0.87, 0.32, 1.0), 3)
+	var normal := _make_button_texture_box(MENU_BUTTON_NORMAL)
+	var pressed := _make_button_texture_box(MENU_BUTTON_PRESSED, 4.0)
 	for button in buttons:
 		button.focus_mode = Control.FOCUS_NONE
 		button.add_theme_font_override("font", source_han_font)
@@ -100,9 +100,10 @@ func _build_pixel_theme() -> void:
 		button.add_theme_constant_override("shadow_offset_x", 1)
 		button.add_theme_constant_override("shadow_offset_y", 1)
 		button.add_theme_stylebox_override("normal", normal)
-		button.add_theme_stylebox_override("hover", hover)
+		button.add_theme_stylebox_override("hover", normal)
 		button.add_theme_stylebox_override("pressed", pressed)
 		button.add_theme_stylebox_override("focus", normal)
+		button.add_theme_stylebox_override("disabled", normal)
 
 	for label in [$MenuContent/MenuHint, status_label, version_label, press_any_key]:
 		label.add_theme_font_override("font", source_han_font)
@@ -112,20 +113,17 @@ func _build_pixel_theme() -> void:
 		label.add_theme_constant_override("shadow_offset_y", 1)
 
 
-func _make_button_box(fill_color: Color, border_color: Color, border_width: int) -> StyleBoxFlat:
-	var box := StyleBoxFlat.new()
-	box.bg_color = fill_color
-	box.border_color = border_color
-	box.set_border_width_all(border_width)
-	box.corner_radius_top_left = 2
-	box.corner_radius_top_right = 2
-	box.corner_radius_bottom_left = 2
-	box.corner_radius_bottom_right = 2
+func _make_button_texture_box(texture: Texture2D, pressed_offset := 0.0) -> StyleBoxTexture:
+	var box := StyleBoxTexture.new()
+	box.texture = texture
+	box.texture_margin_left = 18.0
+	box.texture_margin_top = 18.0
+	box.texture_margin_right = 18.0
+	box.texture_margin_bottom = 18.0
 	box.content_margin_left = 18.0
+	box.content_margin_top = 8.0 + pressed_offset
 	box.content_margin_right = 18.0
-	box.shadow_color = Color(0, 0, 0, 0.5)
-	box.shadow_size = 5
-	box.shadow_offset = Vector2(0, 4)
+	box.content_margin_bottom = 8.0
 	return box
 
 
@@ -145,7 +143,6 @@ func _play_intro() -> void:
 	for button in buttons:
 		button.disabled = true
 	logo.modulate.a = 0.0
-	menu_band.modulate.a = 0.0
 	menu_content.modulate.a = 0.0
 	version_label.modulate.a = 0.0
 	press_any_key.modulate.a = 0.0
@@ -256,7 +253,6 @@ func _show_main_menu() -> void:
 	var reveal := create_tween().set_parallel(true)
 	reveal.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	reveal.tween_property(press_any_key, "modulate:a", 0.0, 0.25)
-	reveal.tween_property(menu_band, "modulate:a", 1.0, 0.55).set_delay(0.15)
 	reveal.tween_property(menu_content, "modulate:a", 1.0, 0.6).set_delay(0.3)
 	reveal.tween_property(version_label, "modulate:a", 1.0, 0.5).set_delay(0.45)
 	await reveal.finished

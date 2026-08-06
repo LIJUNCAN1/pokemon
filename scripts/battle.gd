@@ -64,9 +64,12 @@ var battle_speed_button: Button
 var settings_overlay: Control
 var victory_reward_text := ""
 
+@onready var battle_music: AudioStreamPlayer = $BattleMusic
+
 
 func _ready() -> void:
 	_apply_full_hd_layout()
+	_start_battle_music()
 	rng.randomize()
 	source_han_font = SOURCE_HAN_FONT.duplicate() as FontFile
 	source_han_font.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
@@ -76,6 +79,21 @@ func _ready() -> void:
 	source_han_font.allow_system_fallback = false
 	_build_battlefield()
 	_play_transition_in.call_deferred()
+
+
+func _start_battle_music() -> void:
+	if AudioServer.get_bus_index("Music") < 0:
+		AudioServer.add_bus()
+		AudioServer.set_bus_name(AudioServer.bus_count - 1, "Music")
+	battle_music.bus = "Music"
+	var mp3_stream := battle_music.stream as AudioStreamMP3
+	if mp3_stream:
+		mp3_stream.loop = true
+	battle_music.volume_db = -40.0
+	battle_music.play()
+	var music_fade := create_tween()
+	music_fade.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	music_fade.tween_property(battle_music, "volume_db", -12.0, 1.4)
 
 
 func _apply_full_hd_layout() -> void:
