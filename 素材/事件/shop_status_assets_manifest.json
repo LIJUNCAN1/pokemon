@@ -1,0 +1,26 @@
+{
+  "coordinate_system": "battle_prep 1280x720 scene space with 0.5 root scale",
+  "assets": [
+    {
+      "source": "res://素材/事件/精灵图-0007.png",
+      "canvas": [532, 533],
+      "alpha_bounds": [0, 0, 532, 533],
+      "role": "creature star level icon",
+      "runtime_size": [15, 15],
+      "states": [1, 2, 3],
+      "filter": "nearest",
+      "mipmaps": false
+    },
+    {
+      "source": "res://素材/事件/sold out.png",
+      "canvas": [234, 87],
+      "alpha_bounds": [9, 3, 214, 80],
+      "role": "purchased shop card overlay",
+      "runtime_rect": [9, 17, 128, 48],
+      "rotation_degrees": 30,
+      "filter": "nearest",
+      "mipmaps": false,
+      "resampling_note": "rotation necessarily resamples the authored pixel grid"
+    }
+  ]
+}

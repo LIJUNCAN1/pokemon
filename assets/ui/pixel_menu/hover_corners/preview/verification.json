@@ -1,0 +1,12 @@
+{
+  "canvas": [
+    82,
+    59
+  ],
+  "covered_pixels": 191,
+  "coverage_percent": 3.947912360479537,
+  "changed_pixels": 4647,
+  "changed_percent": 96.05208763952047,
+  "mean_absolute_channel_error": 0.037274355794405405,
+  "max_channel_error": 184
+}

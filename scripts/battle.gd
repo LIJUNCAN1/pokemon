@@ -2,6 +2,8 @@ extends Control
 
 class Fighter:
 	var sprite: TextureRect
+	var texture_path := ""
+	var level := 1
 	var charge_frame: Panel
 	var charge_fill: ColorRect
 	var hp_label: Label
@@ -31,11 +33,18 @@ class Fighter:
 
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
 const CATALOG = preload("res://scripts/creature_catalog.gd")
+const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
 const SETTINGS_OVERLAY_SCENE: PackedScene = preload("res://settings_overlay.tscn")
 const DESIGN_SIZE := Vector2(1280, 720)
-const FULL_HD_SCALE := Vector2(1.5, 1.5)
+const FULL_HD_SCALE := Vector2(0.5, 0.5)
 const SCENE_ASSETS := "res://素材/场景/"
 const POKEMON := "res://素材/宝可梦图/"
+const P7_PROJECTILE_SHEET: Texture2D = preload("res://素材/战斗场景/aseprite_export/P7kD08_sheet.png")
+const P7_PROJECTILE_CHARACTER := "1 (7).png"
+const P7_PROJECTILE_FRAME_SIZE := Vector2i(95, 76)
+const P7_PROJECTILE_FRAME_COUNT := 22
+const P7_PROJECTILE_FPS := 12.5
+const P7_PROJECTILE_TRAVEL_FRAMES := 16
 const FALLBACK_TEAM: Array[String] = [
 	POKEMON + "1 (5).png", POKEMON + "1 (6).png", POKEMON + "1 (7).png",
 	POKEMON + "1 (8).png", POKEMON + "1 (9).png", POKEMON + "1 (10).png",
@@ -63,6 +72,8 @@ var battle_speed := 1.0
 var battle_speed_button: Button
 var settings_overlay: Control
 var victory_reward_text := ""
+var consumable_bonuses: Dictionary = {"health": 0.0, "damage": 0.0, "charge": 0.0}
+var p7_projectile_frames: SpriteFrames
 
 @onready var battle_music: AudioStreamPlayer = $BattleMusic
 
@@ -73,10 +84,14 @@ func _ready() -> void:
 	rng.randomize()
 	source_han_font = SOURCE_HAN_FONT.duplicate() as FontFile
 	source_han_font.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
+	source_han_font.multichannel_signed_distance_field = true
+	source_han_font.msdf_pixel_range = 8
+	source_han_font.msdf_size = 64
 	source_han_font.hinting = TextServer.HINTING_NORMAL
 	source_han_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	source_han_font.oversampling = FULL_HD_SCALE.x
 	source_han_font.allow_system_fallback = false
+	consumable_bonuses = GameState.take_next_battle_bonuses()
 	_build_battlefield()
 	_play_transition_in.call_deferred()
 
@@ -103,6 +118,13 @@ func _apply_full_hd_layout() -> void:
 	scale = FULL_HD_SCALE
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		if not is_instance_valid(settings_overlay):
+			get_viewport().set_input_as_handled()
+			_open_battle_settings()
+
+
 func _process(delta: float) -> void:
 	if battle_over:
 		return
@@ -126,7 +148,9 @@ func _build_battlefield() -> void:
 	var sky := _add_texture(SCENE_ASSETS + "图层 2.png", Rect2(0, 0, 1280, 220), 0)
 	sky.stretch_mode = TextureRect.STRETCH_SCALE
 
-	_add_texture(SCENE_ASSETS + "图层 5.png", Rect2(0, 215, 1280, 405), 1, TextureRect.STRETCH_SCALE)
+	# Source is authored at 1920x556, matching this 1280x371 viewport rect
+	# at the project's 1.5x full-screen scale without aspect distortion.
+	_add_texture(SCENE_ASSETS + "战斗地面.png", Rect2(0, 215, 1280, 371), 1, TextureRect.STRETCH_SCALE)
 	_add_texture(SCENE_ASSETS + "图层 3.png", Rect2(0, 82, 1280, 149), 3, TextureRect.STRETCH_SCALE)
 	_build_platforms()
 	_spawn_teams()
@@ -152,7 +176,8 @@ func _spawn_teams() -> void:
 		var column := index % 3
 		var row_x_positions := TOP_X_POSITIONS if row == 0 else BOTTOM_X_POSITIONS
 		if index < player_team.size() and not player_team[index].is_empty():
-			_create_fighter(player_team[index], Vector2(row_x_positions[column], ROW_POSITIONS[row]), true, index)
+			var player_level := GameState.player_team_levels[index] if index < GameState.player_team_levels.size() else 1
+			_create_fighter(player_team[index], Vector2(row_x_positions[column], ROW_POSITIONS[row]), true, index, player_level)
 		if index < enemy_count:
 			GameState.mark_creature_seen(ENEMY_TEAM[index])
 			_create_fighter(ENEMY_TEAM[index], Vector2(row_x_positions[column + 3], ROW_POSITIONS[row]), false, index)
@@ -179,16 +204,23 @@ func _is_first_battle_node() -> bool:
 	return int(GameState.current_map_node_data().get("column", -1)) == 0
 
 
-func _create_fighter(texture_path: String, center: Vector2, player_side: bool, index: int) -> void:
+func _create_fighter(texture_path: String, center: Vector2, player_side: bool, index: int, level: int = 1) -> void:
 	var fighter := Fighter.new()
+	fighter.texture_path = texture_path
+	fighter.level = clampi(level, 1, 3)
 	fighter.player_side = player_side
 	fighter.formation_index = index
 	fighter.attack_range = CATALOG.attack_range_for_texture(texture_path)
 	fighter.traits = CATALOG.traits_for_texture(texture_path)
 	var base_hp := 72 + index * 7
+	var rarity_stat_multiplier := CATALOG.rarity_stat_multiplier(texture_path)
+	base_hp = roundi(base_hp * rarity_stat_multiplier)
+	fighter.damage_multiplier *= rarity_stat_multiplier
 	if player_side:
-		base_hp = roundi(base_hp * (1.0 + GameState.run_health_bonus))
-		fighter.damage_multiplier *= 1.0 + GameState.run_damage_bonus
+		base_hp *= fighter.level
+		fighter.damage_multiplier *= fighter.level
+		base_hp = roundi(base_hp * (1.0 + GameState.run_health_bonus + float(consumable_bonuses["health"])))
+		fighter.damage_multiplier *= 1.0 + GameState.run_damage_bonus + float(consumable_bonuses["damage"])
 	if not player_side and GameState.map_initialized:
 		var encounter_column := int(GameState.current_map_node_data().get("column", 0))
 		base_hp = roundi(base_hp * (1.0 + encounter_column * 0.07))
@@ -206,8 +238,9 @@ func _create_fighter(texture_path: String, center: Vector2, player_side: bool, i
 	fighter.max_hp = base_hp
 	fighter.hp = fighter.max_hp
 	fighter.base_charge_rate = rng.randf_range(0.18, 0.29)
+	fighter.base_charge_rate *= CATALOG.rarity_charge_multiplier(texture_path)
 	if player_side:
-		fighter.base_charge_rate *= 1.0 + GameState.run_charge_bonus
+		fighter.base_charge_rate *= 1.0 + GameState.run_charge_bonus + float(consumable_bonuses["charge"])
 	if not player_side and GameState.map_initialized:
 		var encounter_column := int(GameState.current_map_node_data().get("column", 0))
 		fighter.base_charge_rate *= 1.0 + encounter_column * 0.035
@@ -439,6 +472,57 @@ func _play_attack_animation(attacker: Fighter, target: Fighter, damage: int) -> 
 	float_tween.tween_property(damage_label, "position:y", damage_label.position.y - 28, 0.55)
 	float_tween.tween_property(damage_label, "modulate:a", 0.0, 0.55)
 	float_tween.chain().tween_callback(damage_label.queue_free)
+
+	if attacker.texture_path.get_file() == P7_PROJECTILE_CHARACTER:
+		_play_p7_projectile(attacker, target)
+
+
+func _play_p7_projectile(attacker: Fighter, target: Fighter) -> void:
+	var projectile := AnimatedSprite2D.new()
+	projectile.sprite_frames = _get_p7_projectile_frames()
+	projectile.animation = &"attack"
+	projectile.centered = true
+	projectile.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	projectile.flip_h = not attacker.player_side
+	projectile.z_index = 18
+	projectile.position = _fighter_visual_center(attacker)
+	add_child(projectile)
+
+	var playback_scale := maxf(battle_speed, 0.01)
+	projectile.speed_scale = playback_scale
+	projectile.play()
+	projectile.animation_finished.connect(projectile.queue_free, CONNECT_ONE_SHOT)
+
+	# Frames 0-15 are the launch and flying orb; frames 16-21 are the impact.
+	var travel_duration := float(P7_PROJECTILE_TRAVEL_FRAMES) / P7_PROJECTILE_FPS / playback_scale
+	var travel_tween := create_tween()
+	travel_tween.set_trans(Tween.TRANS_LINEAR)
+	travel_tween.tween_property(projectile, "position", _fighter_visual_center(target), travel_duration)
+
+
+func _get_p7_projectile_frames() -> SpriteFrames:
+	if p7_projectile_frames != null:
+		return p7_projectile_frames
+	p7_projectile_frames = SpriteFrames.new()
+	p7_projectile_frames.remove_animation(&"default")
+	p7_projectile_frames.add_animation(&"attack")
+	p7_projectile_frames.set_animation_loop(&"attack", false)
+	p7_projectile_frames.set_animation_speed(&"attack", P7_PROJECTILE_FPS)
+	for frame_index in P7_PROJECTILE_FRAME_COUNT:
+		var frame_texture := AtlasTexture.new()
+		frame_texture.atlas = P7_PROJECTILE_SHEET
+		frame_texture.region = Rect2i(
+			frame_index * P7_PROJECTILE_FRAME_SIZE.x,
+			0,
+			P7_PROJECTILE_FRAME_SIZE.x,
+			P7_PROJECTILE_FRAME_SIZE.y
+		)
+		p7_projectile_frames.add_frame(&"attack", frame_texture)
+	return p7_projectile_frames
+
+
+func _fighter_visual_center(fighter: Fighter) -> Vector2:
+	return fighter.sprite.position + fighter.sprite.size * 0.5
 
 
 func _process_synergy_timers(delta: float) -> void:
@@ -760,10 +844,9 @@ func _finish_battle(player_won: bool) -> void:
 		for texture_path in GameState.player_team:
 			if not texture_path.is_empty():
 				GameState.unlock_creature_achievement(texture_path, GameState.ACHIEVEMENT_STAR)
-		var interest_gold := floori(float(GameState.coins) / 10.0)
-		var victory_gold := 5 + interest_gold
-		GameState.coins += victory_gold
-		victory_reward_text = "战斗金币：基础 +5，利息 +%d" % interest_gold
+		var victory_gold := _victory_gold_reward()
+		GameState.add_coins(victory_gold)
+		victory_reward_text = "战斗金币：+%d" % victory_gold
 		GameState.battle_victories += 1
 		if GameState.battle_victories % 3 == 0:
 			victory_reward_text += "\n三战奖励：%s" % _grant_battle_streak_item()
@@ -771,6 +854,8 @@ func _finish_battle(player_won: bool) -> void:
 			GameState.complete_current_map_node()
 			if _is_first_battle_node():
 				victory_reward_text += "\n" + _grant_first_battle_chest()
+	else:
+		GameState.lose_run_life()
 	var shade := ColorRect.new()
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	shade.color = Color(0, 0, 0, 0.7)
@@ -780,46 +865,43 @@ func _finish_battle(player_won: bool) -> void:
 	if not victory_reward_text.is_empty():
 		_add_label(victory_reward_text, Rect2(300, 315, 680, 58), 15, Color("ffd159"), HORIZONTAL_ALIGNMENT_CENTER, 110)
 	var result_button_y := 390.0 if not victory_reward_text.is_empty() else 350.0
-	if not player_won or not GameState.map_initialized:
+	if (not player_won and GameState.run_lives > 0) or (player_won and not GameState.map_initialized):
 		var retry := _create_result_button("重新战斗", Vector2(435, result_button_y))
 		retry.pressed.connect(_restart_battle)
+	elif not player_won:
+		var failed_run := _create_result_button("远征结束", Vector2(435, result_button_y))
+		failed_run.pressed.connect(_return_to_main_after_defeat)
+		return
 	var back_position := Vector2(545, result_button_y) if player_won and GameState.map_initialized else Vector2(655, result_button_y)
 	var back := _create_result_button("返回地图" if GameState.map_initialized else "返回备战", back_position)
 	back.pressed.connect(_back_to_prep)
 
 
 func _grant_first_battle_chest() -> String:
-	var item_files: Array[String] = []
-	for file_name in DirAccess.get_files_at("res://assets/items/64x64"):
-		if file_name.ends_with(".png"):
-			item_files.append(file_name)
-	item_files.sort()
 	var reward_rng := RandomNumberGenerator.new()
 	reward_rng.seed = GameState.map_seed + 17041
-	var item_names: Array[String] = []
-	for reward_index in mini(2, item_files.size()):
-		var selected_index := reward_rng.randi_range(0, item_files.size() - 1)
-		var item_file: String = item_files.pop_at(selected_index)
-		GameState.add_item("res://assets/items/64x64/%s" % item_file)
-		item_names.append(item_file.get_basename().replace("_", " ").capitalize())
-	var coin_reward := 5
-	GameState.coins += coin_reward
-	return "获得开局宝箱：%s，金币 +%d" % ["、".join(item_names), coin_reward]
+	var entry := ITEM_CATALOG.random_entry("item", reward_rng)
+	GameState.add_item(entry)
+	var coin_reward := 2
+	GameState.add_coins(coin_reward)
+	return "获得开局宝箱：%s，金币 +%d" % [String(entry["name"]), coin_reward]
+
+
+func _victory_gold_reward() -> int:
+	if not GameState.map_initialized:
+		return 2
+	match GameState.current_map_node_type():
+		"elite": return 4
+		"boss": return 8
+		_: return 2
 
 
 func _grant_battle_streak_item() -> String:
-	var item_files: Array[String] = []
-	for file_name in DirAccess.get_files_at("res://assets/items/64x64"):
-		if file_name.ends_with(".png"):
-			item_files.append(file_name)
-	if item_files.is_empty():
-		return "暂无可用道具"
-	item_files.sort()
 	var reward_rng := RandomNumberGenerator.new()
 	reward_rng.seed = GameState.map_seed + GameState.battle_victories * 7919 + GameState.current_map_node * 101
-	var item_file := item_files[reward_rng.randi_range(0, item_files.size() - 1)]
-	GameState.add_item("res://assets/items/64x64/%s" % item_file)
-	return item_file.get_basename().replace("_", " ").capitalize()
+	var entry := ITEM_CATALOG.random_entry("item", reward_rng)
+	GameState.add_item(entry)
+	return String(entry["name"])
 
 
 func _create_result_button(text: String, position: Vector2) -> Button:
@@ -858,6 +940,11 @@ func _restart_battle() -> void:
 
 func _back_to_prep() -> void:
 	get_tree().change_scene_to_file("res://map.tscn" if GameState.map_initialized else "res://battle_prep.tscn")
+
+
+func _return_to_main_after_defeat() -> void:
+	GameState.reset_run()
+	get_tree().change_scene_to_file("res://main.tscn")
 
 
 func _add_texture(path: String, rect: Rect2, z: int, stretch := TextureRect.STRETCH_KEEP_ASPECT_CENTERED) -> TextureRect:

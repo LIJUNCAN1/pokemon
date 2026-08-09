@@ -1,0 +1,41 @@
+{
+  "canvas": [
+    640,
+    360
+  ],
+  "assets": [
+    {
+      "id": "button-normal",
+      "source": "D:\\asseprite\\not push botten.png",
+      "bbox": [
+        196,
+        194,
+        257,
+        39
+      ],
+      "output": "controls/button-normal.png"
+    },
+    {
+      "id": "button-pressed",
+      "source": "D:\\asseprite\\push botten.png",
+      "bbox": [
+        196,
+        196,
+        257,
+        37
+      ],
+      "output": "controls/button-pressed.png"
+    },
+    {
+      "id": "menu-panel",
+      "source": "C:\\Users\\lijc\\AppData\\Local\\Temp\\codex-clipboard-65ff4dec-7ebc-4e1f-8175-76e4d76efaf5.png",
+      "bbox": [
+        189,
+        166,
+        243,
+        170
+      ],
+      "output": "panels/menu-panel.png"
+    }
+  ]
+}

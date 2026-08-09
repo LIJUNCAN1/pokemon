@@ -1,0 +1,209 @@
+{ "frames": [
+   {
+    "filename": "P7kD08 0.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 1.aseprite",
+    "frame": { "x": 95, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 2.aseprite",
+    "frame": { "x": 190, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 3.aseprite",
+    "frame": { "x": 285, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 4.aseprite",
+    "frame": { "x": 380, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 5.aseprite",
+    "frame": { "x": 475, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 6.aseprite",
+    "frame": { "x": 570, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 7.aseprite",
+    "frame": { "x": 665, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 8.aseprite",
+    "frame": { "x": 760, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 9.aseprite",
+    "frame": { "x": 855, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 10.aseprite",
+    "frame": { "x": 950, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 11.aseprite",
+    "frame": { "x": 1045, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 12.aseprite",
+    "frame": { "x": 1140, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 13.aseprite",
+    "frame": { "x": 1235, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 14.aseprite",
+    "frame": { "x": 1330, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 15.aseprite",
+    "frame": { "x": 1425, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 16.aseprite",
+    "frame": { "x": 1520, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 17.aseprite",
+    "frame": { "x": 1615, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 18.aseprite",
+    "frame": { "x": 1710, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 19.aseprite",
+    "frame": { "x": 1805, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 20.aseprite",
+    "frame": { "x": 1900, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   },
+   {
+    "filename": "P7kD08 21.aseprite",
+    "frame": { "x": 1995, "y": 0, "w": 95, "h": 76 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 95, "h": 76 },
+    "sourceSize": { "w": 95, "h": 76 },
+    "duration": 80
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.x-dev",
+  "image": "P7kD08_sheet.png",
+  "format": "I8",
+  "size": { "w": 2090, "h": 76 },
+  "scale": "1"
+ }
+}

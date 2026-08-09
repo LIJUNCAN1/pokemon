@@ -1,6 +1,9 @@
 extends Control
 
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
+const MENU_BUTTON_NORMAL: Texture2D = preload("res://assets/ui/pixel_menu/controls/button-normal.png")
+const MENU_BUTTON_PRESSED: Texture2D = preload("res://assets/ui/pixel_menu/controls/button-pressed.png")
+const BUTTON_DISPLAY_SCALE := 0.8579767
 const ROW_NAMES: Array[String] = ["显示模式", "分辨率", "音效", "音乐", "语言", "按键布局"]
 const OPTIONS: Array = [
 	["全屏", "无边框窗口化", "窗口化"],
@@ -15,25 +18,46 @@ var option_indices: Array[int] = [0, 2, 4, 3, 0, 0]
 var value_labels: Array[Label] = []
 var source_han_font: FontFile
 var exit_scene_path := ""
+var overlay_shade: ColorRect
+var overlay_frame: Panel
+var closing := false
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# This overlay was authored in 1280x720 coordinates; render it at 0.5
+	# in viewport space. In-game parents are already scaled to 0.5, while
+	# the main menu is not, so compensate for the inherited parent scale.
+	set_anchors_preset(Control.PRESET_TOP_LEFT)
+	position = Vector2.ZERO
+	size = Vector2(1280, 720)
+	var inherited_scale := Vector2.ONE
+	var parent_control := get_parent() as Control
+	if parent_control:
+		inherited_scale = parent_control.get_global_transform().get_scale().abs()
+	scale = Vector2(
+		0.5 / maxf(inherited_scale.x, 0.001),
+		0.5 / maxf(inherited_scale.y, 0.001)
+	)
 	z_index = 180
 	source_han_font = SOURCE_HAN_FONT.duplicate() as FontFile
 	source_han_font.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
+	source_han_font.multichannel_signed_distance_field = true
+	source_han_font.msdf_pixel_range = 8
+	source_han_font.msdf_size = 64
 	source_han_font.hinting = TextServer.HINTING_NORMAL
 	source_han_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	source_han_font.oversampling = 1.5
+	source_han_font.oversampling = 1.0
 	source_han_font.allow_system_fallback = false
 	_sync_current_settings()
 	_build_interface()
+	_play_entrance()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 		get_viewport().set_input_as_handled()
-		queue_free()
+		_close_overlay()
 
 
 func _sync_current_settings() -> void:
@@ -57,17 +81,28 @@ func _sync_current_settings() -> void:
 
 
 func _build_interface() -> void:
-	var shade := ColorRect.new()
-	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	shade.color = Color(0.02, 0.03, 0.05, 0.78)
-	shade.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(shade)
+	overlay_shade = ColorRect.new()
+	overlay_shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay_shade.color = Color(0.02, 0.03, 0.05, 0.78)
+	overlay_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(overlay_shade)
+	var outside := Button.new()
+	outside.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	outside.flat = true
+	outside.focus_mode = Control.FOCUS_NONE
+	outside.mouse_default_cursor_shape = Control.CURSOR_ARROW
+	outside.pressed.connect(_close_overlay)
+	add_child(outside)
 
-	var frame := Panel.new()
-	frame.position = Vector2(398, 118)
-	frame.size = Vector2(484, 484)
-	frame.add_theme_stylebox_override("panel", _panel_style(Color(0.96, 0.96, 0.97, 1.0), Color(0.27, 0.27, 0.31, 1.0), 4))
-	add_child(frame)
+	var row_bottom := 12.0 + (ROW_NAMES.size() - 1) * 61.0 + 54.0
+	var exit_button_y := row_bottom + 18.0
+	var frame_height := exit_button_y + 42.0 + 16.0
+	overlay_frame = Panel.new()
+	overlay_frame.size = Vector2(484, frame_height)
+	overlay_frame.position = (Vector2(1280, 720) - overlay_frame.size) * 0.5
+	overlay_frame.pivot_offset = overlay_frame.size * 0.5
+	overlay_frame.add_theme_stylebox_override("panel", _panel_style(Color(0.96, 0.96, 0.97, 1.0), Color(0.27, 0.27, 0.31, 1.0), 4))
+	add_child(overlay_frame)
 
 	for index in ROW_NAMES.size():
 		var y := 12.0 + index * 61.0
@@ -75,7 +110,7 @@ func _build_interface() -> void:
 		row.position = Vector2(16, y)
 		row.size = Vector2(452, 54)
 		row.add_theme_stylebox_override("panel", _panel_style(Color(0.985, 0.985, 0.99, 1.0), Color(0.62, 0.62, 0.69, 1.0), 3))
-		frame.add_child(row)
+		overlay_frame.add_child(row)
 		_add_text(row, ROW_NAMES[index], Rect2(12, 8, 170, 38), 18, true, HORIZONTAL_ALIGNMENT_CENTER)
 		var left := _arrow_button(row, "◀", Rect2(216, 7, 42, 40))
 		left.pressed.connect(_change_option.bind(index, -1))
@@ -84,44 +119,50 @@ func _build_interface() -> void:
 		var right := _arrow_button(row, "▶", Rect2(398, 7, 42, 40))
 		right.pressed.connect(_change_option.bind(index, 1))
 
-	var done := Button.new()
-	done.position = Vector2(16, 383)
-	done.size = Vector2(220, 82) if not exit_scene_path.is_empty() else Vector2(452, 82)
-	done.text = "完成"
-	done.focus_mode = Control.FOCUS_NONE
-	done.add_theme_font_override("font", source_han_font)
-	done.add_theme_font_size_override("font_size", 28)
-	done.add_theme_color_override("font_color", Color.WHITE)
-	done.add_theme_color_override("font_outline_color", Color.BLACK)
-	done.add_theme_color_override("font_shadow_color", Color.BLACK)
-	done.add_theme_constant_override("outline_size", 1)
-	done.add_theme_constant_override("shadow_offset_x", 1)
-	done.add_theme_constant_override("shadow_offset_y", 1)
-	done.add_theme_stylebox_override("normal", _panel_style(Color("ef3e6a"), Color(0.18, 0.16, 0.18, 1.0), 4))
-	done.add_theme_stylebox_override("hover", _panel_style(Color("ff547c"), Color(0.18, 0.16, 0.18, 1.0), 4))
-	done.pressed.connect(queue_free)
-	frame.add_child(done)
+	var exit_button := Button.new()
+	exit_button.position = Vector2(16, exit_button_y)
+	exit_button.size = Vector2(452, 42)
+	exit_button.text = "主菜单"
+	exit_button.focus_mode = Control.FOCUS_NONE
+	exit_button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	exit_button.add_theme_font_override("font", source_han_font)
+	exit_button.add_theme_font_size_override("font_size", 12)
+	exit_button.add_theme_color_override("font_color", Color.WHITE)
+	exit_button.add_theme_color_override("font_hover_color", Color.WHITE)
+	exit_button.add_theme_color_override("font_pressed_color", Color.WHITE)
+	exit_button.add_theme_stylebox_override("normal", _pixel_button_style(MENU_BUTTON_NORMAL))
+	exit_button.add_theme_stylebox_override("hover", _pixel_button_style(MENU_BUTTON_NORMAL, 0.0, Color(1.08, 1.05, 1.05, 1.0)))
+	exit_button.add_theme_stylebox_override("pressed", _pixel_button_style(MENU_BUTTON_PRESSED, 1.0))
+	exit_button.add_theme_stylebox_override("focus", _pixel_button_style(MENU_BUTTON_NORMAL))
+	exit_button.pressed.connect(_exit_current_mode)
+	overlay_frame.add_child(exit_button)
 
-	if not exit_scene_path.is_empty():
-		var exit_button := Button.new()
-		exit_button.position = Vector2(248, 383)
-		exit_button.size = Vector2(220, 82)
-		exit_button.text = "退出战斗"
-		exit_button.focus_mode = Control.FOCUS_NONE
-		exit_button.add_theme_font_override("font", source_han_font)
-		exit_button.add_theme_font_size_override("font_size", 25)
-		exit_button.add_theme_color_override("font_color", Color.WHITE)
-		exit_button.add_theme_color_override("font_outline_color", Color.BLACK)
-		exit_button.add_theme_constant_override("outline_size", 1)
-		exit_button.add_theme_stylebox_override("normal", _panel_style(Color(0.38, 0.12, 0.16, 1.0), Color(0.18, 0.16, 0.18, 1.0), 4))
-		exit_button.add_theme_stylebox_override("hover", _panel_style(Color(0.53, 0.16, 0.22, 1.0), Color(0.18, 0.16, 0.18, 1.0), 4))
-		exit_button.pressed.connect(_exit_current_mode)
-		frame.add_child(exit_button)
+
+func _play_entrance() -> void:
+	overlay_shade.modulate.a = 0.0
+	overlay_frame.modulate.a = 0.0
+	overlay_frame.scale = Vector2(0.92, 0.92)
+	var tween := create_tween().set_parallel(true)
+	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(overlay_shade, "modulate:a", 1.0, 0.24)
+	tween.tween_property(overlay_frame, "modulate:a", 1.0, 0.24)
+	tween.tween_property(overlay_frame, "scale", Vector2.ONE, 0.24)
+
+
+func _close_overlay() -> void:
+	if closing:
+		return
+	closing = true
+	var tween := create_tween().set_parallel(true)
+	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(overlay_shade, "modulate:a", 0.0, 0.16)
+	tween.tween_property(overlay_frame, "modulate:a", 0.0, 0.16)
+	tween.tween_property(overlay_frame, "scale", Vector2(0.96, 0.96), 0.16)
+	tween.chain().tween_callback(queue_free)
 
 
 func _exit_current_mode() -> void:
-	if not exit_scene_path.is_empty():
-		get_tree().change_scene_to_file(exit_scene_path)
+	get_tree().change_scene_to_file("res://main.tscn")
 
 
 func _change_option(row_index: int, direction: int) -> void:
@@ -205,15 +246,77 @@ func _add_text(parent: Control, text: String, rect: Rect2, size: int, light_back
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.add_theme_font_override("font", source_han_font)
 	label.add_theme_font_size_override("font_size", size)
-	label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.16, 1.0) if light_background else Color.WHITE)
-	label.add_theme_color_override("font_shadow_color", Color(0.5, 0.5, 0.54, 0.9) if light_background else Color.BLACK)
-	label.add_theme_color_override("font_outline_color", Color(0.12, 0.12, 0.16, 1.0) if light_background else Color.BLACK)
+	label.add_theme_color_override("font_color", Color("5d5f6b") if light_background else Color.WHITE)
+	label.add_theme_color_override("font_shadow_color", Color("c5c6ce") if light_background else Color.BLACK)
+	label.add_theme_color_override("font_outline_color", Color("5d5f6b") if light_background else Color.BLACK)
 	label.add_theme_constant_override("outline_size", 1)
 	label.add_theme_constant_override("shadow_offset_x", 1)
 	label.add_theme_constant_override("shadow_offset_y", 1)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(label)
 	return label
+
+
+func _install_pixel_button_visual(button: Button, font: Font) -> void:
+	var button_text := button.text
+	button.text = ""
+	button.focus_mode = Control.FOCUS_NONE
+	button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var transparent := StyleBoxFlat.new()
+	transparent.bg_color = Color.TRANSPARENT
+	button.add_theme_stylebox_override("normal", transparent)
+	button.add_theme_stylebox_override("hover", transparent)
+	button.add_theme_stylebox_override("pressed", transparent)
+	button.add_theme_stylebox_override("focus", transparent)
+	button.add_theme_stylebox_override("disabled", transparent)
+	var visual := TextureRect.new()
+	visual.name = "PixelBackground"
+	visual.texture = MENU_BUTTON_NORMAL
+	visual.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	visual.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	visual.stretch_mode = TextureRect.STRETCH_KEEP
+	visual.size = MENU_BUTTON_NORMAL.get_size()
+	visual.scale = Vector2.ONE * BUTTON_DISPLAY_SCALE
+	visual.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	visual.show_behind_parent = true
+	button.add_child(visual)
+	var label := Label.new()
+	label.name = "PixelLabel"
+	label.position = Vector2.ZERO
+	label.size = button.size
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.text = button_text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_override("font", font)
+	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+	label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	label.add_theme_constant_override("outline_size", 0)
+	button.add_child(label)
+	var center_visual := func() -> void:
+		visual.position.x = (button.size.x - MENU_BUTTON_NORMAL.get_width() * BUTTON_DISPLAY_SCALE) * 0.5
+		visual.position.y = (button.size.y - MENU_BUTTON_NORMAL.get_height() * BUTTON_DISPLAY_SCALE) * 0.5
+		label.position = Vector2.ZERO
+		label.size = button.size
+	button.resized.connect(center_visual)
+	center_visual.call()
+	button.button_down.connect(func() -> void:
+		visual.texture = MENU_BUTTON_PRESSED
+		visual.position.x = (button.size.x - MENU_BUTTON_PRESSED.get_width() * BUTTON_DISPLAY_SCALE) * 0.5
+		visual.position.y = (button.size.y - MENU_BUTTON_PRESSED.get_height() * BUTTON_DISPLAY_SCALE) * 0.5 + 1.0
+		label.position.y = 1.0
+	)
+	button.button_up.connect(func() -> void:
+		visual.texture = MENU_BUTTON_NORMAL
+		center_visual.call()
+	)
+	button.mouse_exited.connect(func() -> void:
+		if not button.button_pressed:
+			visual.texture = MENU_BUTTON_NORMAL
+			center_visual.call()
+	)
 
 
 func _panel_style(fill: Color, border: Color, width: int) -> StyleBoxFlat:
@@ -225,4 +328,23 @@ func _panel_style(fill: Color, border: Color, width: int) -> StyleBoxFlat:
 	style.corner_radius_top_right = 3
 	style.corner_radius_bottom_left = 3
 	style.corner_radius_bottom_right = 3
+	return style
+
+
+func _pixel_button_style(
+	texture: Texture2D,
+	pressed_offset := 0.0,
+	modulate := Color.WHITE,
+) -> StyleBoxTexture:
+	var style := StyleBoxTexture.new()
+	style.texture = texture
+	style.modulate_color = modulate
+	style.texture_margin_left = 3.0
+	style.texture_margin_top = 3.0
+	style.texture_margin_right = 3.0
+	style.texture_margin_bottom = 3.0
+	style.content_margin_left = 28.0
+	style.content_margin_top = 12.0 + pressed_offset
+	style.content_margin_right = 28.0
+	style.content_margin_bottom = 12.0
 	return style

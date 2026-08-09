@@ -1,0 +1,65 @@
+{
+  "canvas": {
+    "width": 82,
+    "height": 59
+  },
+  "source": "reference-source.png",
+  "layers": [
+    {
+      "id": "hover-corner-top-left",
+      "output": "corner-top-left.png",
+      "rect": [
+        2,
+        1,
+        7,
+        8
+      ],
+      "z_index": 0,
+      "role": "hover-frame-corner",
+      "mask": "source-derived"
+    },
+    {
+      "id": "hover-corner-top-right",
+      "output": "corner-top-right.png",
+      "rect": [
+        72,
+        1,
+        8,
+        8
+      ],
+      "z_index": 1,
+      "role": "hover-frame-corner",
+      "mask": "source-derived"
+    },
+    {
+      "id": "hover-corner-bottom-left",
+      "output": "corner-bottom-left.png",
+      "rect": [
+        2,
+        50,
+        7,
+        8
+      ],
+      "z_index": 2,
+      "role": "hover-frame-corner",
+      "mask": "source-derived"
+    },
+    {
+      "id": "hover-corner-bottom-right",
+      "output": "corner-bottom-right.png",
+      "rect": [
+        72,
+        50,
+        8,
+        8
+      ],
+      "z_index": 3,
+      "role": "hover-frame-corner",
+      "mask": "source-derived"
+    }
+  ],
+  "accuracy": {
+    "visible_pixels": "source-derived",
+    "inferred_hidden_regions": []
+  }
+}

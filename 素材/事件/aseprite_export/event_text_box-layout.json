@@ -1,0 +1,20 @@
+{ "frames": [
+   {
+    "filename": "文字框.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 2179, "h": 466 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 2179, "h": 466 },
+    "sourceSize": { "w": 2179, "h": 466 },
+    "duration": 100
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.x-dev",
+  "image": "event_text_box-sheet.png",
+  "format": "RGBA8888",
+  "size": { "w": 2179, "h": 466 },
+  "scale": "1"
+ }
+}

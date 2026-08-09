@@ -1,0 +1,19 @@
+{
+  "source": "res://素材/战斗场景/P7kD08.aseprite",
+  "canvas": [95, 76],
+  "color_mode": "indexed",
+  "alpha": "transparent",
+  "layers": ["Layer"],
+  "tags": [],
+  "frame_count": 22,
+  "frame_duration_ms": 80,
+  "total_duration_ms": 1760,
+  "sheet": "res://素材/战斗场景/aseprite_export/P7kD08_sheet.png",
+  "sheet_layout": "horizontal",
+  "frame_data": "res://素材/战斗场景/aseprite_export/P7kD08_frames.json",
+  "filter": "nearest",
+  "mipmaps": false,
+  "runtime_character": "res://素材/宝可梦图/1 (7).png",
+  "runtime_direction": "mirror horizontally for right-to-left attacks",
+  "runtime_path": "attacker center to target center during frames 0-15; impact at target during frames 16-21"
+}

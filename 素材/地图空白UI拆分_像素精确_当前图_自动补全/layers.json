@@ -1,0 +1,254 @@
+{
+  "schema_version": 1,
+  "source": {
+    "path": "C:\\Users\\lijc\\AppData\\Local\\Temp\\codex-clipboard-2cb8f91d-4440-4f77-87fa-fddcfea913e4.png",
+    "format": "PNG",
+    "width": 1672,
+    "height": 941,
+    "mode": "RGB",
+    "native_scale": 1
+  },
+  "coordinate_system": "top-left-pixels",
+  "pixel_art": {
+    "filter": "nearest",
+    "mipmaps": false
+  },
+  "layers": [
+    {
+      "id": "top-tab-1",
+      "role": "button",
+      "group": "controls",
+      "rect": [
+        652,
+        14,
+        122,
+        106
+      ],
+      "z_index": 40,
+      "output": "controls/top-tab-1.png",
+      "pixel_mask": "source-derived",
+      "hitbox": [
+        652,
+        14,
+        122,
+        106
+      ],
+      "state": "normal"
+    },
+    {
+      "id": "top-tab-selected",
+      "role": "button",
+      "group": "controls",
+      "rect": [
+        779,
+        13,
+        130,
+        132
+      ],
+      "z_index": 41,
+      "output": "controls/top-tab-selected.png",
+      "pixel_mask": "source-derived",
+      "hitbox": [
+        779,
+        13,
+        130,
+        131
+      ],
+      "state": "selected"
+    },
+    {
+      "id": "top-tab-3",
+      "role": "button",
+      "group": "controls",
+      "rect": [
+        914,
+        14,
+        122,
+        106
+      ],
+      "z_index": 40,
+      "output": "controls/top-tab-3.png",
+      "pixel_mask": "source-derived",
+      "hitbox": [
+        914,
+        14,
+        122,
+        106
+      ],
+      "state": "normal"
+    },
+    {
+      "id": "top-tab-4",
+      "role": "button",
+      "group": "controls",
+      "rect": [
+        1034,
+        14,
+        122,
+        106
+      ],
+      "z_index": 40,
+      "output": "controls/top-tab-4.png",
+      "pixel_mask": "source-derived",
+      "hitbox": [
+        1033,
+        14,
+        123,
+        106
+      ],
+      "state": "normal"
+    },
+    {
+      "id": "header-under-tabs-inferred",
+      "role": "inferred-background",
+      "group": "inferred",
+      "rect": [
+        652,
+        20,
+        504,
+        95
+      ],
+      "z_index": 2,
+      "output": "inferred/header-under-tabs.png",
+      "pixel_mask": "generated",
+      "inferred_hidden_pixels": true,
+      "notes": "Median same-row fill from visible top-bar pixels; not included in exact source recomposition."
+    },
+    {
+      "id": "map-viewport-background",
+      "role": "background",
+      "group": "background",
+      "rect": [
+        30,
+        145,
+        1612,
+        325
+      ],
+      "z_index": 10,
+      "output": "background/map-viewport-background.png",
+      "pixel_mask": "source-derived"
+    },
+    {
+      "id": "mountain-forest-background",
+      "role": "background",
+      "group": "background",
+      "rect": [
+        30,
+        470,
+        1612,
+        273
+      ],
+      "z_index": 11,
+      "output": "background/mountain-forest-background.png",
+      "pixel_mask": "source-derived"
+    },
+    {
+      "id": "bottom-panel-background",
+      "role": "panel-background",
+      "group": "background",
+      "rect": [
+        59,
+        766,
+        1554,
+        111
+      ],
+      "z_index": 13,
+      "output": "background/bottom-panel-background.png",
+      "pixel_mask": "source-derived"
+    },
+    {
+      "id": "bottom-panel-frame",
+      "role": "panel-frame",
+      "group": "frames",
+      "rect": [
+        40,
+        744,
+        1591,
+        155
+      ],
+      "z_index": 14,
+      "output": "frames/bottom-panel-frame.png",
+      "pixel_mask": "source-derived"
+    },
+    {
+      "id": "top-green-bar",
+      "role": "header-background",
+      "group": "background",
+      "rect": [
+        20,
+        20,
+        1633,
+        95
+      ],
+      "z_index": 8,
+      "output": "background/top-green-bar.png",
+      "pixel_mask": "source-derived"
+    },
+    {
+      "id": "header-divider",
+      "role": "divider",
+      "group": "frames",
+      "rect": [
+        16,
+        114,
+        1641,
+        31
+      ],
+      "z_index": 9,
+      "output": "frames/header-divider.png",
+      "pixel_mask": "source-derived"
+    },
+    {
+      "id": "outside-dark-background",
+      "role": "canvas-background",
+      "group": "background",
+      "rect": [
+        0,
+        0,
+        1672,
+        941
+      ],
+      "z_index": 0,
+      "output": "background/outside-dark-background.png",
+      "pixel_mask": "source-derived"
+    },
+    {
+      "id": "outer-metal-window-frame",
+      "role": "window-frame",
+      "group": "frames",
+      "rect": [
+        7,
+        7,
+        1658,
+        926
+      ],
+      "z_index": 4,
+      "output": "frames/outer-metal-window-frame.png",
+      "pixel_mask": "source-derived"
+    },
+    {
+      "id": "inner-window-frame",
+      "role": "inner-frame",
+      "group": "frames",
+      "rect": [
+        16,
+        145,
+        1641,
+        771
+      ],
+      "z_index": 5,
+      "output": "frames/inner-window-frame.png",
+      "pixel_mask": "source-derived"
+    }
+  ],
+  "missing_states": [
+    "hover",
+    "pressed",
+    "disabled"
+  ],
+  "notes": [
+    "All exported visible RGB values come directly from the flattened source.",
+    "Pixels hidden behind opaque controls cannot be recovered from the source image.",
+    "The selected tab includes its visible downward pointer."
+  ]
+}
