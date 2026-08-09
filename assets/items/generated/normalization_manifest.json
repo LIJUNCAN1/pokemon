@@ -1,0 +1,2223 @@
+{
+    "source_directory":  "assets/items/64x64",
+    "output_canvas":  [
+                          64,
+                          64
+                      ],
+    "safe_content_size":  [
+                              52,
+                              52
+                          ],
+    "filter":  "nearest",
+    "mipmaps":  false,
+    "records":  [
+                    {
+                        "id":  1,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc1.png",
+                        "output":  "assets/items/generated/item/item_0001.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             0,
+                                             52,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              11,
+                                              6,
+                                              42,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  3,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc3.png",
+                        "output":  "assets/items/generated/item/item_0003.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             0,
+                                             4,
+                                             64,
+                                             60
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              7,
+                                              52,
+                                              49
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  7,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc7.png",
+                        "output":  "assets/items/generated/item/item_0007.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             0,
+                                             52,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              11,
+                                              6,
+                                              42,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  13,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc13.png",
+                        "output":  "assets/items/generated/item/item_0013.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             0,
+                                             48,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              12,
+                                              6,
+                                              39,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  14,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc14.png",
+                        "output":  "assets/items/generated/item/item_0014.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             0,
+                                             0,
+                                             60,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              7,
+                                              6,
+                                              49,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  26,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc26.png",
+                        "output":  "assets/items/generated/item/item_0026.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             4,
+                                             48,
+                                             52
+                                         ],
+                        "target_bounds":  [
+                                              8,
+                                              6,
+                                              48,
+                                              52
+                                          ],
+                        "scale":  1
+                    },
+                    {
+                        "id":  49,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc49.png",
+                        "output":  "assets/items/generated/item/item_0049.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             12,
+                                             52,
+                                             44
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              10,
+                                              52,
+                                              44
+                                          ],
+                        "scale":  1
+                    },
+                    {
+                        "id":  53,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc53.png",
+                        "output":  "assets/items/generated/item/item_0053.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             12,
+                                             52,
+                                             44
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              10,
+                                              52,
+                                              44
+                                          ],
+                        "scale":  1
+                    },
+                    {
+                        "id":  57,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc57.png",
+                        "output":  "assets/items/generated/item/item_0057.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             12,
+                                             52,
+                                             44
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              10,
+                                              52,
+                                              44
+                                          ],
+                        "scale":  1
+                    },
+                    {
+                        "id":  61,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc61.png",
+                        "output":  "assets/items/generated/item/item_0061.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             12,
+                                             52,
+                                             44
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              10,
+                                              52,
+                                              44
+                                          ],
+                        "scale":  1
+                    },
+                    {
+                        "id":  67,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc67.png",
+                        "output":  "assets/items/generated/item/item_0067.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             8,
+                                             56,
+                                             48
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              9,
+                                              52,
+                                              45
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  81,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc81.png",
+                        "output":  "assets/items/generated/item/item_0081.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             4,
+                                             48,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              9,
+                                              6,
+                                              45,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  82,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc82.png",
+                        "output":  "assets/items/generated/item/item_0082.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             12,
+                                             48,
+                                             48
+                                         ],
+                        "target_bounds":  [
+                                              8,
+                                              8,
+                                              48,
+                                              48
+                                          ],
+                        "scale":  1
+                    },
+                    {
+                        "id":  83,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc83.png",
+                        "output":  "assets/items/generated/item/item_0083.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  84,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc84.png",
+                        "output":  "assets/items/generated/item/item_0084.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             12,
+                                             56,
+                                             44
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              11,
+                                              52,
+                                              41
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  87,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc87.png",
+                        "output":  "assets/items/generated/item/item_0087.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             4,
+                                             48,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              9,
+                                              6,
+                                              45,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  88,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc88.png",
+                        "output":  "assets/items/generated/item/item_0088.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             12,
+                                             48,
+                                             48
+                                         ],
+                        "target_bounds":  [
+                                              8,
+                                              8,
+                                              48,
+                                              48
+                                          ],
+                        "scale":  1
+                    },
+                    {
+                        "id":  93,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc93.png",
+                        "output":  "assets/items/generated/item/item_0093.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             12,
+                                             56,
+                                             44
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              11,
+                                              52,
+                                              41
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  94,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc94.png",
+                        "output":  "assets/items/generated/item/item_0094.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             8,
+                                             56,
+                                             52
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              8,
+                                              52,
+                                              48
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  96,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc96.png",
+                        "output":  "assets/items/generated/item/item_0096.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             8,
+                                             56,
+                                             52
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              8,
+                                              52,
+                                              48
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  105,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc105.png",
+                        "output":  "assets/items/generated/item/item_0105.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  109,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc109.png",
+                        "output":  "assets/items/generated/item/item_0109.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  110,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc110.png",
+                        "output":  "assets/items/generated/item/item_0110.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  111,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc111.png",
+                        "output":  "assets/items/generated/item/item_0111.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  112,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc112.png",
+                        "output":  "assets/items/generated/item/item_0112.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  113,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc113.png",
+                        "output":  "assets/items/generated/item/item_0113.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  114,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc114.png",
+                        "output":  "assets/items/generated/item/item_0114.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  130,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc130.png",
+                        "output":  "assets/items/generated/item/item_0130.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             8,
+                                             48,
+                                             48
+                                         ],
+                        "target_bounds":  [
+                                              8,
+                                              8,
+                                              48,
+                                              48
+                                          ],
+                        "scale":  1
+                    },
+                    {
+                        "id":  167,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc167.png",
+                        "output":  "assets/items/generated/item/item_0167.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             8,
+                                             44,
+                                             44
+                                         ],
+                        "target_bounds":  [
+                                              10,
+                                              10,
+                                              44,
+                                              44
+                                          ],
+                        "scale":  1
+                    },
+                    {
+                        "id":  185,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc185.png",
+                        "output":  "assets/items/generated/item/item_0185.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             0,
+                                             0,
+                                             60,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              7,
+                                              6,
+                                              49,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  204,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc204.png",
+                        "output":  "assets/items/generated/item/item_0204.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             52,
+                                             60
+                                         ],
+                        "target_bounds":  [
+                                              9,
+                                              6,
+                                              45,
+                                              52
+                                          ],
+                        "scale":  0.866667
+                    },
+                    {
+                        "id":  240,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc240.png",
+                        "output":  "assets/items/generated/item/item_0240.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             12,
+                                             4,
+                                             40,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              13,
+                                              6,
+                                              37,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  259,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc259.png",
+                        "output":  "assets/items/generated/item/item_0259.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             0,
+                                             8,
+                                             60,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              7,
+                                              52,
+                                              49
+                                          ],
+                        "scale":  0.866667
+                    },
+                    {
+                        "id":  277,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc277.png",
+                        "output":  "assets/items/generated/item/item_0277.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             16,
+                                             0,
+                                             32,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              19,
+                                              6,
+                                              26,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  296,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc296.png",
+                        "output":  "assets/items/generated/item/item_0296.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             0,
+                                             0,
+                                             64,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  351,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc351.png",
+                        "output":  "assets/items/generated/item/item_0351.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             8,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  388,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc388.png",
+                        "output":  "assets/items/generated/item/item_0388.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             60,
+                                             60
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.866667
+                    },
+                    {
+                        "id":  406,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc406.png",
+                        "output":  "assets/items/generated/item/item_0406.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             0,
+                                             0,
+                                             60,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              7,
+                                              6,
+                                              49,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  443,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc443.png",
+                        "output":  "assets/items/generated/item/item_0443.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             52
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              8,
+                                              52,
+                                              48
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  480,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc480.png",
+                        "output":  "assets/items/generated/item/item_0480.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             12,
+                                             56,
+                                             44
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              11,
+                                              52,
+                                              41
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  498,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc498.png",
+                        "output":  "assets/items/generated/item/item_0498.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             4,
+                                             48,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              9,
+                                              6,
+                                              45,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  535,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc535.png",
+                        "output":  "assets/items/generated/item/item_0535.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             0,
+                                             56,
+                                             60
+                                         ],
+                        "target_bounds":  [
+                                              7,
+                                              6,
+                                              49,
+                                              52
+                                          ],
+                        "scale":  0.866667
+                    },
+                    {
+                        "id":  553,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc553.png",
+                        "output":  "assets/items/generated/item/item_0553.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             0,
+                                             0,
+                                             64,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  572,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc572.png",
+                        "output":  "assets/items/generated/item/item_0572.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             0,
+                                             0,
+                                             64,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  609,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc609.png",
+                        "output":  "assets/items/generated/item/item_0609.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             0,
+                                             4,
+                                             64,
+                                             60
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              7,
+                                              52,
+                                              49
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  682,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc682.png",
+                        "output":  "assets/items/generated/item/item_0682.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             12,
+                                             16,
+                                             36,
+                                             36
+                                         ],
+                        "target_bounds":  [
+                                              14,
+                                              14,
+                                              36,
+                                              36
+                                          ],
+                        "scale":  1
+                    },
+                    {
+                        "id":  756,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc756.png",
+                        "output":  "assets/items/generated/item/item_0756.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             20,
+                                             4,
+                                             28,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              19,
+                                              6,
+                                              26,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  811,
+                        "kind":  "item",
+                        "source":  "assets/items/64x64/fc811.png",
+                        "output":  "assets/items/generated/item/item_0811.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             12,
+                                             8,
+                                             44,
+                                             52
+                                         ],
+                        "target_bounds":  [
+                                              10,
+                                              6,
+                                              44,
+                                              52
+                                          ],
+                        "scale":  1
+                    },
+                    {
+                        "id":  2,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc2.png",
+                        "output":  "assets/items/generated/accessory/accessory_0002.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             60
+                                         ],
+                        "target_bounds":  [
+                                              7,
+                                              6,
+                                              49,
+                                              52
+                                          ],
+                        "scale":  0.866667
+                    },
+                    {
+                        "id":  4,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc4.png",
+                        "output":  "assets/items/generated/accessory/accessory_0004.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             0,
+                                             44,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              14,
+                                              6,
+                                              36,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  5,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc5.png",
+                        "output":  "assets/items/generated/accessory/accessory_0005.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             0,
+                                             0,
+                                             64,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  6,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc6.png",
+                        "output":  "assets/items/generated/accessory/accessory_0006.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             0,
+                                             4,
+                                             64,
+                                             60
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              7,
+                                              52,
+                                              49
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  9,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc9.png",
+                        "output":  "assets/items/generated/accessory/accessory_0009.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             0,
+                                             0,
+                                             64,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  10,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc10.png",
+                        "output":  "assets/items/generated/accessory/accessory_0010.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             0,
+                                             0,
+                                             64,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  11,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc11.png",
+                        "output":  "assets/items/generated/accessory/accessory_0011.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             0,
+                                             0,
+                                             64,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  12,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc12.png",
+                        "output":  "assets/items/generated/accessory/accessory_0012.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             8,
+                                             56,
+                                             52
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              8,
+                                              52,
+                                              48
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  15,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc15.png",
+                        "output":  "assets/items/generated/accessory/accessory_0015.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             0,
+                                             0,
+                                             64,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  25,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc25.png",
+                        "output":  "assets/items/generated/accessory/accessory_0025.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  27,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc27.png",
+                        "output":  "assets/items/generated/accessory/accessory_0027.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  28,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc28.png",
+                        "output":  "assets/items/generated/accessory/accessory_0028.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  33,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc33.png",
+                        "output":  "assets/items/generated/accessory/accessory_0033.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             12,
+                                             0,
+                                             44,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              14,
+                                              6,
+                                              36,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  34,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc34.png",
+                        "output":  "assets/items/generated/accessory/accessory_0034.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             12,
+                                             0,
+                                             40,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              16,
+                                              6,
+                                              32,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  35,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc35.png",
+                        "output":  "assets/items/generated/accessory/accessory_0035.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             0,
+                                             48,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              12,
+                                              6,
+                                              39,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  36,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc36.png",
+                        "output":  "assets/items/generated/accessory/accessory_0036.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             60,
+                                             60
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.866667
+                    },
+                    {
+                        "id":  37,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc37.png",
+                        "output":  "assets/items/generated/accessory/accessory_0037.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             0,
+                                             60,
+                                             64
+                                         ],
+                        "target_bounds":  [
+                                              7,
+                                              6,
+                                              49,
+                                              52
+                                          ],
+                        "scale":  0.8125
+                    },
+                    {
+                        "id":  38,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc38.png",
+                        "output":  "assets/items/generated/accessory/accessory_0038.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             16,
+                                             0,
+                                             36,
+                                             60
+                                         ],
+                        "target_bounds":  [
+                                              16,
+                                              6,
+                                              31,
+                                              52
+                                          ],
+                        "scale":  0.866667
+                    },
+                    {
+                        "id":  62,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc62.png",
+                        "output":  "assets/items/generated/accessory/accessory_0062.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             12,
+                                             4,
+                                             40,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              13,
+                                              6,
+                                              37,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  63,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc63.png",
+                        "output":  "assets/items/generated/accessory/accessory_0063.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             12,
+                                             4,
+                                             40,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              13,
+                                              6,
+                                              37,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  64,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc64.png",
+                        "output":  "assets/items/generated/accessory/accessory_0064.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             12,
+                                             4,
+                                             40,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              13,
+                                              6,
+                                              37,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  65,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc65.png",
+                        "output":  "assets/items/generated/accessory/accessory_0065.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             4,
+                                             48,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              9,
+                                              6,
+                                              45,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  66,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc66.png",
+                        "output":  "assets/items/generated/accessory/accessory_0066.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             4,
+                                             48,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              9,
+                                              6,
+                                              45,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  68,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc68.png",
+                        "output":  "assets/items/generated/accessory/accessory_0068.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             4,
+                                             48,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              9,
+                                              6,
+                                              45,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  69,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc69.png",
+                        "output":  "assets/items/generated/accessory/accessory_0069.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             4,
+                                             48,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              9,
+                                              6,
+                                              45,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  70,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc70.png",
+                        "output":  "assets/items/generated/accessory/accessory_0070.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             8,
+                                             56,
+                                             48
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              9,
+                                              52,
+                                              45
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  71,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc71.png",
+                        "output":  "assets/items/generated/accessory/accessory_0071.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             16,
+                                             4,
+                                             32,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              17,
+                                              6,
+                                              30,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  72,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc72.png",
+                        "output":  "assets/items/generated/accessory/accessory_0072.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             20,
+                                             4,
+                                             32,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              17,
+                                              6,
+                                              30,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  73,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc73.png",
+                        "output":  "assets/items/generated/accessory/accessory_0073.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             16,
+                                             4,
+                                             32,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              17,
+                                              6,
+                                              30,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  74,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc74.png",
+                        "output":  "assets/items/generated/accessory/accessory_0074.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             16,
+                                             4,
+                                             32,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              17,
+                                              6,
+                                              30,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  75,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc75.png",
+                        "output":  "assets/items/generated/accessory/accessory_0075.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  76,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc76.png",
+                        "output":  "assets/items/generated/accessory/accessory_0076.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             16,
+                                             4,
+                                             32,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              17,
+                                              6,
+                                              30,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  77,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc77.png",
+                        "output":  "assets/items/generated/accessory/accessory_0077.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             20,
+                                             4,
+                                             32,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              17,
+                                              6,
+                                              30,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  78,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc78.png",
+                        "output":  "assets/items/generated/accessory/accessory_0078.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             16,
+                                             4,
+                                             32,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              17,
+                                              6,
+                                              30,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  79,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc79.png",
+                        "output":  "assets/items/generated/accessory/accessory_0079.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             16,
+                                             4,
+                                             32,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              17,
+                                              6,
+                                              30,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  80,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc80.png",
+                        "output":  "assets/items/generated/accessory/accessory_0080.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  85,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc85.png",
+                        "output":  "assets/items/generated/accessory/accessory_0085.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             4,
+                                             48,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              9,
+                                              6,
+                                              45,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  86,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc86.png",
+                        "output":  "assets/items/generated/accessory/accessory_0086.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             4,
+                                             48,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              9,
+                                              6,
+                                              45,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  91,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc91.png",
+                        "output":  "assets/items/generated/accessory/accessory_0091.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             4,
+                                             48,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              9,
+                                              6,
+                                              45,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  92,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc92.png",
+                        "output":  "assets/items/generated/accessory/accessory_0092.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             8,
+                                             4,
+                                             48,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              9,
+                                              6,
+                                              45,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  95,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc95.png",
+                        "output":  "assets/items/generated/accessory/accessory_0095.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             12,
+                                             56,
+                                             44
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              11,
+                                              52,
+                                              41
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  97,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc97.png",
+                        "output":  "assets/items/generated/accessory/accessory_0097.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  98,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc98.png",
+                        "output":  "assets/items/generated/accessory/accessory_0098.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  99,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc99.png",
+                        "output":  "assets/items/generated/accessory/accessory_0099.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  100,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc100.png",
+                        "output":  "assets/items/generated/accessory/accessory_0100.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  101,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc101.png",
+                        "output":  "assets/items/generated/accessory/accessory_0101.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  102,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc102.png",
+                        "output":  "assets/items/generated/accessory/accessory_0102.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    },
+                    {
+                        "id":  103,
+                        "kind":  "accessory",
+                        "source":  "assets/items/64x64/fc103.png",
+                        "output":  "assets/items/generated/accessory/accessory_0103.png",
+                        "source_canvas":  [
+                                              64,
+                                              64
+                                          ],
+                        "alpha_bounds":  [
+                                             4,
+                                             4,
+                                             56,
+                                             56
+                                         ],
+                        "target_bounds":  [
+                                              6,
+                                              6,
+                                              52,
+                                              52
+                                          ],
+                        "scale":  0.928571
+                    }
+                ]
+}

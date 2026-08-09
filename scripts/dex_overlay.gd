@@ -71,6 +71,9 @@ func _ready() -> void:
 	z_index = 150
 	source_han_font = SOURCE_HAN_FONT.duplicate() as FontFile
 	source_han_font.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
+	source_han_font.multichannel_signed_distance_field = true
+	source_han_font.msdf_pixel_range = 8
+	source_han_font.msdf_size = 64
 	source_han_font.hinting = TextServer.HINTING_NORMAL
 	source_han_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	source_han_font.oversampling = 1.5

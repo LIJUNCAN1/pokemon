@@ -1,0 +1,32 @@
+{
+  "canvas": {
+    "width": 640,
+    "height": 360
+  },
+  "source": "../reference/button-normal-source.png",
+  "layers": [
+    {
+      "id": "button-normal",
+      "output": "../controls/button-normal.png",
+      "rect": [
+        196,
+        194,
+        257,
+        39
+      ],
+      "z_index": 0,
+      "role": "button-state",
+      "mask": "source-derived",
+      "hitbox": [
+        196,
+        194,
+        257,
+        39
+      ]
+    }
+  ],
+  "accuracy": {
+    "visible_pixels": "source-derived",
+    "inferred_hidden_regions": []
+  }
+}

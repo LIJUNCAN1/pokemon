@@ -1,6 +1,7 @@
 extends Control
 
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
+const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
 const VISIBLE_SLOT_COUNT := 32
 const GRID_COLUMNS := 4
 const CELL_SIZE := Vector2(112, 54)
@@ -8,6 +9,9 @@ const CELL_SIZE := Vector2(112, 54)
 var source_han_font: FontFile
 var item_grid: GridContainer
 var count_label: Label
+var accessory_tab: Button
+var item_tab: Button
+var active_kind := "accessory"
 
 
 func _ready() -> void:
@@ -16,6 +20,9 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	source_han_font = SOURCE_HAN_FONT.duplicate() as FontFile
 	source_han_font.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
+	source_han_font.multichannel_signed_distance_field = true
+	source_han_font.msdf_pixel_range = 8
+	source_han_font.msdf_size = 64
 	source_han_font.hinting = TextServer.HINTING_NORMAL
 	source_han_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	source_han_font.oversampling = 1.5
@@ -71,9 +78,12 @@ func _build_interface() -> void:
 	close.pressed.connect(queue_free)
 	header.add_child(close)
 
+	accessory_tab = _create_tab(frame, "饰品", Vector2(22, 72), "accessory")
+	item_tab = _create_tab(frame, "道具", Vector2(278, 72), "item")
+
 	var scroll := ScrollContainer.new()
-	scroll.position = Vector2(22, 72)
-	scroll.size = Vector2(506, 526)
+	scroll.position = Vector2(22, 116)
+	scroll.size = Vector2(506, 482)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	scroll.clip_contents = true
@@ -92,35 +102,86 @@ func refresh_items() -> void:
 		return
 	for child in item_grid.get_children():
 		child.queue_free()
-	var items: Array[String] = GameState.item_inventory
+	var items: Array = GameState.accessory_inventory if active_kind == "accessory" else GameState.item_inventory
 	var slot_count := maxi(VISIBLE_SLOT_COUNT, items.size())
-	count_label.text = "%d / %d 件" % [items.size(), VISIBLE_SLOT_COUNT]
+	count_label.text = "%s %d 件" % ["饰品" if active_kind == "accessory" else "道具", items.size()]
 	for index in slot_count:
-		_create_item_slot(items[index] if index < items.size() else "")
+		_create_item_slot(ITEM_CATALOG.normalize_entry(items[index], active_kind) if index < items.size() else {}, index)
+	_update_tabs()
 
 
-func _create_item_slot(texture_path: String) -> void:
+func _create_item_slot(entry: Dictionary, index: int) -> void:
 	var slot := Panel.new()
 	slot.custom_minimum_size = CELL_SIZE
 	slot.mouse_filter = Control.MOUSE_FILTER_STOP
-	var occupied := not texture_path.is_empty()
-	slot.add_theme_stylebox_override("panel", _panel_style(Color(0.12, 0.13, 0.17, 0.96) if occupied else Color(0.2, 0.21, 0.25, 0.58), Color("d8d3e3") if occupied else Color("777985"), 2))
+	var occupied := not entry.is_empty()
+	var occupied_color := Color("2d2440") if active_kind == "accessory" else Color("183643")
+	slot.add_theme_stylebox_override("panel", _panel_style(occupied_color if occupied else Color(0.2, 0.21, 0.25, 0.58), Color("d8d3e3") if occupied else Color("777985"), 2))
 	item_grid.add_child(slot)
 	if not occupied:
 		return
 	var icon := TextureRect.new()
 	icon.position = Vector2(5, 5)
 	icon.size = Vector2(44, 44)
-	icon.texture = load(texture_path) as Texture2D
+	icon.texture = load(String(entry["path"])) as Texture2D
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_child(icon)
-	var item_id := texture_path.get_file().get_basename().trim_prefix("fc")
-	var label := _add_label(slot, "道具\n%s" % item_id, Rect2(51, 4, 56, 46), 11, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	var label := _add_label(slot, String(entry["name"]), Rect2(51, 4, 56, 46), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	slot.tooltip_text = "道具 %s" % item_id
+	slot.tooltip_text = "%s\n%s" % [String(entry["name"]), String(entry["effect"])]
+	if active_kind == "item":
+		var use_button := Button.new()
+		use_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		use_button.flat = true
+		use_button.focus_mode = Control.FOCUS_NONE
+		use_button.tooltip_text = slot.tooltip_text + "\n点击使用"
+		use_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		use_button.pressed.connect(_use_item.bind(index))
+		slot.add_child(use_button)
+
+
+func _create_tab(parent: Control, text: String, position: Vector2, kind: String) -> Button:
+	var button := Button.new()
+	button.position = position
+	button.size = Vector2(250, 36)
+	button.text = text
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_font_override("font", source_han_font)
+	button.add_theme_font_size_override("font_size", 15)
+	button.pressed.connect(_select_tab.bind(kind))
+	parent.add_child(button)
+	return button
+
+
+func _select_tab(kind: String) -> void:
+	active_kind = kind
+	refresh_items()
+
+
+func _update_tabs() -> void:
+	for pair in [[accessory_tab, "accessory"], [item_tab, "item"]]:
+		var button := pair[0] as Button
+		var selected := active_kind == String(pair[1])
+		button.disabled = selected
+		button.add_theme_color_override("font_color", Color.WHITE)
+		button.add_theme_color_override("font_disabled_color", Color.WHITE)
+		button.add_theme_stylebox_override("normal", _panel_style(Color("ef3f68") if selected else Color("4e4a86"), Color("27243f"), 2))
+		button.add_theme_stylebox_override("disabled", _panel_style(Color("ef3f68"), Color("27243f"), 2))
+
+
+func _use_item(index: int) -> void:
+	var result := GameState.use_item(index)
+	refresh_items()
+	var parent_control := get_parent()
+	if parent_control and parent_control.has_method("_refresh_inventory_count"):
+		parent_control.call("_refresh_inventory_count")
+	if parent_control and parent_control.has_method("_sync_coins"):
+		parent_control.call("_sync_coins")
+	if parent_control and parent_control.has_method("_set_notice"):
+		parent_control.call("_set_notice", result)
 
 
 func _add_label(parent: Control, text: String, rect: Rect2, font_size: int, color: Color, alignment := HORIZONTAL_ALIGNMENT_LEFT) -> Label:

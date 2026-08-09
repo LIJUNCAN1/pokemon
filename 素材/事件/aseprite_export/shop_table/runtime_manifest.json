@@ -1,0 +1,71 @@
+{
+    "shop":  {
+                 "source":  "res://素材/事件/商店表格.aseprite",
+                 "canvas":  [
+                                1323,
+                                295
+                            ],
+                 "panel_source_bounds":  [
+                                             16,
+                                             8,
+                                             1152,
+                                             275
+                                         ],
+                 "card_source_bounds":  [
+                                            939,
+                                            78,
+                                            210,
+                                            188
+                                        ],
+                 "attribute_source_bounds":  [
+                                                 951,
+                                                 190,
+                                                 30,
+                                                 30
+                                             ],
+                 "runtime_width":  796,
+                 "columns":  4
+             },
+    "health":  {
+                   "source":  "res://素材/主菜单/Spritesheet.aseprite",
+                   "canvas":  [
+                                  303,
+                                  35
+                              ],
+                   "frame_rects":  [
+                                       [
+                                           16,
+                                           10,
+                                           21,
+                                           18
+                                       ],
+                                       [
+                                           80,
+                                           10,
+                                           21,
+                                           18
+                                       ],
+                                       [
+                                           144,
+                                           10,
+                                           21,
+                                           18
+                                       ],
+                                       [
+                                           208,
+                                           10,
+                                           21,
+                                           18
+                                       ],
+                                       [
+                                           272,
+                                           10,
+                                           21,
+                                           18
+                                       ]
+                                   ],
+                   "max_lives":  3,
+                   "filter":  "nearest",
+                   "mipmaps":  false
+               }
+}

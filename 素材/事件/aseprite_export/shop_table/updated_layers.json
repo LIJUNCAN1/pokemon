@@ -1,0 +1,19 @@
+{ "frames": {
+   "商店表格.aseprite": {
+    "frame": { "x": 0, "y": 0, "w": 1323, "h": 295 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 1323, "h": 295 },
+    "sourceSize": { "w": 1323, "h": 295 },
+    "duration": 100
+   }
+ },
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.x-dev",
+  "image": "updated_layers.png",
+  "format": "RGBA8888",
+  "size": { "w": 1323, "h": 295 },
+  "scale": "1"
+ }
+}

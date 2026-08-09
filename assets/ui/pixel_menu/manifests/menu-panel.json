@@ -1,0 +1,26 @@
+{
+  "canvas": {
+    "width": 640,
+    "height": 360
+  },
+  "source": "../reference/menu-panel-source.png",
+  "layers": [
+    {
+      "id": "menu-panel",
+      "output": "../panels/menu-panel.png",
+      "rect": [
+        189,
+        166,
+        243,
+        170
+      ],
+      "z_index": 0,
+      "role": "menu-panel",
+      "mask": "source-derived"
+    }
+  ],
+  "accuracy": {
+    "visible_pixels": "source-derived",
+    "inferred_hidden_regions": []
+  }
+}

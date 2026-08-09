@@ -1,0 +1,20 @@
+{ "frames": [
+   {
+    "filename": "地图.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 640, "h": 360 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 640, "h": 360 },
+    "sourceSize": { "w": 640, "h": 360 },
+    "duration": 100
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.x-dev",
+  "image": "map_layer_export_sheet.png",
+  "format": "RGBA8888",
+  "size": { "w": 640, "h": 360 },
+  "scale": "1"
+ }
+}

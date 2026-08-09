@@ -1,0 +1,32 @@
+{
+  "canvas": {
+    "width": 640,
+    "height": 360
+  },
+  "source": "../reference/button-pressed-source.png",
+  "layers": [
+    {
+      "id": "button-pressed",
+      "output": "../controls/button-pressed.png",
+      "rect": [
+        196,
+        196,
+        257,
+        37
+      ],
+      "z_index": 0,
+      "role": "button-state",
+      "mask": "source-derived",
+      "hitbox": [
+        196,
+        196,
+        257,
+        37
+      ]
+    }
+  ],
+  "accuracy": {
+    "visible_pixels": "source-derived",
+    "inferred_hidden_regions": []
+  }
+}

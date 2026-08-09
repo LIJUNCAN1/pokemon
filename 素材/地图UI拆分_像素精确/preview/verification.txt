@@ -1,5 +1,0 @@
-canvas=1672x941
-covered_pixels=1573352/1573352 (100.000000%)
-changed_pixels=0/1573352 (0.000000%)
-mean_absolute_channel_error=0.000000
-note=hidden pixels behind flattened controls are not recoverable and are marked inferred

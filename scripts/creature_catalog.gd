@@ -25,6 +25,9 @@ const CREATURE_ATTACK_RANGES: Array[String] = [
 	"ranged", "ranged", "ranged", "ranged", "melee",
 	"melee", "melee", "ranged", "melee", "ranged",
 ]
+const RARITY_NAMES: Array[String] = ["普通", "稀有", "史诗"]
+const RARITY_STAT_MULTIPLIERS: Array[float] = [1.0, 1.25, 1.6]
+const RARITY_CHARGE_MULTIPLIERS: Array[float] = [1.0, 1.08, 1.16]
 
 const THRESHOLDS: Dictionary = {
 	"自然": [2, 4, 6],
@@ -75,6 +78,21 @@ static func attack_range_for_texture(texture_path: String) -> String:
 
 static func combat_role_name(texture_path: String) -> String:
 	return "远程" if attack_range_for_texture(texture_path) == "ranged" else "近战"
+
+
+static func rarity_for_texture(texture_path: String) -> int:
+	var index := CREATURE_FILES.find(texture_path.get_file())
+	if index < 0:
+		return 0
+	return 0 if index < 8 else (1 if index < 12 else 2)
+
+
+static func rarity_stat_multiplier(texture_path: String) -> float:
+	return RARITY_STAT_MULTIPLIERS[rarity_for_texture(texture_path)]
+
+
+static func rarity_charge_multiplier(texture_path: String) -> float:
+	return RARITY_CHARGE_MULTIPLIERS[rarity_for_texture(texture_path)]
 
 
 static func elements_for_texture(texture_path: String) -> PackedStringArray:

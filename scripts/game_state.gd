@@ -1,15 +1,21 @@
 extends Node
 
+const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
 const ACHIEVEMENT_TROPHY := 1
 const ACHIEVEMENT_MEDAL := 2
 const ACHIEVEMENT_STAR := 4
 
 var day := 1
 var progress := 1
-var coins := 8
+var coins := 5
+var run_lives := 3
+var pending_life_loss_animation := false
 var player_team: Array[String] = []
 var player_bench: Array[String] = []
-var item_inventory: Array[String] = []
+var player_team_levels: Array[int] = []
+var player_bench_levels: Array[int] = []
+var item_inventory: Array[Dictionary] = []
+var accessory_inventory: Array[Dictionary] = []
 var seen_creatures: Dictionary = {}
 var creature_achievements: Dictionary = {}
 var map_initialized := false
@@ -22,16 +28,25 @@ var completed_map_nodes: Dictionary = {}
 var run_health_bonus := 0.0
 var run_damage_bonus := 0.0
 var run_charge_bonus := 0.0
+var next_battle_health_bonus := 0.0
+var next_battle_damage_bonus := 0.0
+var next_battle_charge_bonus := 0.0
 var battle_victories := 0
+var has_started_new_game := false
 
 
 func reset_run() -> void:
 	day = 1
 	progress = 1
-	coins = 8
+	coins = 5
+	run_lives = 3
+	pending_life_loss_animation = false
 	player_team.clear()
 	player_bench.clear()
+	player_team_levels.clear()
+	player_bench_levels.clear()
 	item_inventory.clear()
+	accessory_inventory.clear()
 	map_initialized = false
 	map_intro_played = false
 	map_seed = 0
@@ -42,20 +57,70 @@ func reset_run() -> void:
 	run_health_bonus = 0.0
 	run_damage_bonus = 0.0
 	run_charge_bonus = 0.0
+	next_battle_health_bonus = 0.0
+	next_battle_damage_bonus = 0.0
+	next_battle_charge_bonus = 0.0
 	battle_victories = 0
 
 
-func set_player_team(team: Array[String]) -> void:
+func set_player_team(team: Array[String], levels: Array[int] = []) -> void:
 	player_team = team.duplicate()
+	player_team_levels = _normalized_creature_levels(player_team, levels)
 
 
-func set_player_bench(bench: Array[String]) -> void:
+func set_player_bench(bench: Array[String], levels: Array[int] = []) -> void:
 	player_bench = bench.duplicate()
+	player_bench_levels = _normalized_creature_levels(player_bench, levels)
 
 
-func add_item(texture_path: String) -> void:
-	if not texture_path.is_empty():
-		item_inventory.append(texture_path)
+func _normalized_creature_levels(creatures: Array[String], levels: Array[int]) -> Array[int]:
+	var result: Array[int] = []
+	for index in creatures.size():
+		if creatures[index].is_empty():
+			result.append(0)
+		else:
+			result.append(clampi(levels[index] if index < levels.size() else 1, 1, 3))
+	return result
+
+
+func add_item(value: Variant) -> Dictionary:
+	var entry := ITEM_CATALOG.normalize_entry(value, "item")
+	item_inventory.append(entry)
+	return entry
+
+
+func add_accessory(value: Variant) -> Dictionary:
+	var entry := ITEM_CATALOG.normalize_entry(value, "accessory")
+	accessory_inventory.append(entry)
+	add_event_attribute(String(entry["effect_type"]), float(entry["amount"]))
+	return entry
+
+
+func use_item(index: int) -> String:
+	if index < 0 or index >= item_inventory.size():
+		return "道具不存在"
+	var entry: Dictionary = item_inventory[index]
+	var amount := float(entry.get("amount", 0.0))
+	match String(entry.get("effect_type", "")):
+		"next_health": next_battle_health_bonus += amount
+		"next_damage": next_battle_damage_bonus += amount
+		"next_charge": next_battle_charge_bonus += amount
+		"coins": add_coins(roundi(amount))
+		_: return "该道具暂时无法使用"
+	item_inventory.remove_at(index)
+	return "%s已使用：%s" % [String(entry.get("name", "道具")), String(entry.get("effect", "效果已生效"))]
+
+
+func take_next_battle_bonuses() -> Dictionary:
+	var bonuses := {
+		"health": next_battle_health_bonus,
+		"damage": next_battle_damage_bonus,
+		"charge": next_battle_charge_bonus,
+	}
+	next_battle_health_bonus = 0.0
+	next_battle_damage_bonus = 0.0
+	next_battle_charge_bonus = 0.0
+	return bonuses
 
 
 func add_event_attribute(attribute: String, amount: float) -> void:
@@ -65,16 +130,39 @@ func add_event_attribute(attribute: String, amount: float) -> void:
 		"charge": run_charge_bonus += amount
 
 
+func add_coins(amount: int) -> void:
+	coins = maxi(coins + amount, 0)
+
+
+func try_spend_coins(amount: int) -> bool:
+	if amount < 0 or coins < amount:
+		return false
+	coins -= amount
+	return true
+
+
+func lose_run_life() -> int:
+	if run_lives > 0:
+		run_lives -= 1
+		pending_life_loss_animation = true
+	return run_lives
+
+
 func add_creature_reward(texture_path: String) -> bool:
 	if player_bench.size() < 4:
 		player_bench.append(texture_path)
+		player_bench_levels.append(1)
 		return true
 	for index in player_team.size():
 		if player_team[index].is_empty():
 			player_team[index] = texture_path
+			while player_team_levels.size() <= index:
+				player_team_levels.append(0)
+			player_team_levels[index] = 1
 			return true
 	if player_team.size() < 6:
 		player_team.append(texture_path)
+		player_team_levels.append(1)
 		return true
 	return false
 

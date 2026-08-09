@@ -1,0 +1,201 @@
+{
+  "source": "D:\\pokemon\\素材\\主菜单\\菜单.psd",
+  "canvas": {
+    "width": 2560,
+    "height": 1440
+  },
+  "components": [
+    {
+      "id": "2-2-5",
+      "role": "decoration",
+      "rect": [
+        837,
+        1168,
+        882,
+        135
+      ],
+      "position": [
+        837,
+        1168
+      ],
+      "output_size": [
+        882,
+        135
+      ],
+      "output": "components/2-2-5.png",
+      "states": {
+        "normal": "components/2-2-5.png"
+      },
+      "state_layers": {
+        "normal": {
+          "source_layer": "2 拷贝 2",
+          "visible": true,
+          "opacity": 255,
+          "blend_mode": "BlendMode.NORMAL"
+        }
+      },
+      "z_index": 1,
+      "group_path": []
+    },
+    {
+      "id": "2-2",
+      "role": "decoration",
+      "rect": [
+        837,
+        1014,
+        882,
+        135
+      ],
+      "position": [
+        837,
+        1014
+      ],
+      "output_size": [
+        882,
+        135
+      ],
+      "output": "components/2-2.png",
+      "states": {
+        "normal": "components/2-2.png"
+      },
+      "state_layers": {
+        "normal": {
+          "source_layer": "2 拷贝 2",
+          "visible": true,
+          "opacity": 255,
+          "blend_mode": "BlendMode.NORMAL"
+        }
+      },
+      "z_index": 2,
+      "group_path": []
+    },
+    {
+      "id": "2-3",
+      "role": "decoration",
+      "rect": [
+        837,
+        860,
+        882,
+        135
+      ],
+      "position": [
+        837,
+        860
+      ],
+      "output_size": [
+        882,
+        135
+      ],
+      "output": "components/2-3.png",
+      "states": {
+        "normal": "components/2-3.png"
+      },
+      "state_layers": {
+        "normal": {
+          "source_layer": "2 拷贝",
+          "visible": true,
+          "opacity": 255,
+          "blend_mode": "BlendMode.NORMAL"
+        }
+      },
+      "z_index": 3,
+      "group_path": []
+    },
+    {
+      "id": "2",
+      "role": "decoration",
+      "rect": [
+        837,
+        706,
+        882,
+        135
+      ],
+      "position": [
+        837,
+        706
+      ],
+      "output_size": [
+        882,
+        135
+      ],
+      "output": "components/2.png",
+      "states": {
+        "normal": "components/2.png"
+      },
+      "state_layers": {
+        "normal": {
+          "source_layer": "2",
+          "visible": true,
+          "opacity": 255,
+          "blend_mode": "BlendMode.NORMAL"
+        }
+      },
+      "z_index": 4,
+      "group_path": []
+    },
+    {
+      "id": "3",
+      "role": "decoration",
+      "rect": [
+        804,
+        676,
+        947,
+        663
+      ],
+      "position": [
+        804,
+        676
+      ],
+      "output_size": [
+        947,
+        663
+      ],
+      "output": "components/3.png",
+      "states": {
+        "normal": "components/3.png"
+      },
+      "state_layers": {
+        "normal": {
+          "source_layer": "3",
+          "visible": true,
+          "opacity": 255,
+          "blend_mode": "BlendMode.NORMAL"
+        }
+      },
+      "z_index": 5,
+      "group_path": []
+    },
+    {
+      "id": "layer",
+      "role": "decoration",
+      "rect": [
+        0,
+        0,
+        2560,
+        1440
+      ],
+      "position": [
+        0,
+        0
+      ],
+      "output_size": [
+        2560,
+        1440
+      ],
+      "output": "components/layer.png",
+      "states": {
+        "normal": "components/layer.png"
+      },
+      "state_layers": {
+        "normal": {
+          "source_layer": "背景",
+          "visible": true,
+          "opacity": 255,
+          "blend_mode": "BlendMode.NORMAL"
+        }
+      },
+      "z_index": 6,
+      "group_path": []
+    }
+  ]
+}

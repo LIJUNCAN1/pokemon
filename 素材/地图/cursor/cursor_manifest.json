@@ -1,0 +1,105 @@
+{
+    "source_canvas":  [
+                          32,
+                          16
+                      ],
+    "frame_size":  [
+                       16,
+                       16
+                   ],
+    "display_scale":  3,
+    "exports":  [
+                    {
+                        "source":  "mouse.png",
+                        "frame":  0,
+                        "output":  "normal.png",
+                        "state":  "normal",
+                        "hotspot":  [
+                                        12,
+                                        12
+                                    ],
+                        "source_rect":  [
+                                            0,
+                                            0,
+                                            16,
+                                            16
+                                        ],
+                        "output_canvas":  [
+                                              48,
+                                              48
+                                          ],
+                        "display_scale":  3,
+                        "filter":  "nearest",
+                        "mipmaps":  false
+                    },
+                    {
+                        "source":  "mouse.png",
+                        "frame":  1,
+                        "output":  "pressed.png",
+                        "state":  "pressed",
+                        "hotspot":  [
+                                        12,
+                                        12
+                                    ],
+                        "source_rect":  [
+                                            16,
+                                            0,
+                                            16,
+                                            16
+                                        ],
+                        "output_canvas":  [
+                                              48,
+                                              48
+                                          ],
+                        "display_scale":  3,
+                        "filter":  "nearest",
+                        "mipmaps":  false
+                    },
+                    {
+                        "source":  "mouse2.png",
+                        "frame":  0,
+                        "output":  "drag_0.png",
+                        "state":  "drag",
+                        "hotspot":  [
+                                        21,
+                                        3
+                                    ],
+                        "source_rect":  [
+                                            0,
+                                            0,
+                                            16,
+                                            16
+                                        ],
+                        "output_canvas":  [
+                                              48,
+                                              48
+                                          ],
+                        "display_scale":  3,
+                        "filter":  "nearest",
+                        "mipmaps":  false
+                    },
+                    {
+                        "source":  "mouse2.png",
+                        "frame":  1,
+                        "output":  "drag_1.png",
+                        "state":  "drag",
+                        "hotspot":  [
+                                        21,
+                                        3
+                                    ],
+                        "source_rect":  [
+                                            16,
+                                            0,
+                                            16,
+                                            16
+                                        ],
+                        "output_canvas":  [
+                                              48,
+                                              48
+                                          ],
+                        "display_scale":  3,
+                        "filter":  "nearest",
+                        "mipmaps":  false
+                    }
+                ]
+}

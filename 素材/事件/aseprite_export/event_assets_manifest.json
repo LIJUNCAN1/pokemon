@@ -1,0 +1,57 @@
+{
+  "coordinate_system": {
+    "godot_scene_space": [1280, 720],
+    "root_scale": [0.5, 0.5],
+    "output_scale_from_viewport": 3,
+    "placement_note": "The standalone Aseprite components are uniformly fitted to the measured bounds in the 1920x1080 reference. Reference coordinates are converted to 1280x720 scene space by dividing by 1.5."
+  },
+  "reference_layout": {
+    "source": "../../参考/d242840c-453f-4d5d-8e35-36850e5ee31f.png",
+    "canvas": [1920, 1080],
+    "illustration_bounds": [591, 63, 738, 468],
+    "option_bounds": [[591, 552, 738, 69], [591, 633, 738, 69], [591, 714, 738, 69]],
+    "description_bounds": [330, 804, 1260, 270],
+    "right_information_bounds_removed": [1407, 63, 444, 669]
+  },
+  "assets": [
+    {
+      "source": "../插画边框.aseprite",
+      "export": "event_illustration_frame.png",
+      "canvas": [1805, 1145],
+      "color_mode": "RGBA8888",
+      "frames": 1,
+      "tags": [],
+      "layers": ["图层 1", "图层 2", "图层 3", "chahuacheng", "图层 5"],
+      "visual_bounds": [0, 0, 1805, 1145],
+      "godot_rect": [394, 42, 492, 312],
+      "z_order": 0
+    },
+    {
+      "source": "../文字框.aseprite",
+      "export": "event_text_box.png",
+      "canvas": [2179, 466],
+      "color_mode": "RGBA8888",
+      "frames": 1,
+      "tags": [],
+      "layers": ["图层 1", "图层 4", "图层 3", "wenzikuang"],
+      "visual_bounds": [0, 0, 2179, 466],
+      "godot_rect": [220, 536, 840, 180],
+      "text_bounds": [245, 558, 790, 132],
+      "z_order": 4
+    },
+    {
+      "source": "../选项.aseprite",
+      "export": "event_option.png",
+      "canvas": [1807, 171],
+      "color_mode": "RGBA8888",
+      "frames": 1,
+      "tags": [],
+      "layers": ["图层 1"],
+      "visual_bounds": [0, 0, 1807, 171],
+      "godot_rect": [0, 0, 492, 46],
+      "hitbox": [0, 0, 492, 46],
+      "row_step": 54,
+      "z_order": 0
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{ "frames": [
+   {
+    "filename": "选项.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 1807, "h": 171 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 1807, "h": 171 },
+    "sourceSize": { "w": 1807, "h": 171 },
+    "duration": 100
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.x-dev",
+  "image": "event_option-sheet.png",
+  "format": "RGBA8888",
+  "size": { "w": 1807, "h": 171 },
+  "scale": "1"
+ }
+}

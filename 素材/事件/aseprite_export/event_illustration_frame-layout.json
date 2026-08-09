@@ -1,0 +1,20 @@
+{ "frames": [
+   {
+    "filename": "插画边框.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 1805, "h": 1145 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 1805, "h": 1145 },
+    "sourceSize": { "w": 1805, "h": 1145 },
+    "duration": 100
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.x-dev",
+  "image": "event_illustration_frame-sheet.png",
+  "format": "RGBA8888",
+  "size": { "w": 1805, "h": 1145 },
+  "scale": "1"
+ }
+}

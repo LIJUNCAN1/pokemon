@@ -1,12 +1,17 @@
 extends Control
 
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
+const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
 const DESIGN_SIZE := Vector2(1280, 720)
-const FULL_HD_SCALE := Vector2(1.5, 1.5)
+const FULL_HD_SCALE := Vector2(0.5, 0.5)
 const REFERENCE_SIZE := Vector2(1672, 941)
 const REFERENCE_SCALE := Vector2(DESIGN_SIZE.x / REFERENCE_SIZE.x, DESIGN_SIZE.y / REFERENCE_SIZE.y)
 const EVENT := "res://素材/事件/"
+const EVENT_ILLUSTRATION_FRAME := EVENT + "aseprite_export/event_illustration_frame.png"
+const EVENT_OPTION_FRAME := EVENT + "aseprite_export/event_option.png"
+const EVENT_TEXT_BOX := EVENT + "aseprite_export/event_text_box.png"
 const SCENE_ASSETS := "res://素材/场景/"
+const MAP_ASSETS := "res://素材/地图/"
 const POKEMON := "res://素材/宝可梦图/"
 const EVENT_CREATURES: Array[String] = [
 	POKEMON + "1 (1).png", POKEMON + "1 (2).png", POKEMON + "1 (3).png",
@@ -22,6 +27,7 @@ const EVENT_CREATURE_NAMES: Array[String] = [
 const REWARD_COLORS := {
 	"attribute": Color("ef466f"),
 	"item": Color("e2a93b"),
+	"accessory": Color("c77be8"),
 	"creature": Color("668fe5"),
 	"coins": Color("e6c454"),
 	"story": Color("667080"),
@@ -46,23 +52,33 @@ const NODE_COLORS := {
 	"rest": Color("9a65dc"),
 	"boss": Color("ef3d45"),
 }
-const NODE_FRAME_ASSET := SCENE_ASSETS + "选项底图.png"
-const NODE_HOVER_ASSET := SCENE_ASSETS + "选项选中框.png"
+const NODE_FRAME_ASSET := MAP_ASSETS + "未选中框1.png"
+const NODE_SELECTED_FRAME_ASSET := MAP_ASSETS + "选中框1.png"
+const NODE_VISITED_MASK_ASSET := MAP_ASSETS + "node-visited-mask.png"
+const MAP_LAYER_ROOT := "res://素材/地图/aseprite_layers/"
+const MAP_NODE_X_STRETCH := 1.55
+const MAP_NODE_X_ANCHOR := 139.0
+const MAP_CONTENT_WIDTH := 2600.0
+const MAP_VIEWPORT_POSITION := Vector2(53, 178)
+const MAP_VIEWPORT_SIZE := Vector2(1566, 548)
+const MAP_CAMERA_LEFT_OVERSCAN := -110.0
 const NODE_ICON_ASSETS := {
-	"start": SCENE_ASSETS + "起点icon.png",
-	"battle": SCENE_ASSETS + "战斗icon.png",
-	"elite": SCENE_ASSETS + "精英icon.png",
-	"shop": SCENE_ASSETS + "休息icon.png",
-	"event": SCENE_ASSETS + "事件icon.png",
-	"chest": SCENE_ASSETS + "奖励icon.png",
-	"rest": SCENE_ASSETS + "休息节点icon.png",
+	"start": MAP_ASSETS + "战斗icon.png",
+	"battle": MAP_ASSETS + "战斗icon.png",
+	"elite": MAP_ASSETS + "精英icon.png",
+	"shop": MAP_ASSETS + "休息icon.png",
+	"event": MAP_ASSETS + "事件icon.png",
+	"chest": MAP_ASSETS + "奖励icon.png",
+	"rest": MAP_ASSETS + "休息节点icon.png",
+	"boss": MAP_ASSETS + "boss2.png",
 }
 
 var source_han_font: FontFile
 var rng := RandomNumberGenerator.new()
 var world: Control
+var map_viewport: Control
 var map_content: Control
-var hero: Panel
+var hero: Control
 var node_buttons: Dictionary = {}
 var node_hover_frames: Dictionary = {}
 var node_state_overlays: Dictionary = {}
@@ -72,31 +88,34 @@ var coin_label: Label
 var event_overlay: Control
 var event_option_area: Control
 var event_description: RichTextLabel
-var event_detail_title: Label
-var event_detail_type: Label
-var event_detail_icon: TextureRect
-var event_detail_summary: RichTextLabel
-var event_detail_effect: RichTextLabel
 var event_corner_groups: Array = []
 var event_corner_tween: Tween
 var event_story_id := 0
 var event_stage_id := "root"
-var event_item_path := ""
+var event_consumable: Dictionary = {}
+var event_loot: Dictionary = {}
 var event_creature_path := ""
 var event_creature_name := ""
-var event_item_name := ""
 var event_result_text := ""
 var event_result_kind := "story"
 var chest_event := false
 var chest_coin_amount := 0
 var node_info_detail: Label
 var node_info_hint: Label
+var settings_overlay: Control
+var map_drag_pending := false
+var map_drag_active := false
+var map_drag_suppress_click := false
+var map_drag_distance := 0.0
 
 
 func _ready() -> void:
 	_apply_full_hd_layout()
 	source_han_font = SOURCE_HAN_FONT.duplicate() as FontFile
 	source_han_font.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
+	source_han_font.multichannel_signed_distance_field = true
+	source_han_font.msdf_pixel_range = 8
+	source_han_font.msdf_size = 64
 	source_han_font.hinting = TextServer.HINTING_NORMAL
 	source_han_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	source_han_font.oversampling = FULL_HD_SCALE.x
@@ -106,6 +125,51 @@ func _ready() -> void:
 	input_locked = not GameState.map_intro_played
 	_build_interface()
 	_position_map_on_entry.call_deferred()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		if not is_instance_valid(settings_overlay):
+			get_viewport().set_input_as_handled()
+			_open_map_settings()
+
+
+func _input(event: InputEvent) -> void:
+	if input_locked or not is_instance_valid(map_viewport) or not is_instance_valid(map_content) or is_instance_valid(event_overlay) or is_instance_valid(settings_overlay):
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			var local_position: Vector2 = map_viewport.get_global_transform_with_canvas().affine_inverse() * event.position
+			if Rect2(Vector2.ZERO, map_viewport.size).has_point(local_position):
+				map_drag_pending = true
+				map_drag_active = false
+				map_drag_distance = 0.0
+		else:
+			if map_drag_active:
+				map_drag_suppress_click = true
+				_clear_map_drag_suppression.call_deferred()
+			map_drag_pending = false
+			map_drag_active = false
+	elif event is InputEventMouseMotion and map_drag_pending and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		var local_delta: Vector2 = map_viewport.get_global_transform_with_canvas().basis_xform_inv(event.relative)
+		map_drag_distance += absf(local_delta.x)
+		if map_drag_distance >= 8.0:
+			map_drag_active = true
+		if map_drag_active:
+			_pan_map(local_delta.x)
+
+
+func _clear_map_drag_suppression() -> void:
+	await get_tree().process_frame
+	map_drag_suppress_click = false
+
+
+func _pan_map(horizontal_delta: float) -> void:
+	map_content.position.x = clampf(
+		map_content.position.x + horizontal_delta,
+		_map_content_min_x(),
+		_map_content_max_x()
+	)
 
 
 func _apply_full_hd_layout() -> void:
@@ -175,28 +239,49 @@ func _build_interface() -> void:
 	world.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(world)
 
-	var map_background := _add_map_texture(world, SCENE_ASSETS + "底图-地图内容.png", Rect2(Vector2.ZERO, REFERENCE_SIZE), 0)
-	map_background.stretch_mode = TextureRect.STRETCH_SCALE
+	var white_background := ColorRect.new()
+	white_background.position = Vector2.ZERO
+	white_background.size = REFERENCE_SIZE
+	white_background.color = Color("b9bec5")
+	white_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	white_background.z_index = -10
+	world.add_child(white_background)
+	var mountain_layer := _add_map_texture(world, MAP_LAYER_ROOT + "shan.png", Rect2(Vector2.ZERO, REFERENCE_SIZE), 0)
+	mountain_layer.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	map_viewport = Control.new()
+	# Clip interactive map content to the inner mountain panel, leaving the
+	# authored frame pixels and the bottom detail panel unobstructed.
+	map_viewport.position = MAP_VIEWPORT_POSITION
+	map_viewport.size = MAP_VIEWPORT_SIZE
+	map_viewport.clip_contents = true
+	map_viewport.mouse_filter = Control.MOUSE_FILTER_PASS
+	map_viewport.z_index = 10
+	world.add_child(map_viewport)
 	map_content = Control.new()
-	map_content.position = Vector2.ZERO
-	map_content.size = REFERENCE_SIZE
-	map_content.pivot_offset = REFERENCE_SIZE * 0.5
-	map_content.scale = Vector2(1.1, 1.0)
+	map_content.position = _map_content_position_for_node(GameState.current_map_node)
+	map_content.size = Vector2(MAP_CONTENT_WIDTH, REFERENCE_SIZE.y)
+	map_content.pivot_offset = map_content.size * 0.5
+	map_content.scale = Vector2.ONE
 	map_content.mouse_filter = Control.MOUSE_FILTER_PASS
-	world.add_child(map_content)
+	map_viewport.add_child(map_content)
 	_build_paths()
+	# Authored frame layers stay above every map node/path so no interactive
+	# element can cover the border pixels. Keep title/settings just above them.
+	var outer_layer := _add_map_texture(world, MAP_LAYER_ROOT + "da_kuang.png", Rect2(Vector2.ZERO, REFERENCE_SIZE), 100)
+	outer_layer.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var top_layer := _add_map_texture(world, MAP_LAYER_ROOT + "up_kuang.png", Rect2(Vector2.ZERO, REFERENCE_SIZE), 101)
+	top_layer.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var bottom_layer := _add_map_texture(world, MAP_LAYER_ROOT + "xiao_kuang.png", Rect2(Vector2.ZERO, REFERENCE_SIZE), 101)
+	bottom_layer.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_build_node_info_panel()
 	_build_map_title()
 
-	var settings_button := _add_map_texture_button(world, SCENE_ASSETS + "设置icon.png", Rect2(1580, 42, 50, 46), 31)
+	var settings_button := _add_map_texture_button(world, MAP_ASSETS + "设置icon.png", Rect2(1580, 42, 50, 46), 102)
 	settings_button.tooltip_text = "设置"
 	settings_button.pressed.connect(_open_map_settings)
 
 	_build_nodes()
 	_build_hero()
-	var map_frame := _add_map_texture(world, SCENE_ASSETS + "底图-边框覆盖.png", Rect2(Vector2.ZERO, REFERENCE_SIZE), 60)
-	map_frame.stretch_mode = TextureRect.STRETCH_SCALE
-
 	status_label = Label.new()
 	status_label.visible = false
 	add_child(status_label)
@@ -216,7 +301,7 @@ func _add_dashed_path(start: Vector2, finish: Vector2) -> void:
 	var direction := finish - start
 	var length := direction.length()
 	var normal := direction.normalized()
-	var dash_texture := load(SCENE_ASSETS + "虚线.png") as Texture2D
+	var dash_texture := load(MAP_ASSETS + "虚线.png") as Texture2D
 	var offset := 0.0
 	while offset < length:
 		var dash := TextureRect.new()
@@ -239,15 +324,15 @@ func _build_nodes() -> void:
 	for spec in _reference_node_specs():
 		var node_id := int(spec["id"])
 		var node_type := String(spec["type"])
-		var center: Vector2 = spec["center"]
-		var node_size := Vector2(92, 83) if node_type != "boss" else Vector2(120, 108)
-		var frame_path := SCENE_ASSETS + "boss.png" if node_type == "boss" else NODE_FRAME_ASSET
+		var center := _node_position(node_id)
+		var node_size := Vector2(92, 94)
+		var current_node := node_id == GameState.current_map_node
 		var button := TextureButton.new()
 		button.position = center - node_size * 0.5
 		button.size = node_size
-		button.texture_normal = load(frame_path) as Texture2D
-		button.texture_hover = button.texture_normal
-		button.texture_pressed = button.texture_normal
+		button.texture_normal = load(NODE_SELECTED_FRAME_ASSET if current_node else NODE_FRAME_ASSET) as Texture2D
+		button.texture_hover = load(NODE_SELECTED_FRAME_ASSET) as Texture2D
+		button.texture_pressed = button.texture_hover
 		button.texture_disabled = button.texture_normal
 		button.ignore_texture_size = true
 		button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
@@ -275,24 +360,14 @@ func _build_nodes() -> void:
 			icon.z_index = 41
 			map_content.add_child(icon)
 
-		var hover_frame := TextureRect.new()
-		var hover_size := Vector2(110, 86) if node_type != "boss" else Vector2(136, 112)
-		hover_frame.position = center - hover_size * 0.5
-		hover_frame.size = hover_size
-		hover_frame.texture = load(NODE_HOVER_ASSET) as Texture2D
-		hover_frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		hover_frame.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		hover_frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		hover_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		hover_frame.z_index = 43
-		hover_frame.visible = false
-		map_content.add_child(hover_frame)
-		node_hover_frames[node_id] = hover_frame
-
-		var state_overlay := ColorRect.new()
+		var state_overlay := TextureRect.new()
 		state_overlay.position = center - node_size * 0.5
 		state_overlay.size = node_size
-		state_overlay.color = Color(0, 0, 0, 0.48)
+		state_overlay.texture = load(NODE_VISITED_MASK_ASSET) as Texture2D
+		state_overlay.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		state_overlay.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		state_overlay.modulate = Color(1, 1, 1, 0.58)
+		state_overlay.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		state_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		state_overlay.z_index = 42
 		map_content.add_child(state_overlay)
@@ -302,12 +377,14 @@ func _build_nodes() -> void:
 
 
 func _build_hero() -> void:
-	hero = Panel.new()
-	hero.size = Vector2(112, 96)
+	# The current node's orange frame is now the position marker. Keep an
+	# invisible control for the travel tween so movement logic stays intact.
+	hero = Control.new()
+	hero.size = Vector2(1, 1)
 	hero.position = _node_position(GameState.current_map_node) - hero.size * 0.5
+	hero.visible = false
 	hero.z_index = 39
 	hero.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hero.add_theme_stylebox_override("panel", _panel_style(Color.TRANSPARENT, Color("f0a71d"), 3))
 	map_content.add_child(hero)
 
 
@@ -343,24 +420,68 @@ func _add_map_texture_button(parent: Control, path: String, rect: Rect2, layer: 
 
 
 func _build_node_info_panel() -> void:
-	node_info_detail = Label.new()
-	node_info_detail.position = Vector2(76, 790)
-	node_info_detail.size = Vector2(1120, 44)
-	node_info_detail.add_theme_font_override("font", source_han_font)
-	node_info_detail.add_theme_font_size_override("font_size", 21)
-	node_info_detail.add_theme_color_override("font_color", Color("24313d"))
-	node_info_detail.z_index = 20
-	world.add_child(node_info_detail)
+	var legend := Control.new()
+	legend.position = Vector2(72, 774)
+	legend.size = Vector2(1518, 82)
+	legend.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	legend.z_index = 102
+	world.add_child(legend)
+	var entries := [
+		{"label": "普通战斗", "icon": MAP_ASSETS + "战斗icon.png"},
+		{"label": "精英战斗", "icon": MAP_ASSETS + "精英icon.png"},
+		{"label": "宝箱", "icon": MAP_ASSETS + "奖励icon.png"},
+		{"label": "商店", "icon": MAP_ASSETS + "休息icon.png"},
+		{"label": "事件", "icon": MAP_ASSETS + "事件icon.png"},
+		{"label": "休息营地", "icon": MAP_ASSETS + "休息节点icon.png"},
+	]
+	var entry_width := 253.0
+	for index in entries.size():
+		_add_legend_entry(legend, entries[index], Vector2(index * entry_width, 8), entry_width)
+		if index < entries.size() - 1:
+			var separator := ColorRect.new()
+			separator.position = Vector2((index + 1) * entry_width - 2, 15)
+			separator.size = Vector2(3, 52)
+			separator.color = Color("68717a")
+			separator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			legend.add_child(separator)
 
-	node_info_hint = Label.new()
-	node_info_hint.position = Vector2(1240, 812)
-	node_info_hint.size = Vector2(320, 28)
-	node_info_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	node_info_hint.add_theme_font_override("font", source_han_font)
-	node_info_hint.add_theme_font_size_override("font_size", 15)
-	node_info_hint.add_theme_color_override("font_color", Color("687681"))
-	node_info_hint.z_index = 20
-	world.add_child(node_info_hint)
+
+func _add_legend_entry(parent: Control, entry: Dictionary, position: Vector2, width: float) -> void:
+	var item := Control.new()
+	item.position = position
+	item.size = Vector2(width, 66)
+	item.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(item)
+	var frame := TextureRect.new()
+	frame.position = Vector2(5, 3)
+	frame.size = Vector2(58, 59)
+	frame.texture = load(NODE_FRAME_ASSET) as Texture2D
+	frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	frame.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	item.add_child(frame)
+	var icon := TextureRect.new()
+	icon.position = Vector2(17, 14)
+	icon.size = Vector2(34, 34)
+	icon.texture = load(String(entry["icon"])) as Texture2D
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	item.add_child(icon)
+	var label := Label.new()
+	label.position = Vector2(70, 5)
+	label.size = Vector2(width - 78, 56)
+	label.text = String(entry["label"])
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_override("font", source_han_font)
+	label.add_theme_font_size_override("font_size", 18)
+	label.add_theme_color_override("font_color", Color("303942"))
+	label.add_theme_color_override("font_outline_color", Color("eef1f3"))
+	label.add_theme_constant_override("outline_size", 1)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	item.add_child(label)
 
 
 func _update_node_info(node_id: int) -> void:
@@ -381,7 +502,7 @@ func _build_map_title() -> void:
 	title.add_theme_color_override("font_color", Color.WHITE)
 	title.add_theme_color_override("font_outline_color", Color("27313a"))
 	title.add_theme_constant_override("outline_size", 2)
-	title.z_index = 30
+	title.z_index = 102
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	world.add_child(title)
 
@@ -400,23 +521,30 @@ func _node_description(node_type: String) -> String:
 
 
 func _open_map_settings() -> void:
-	var overlay := preload("res://settings_overlay.tscn").instantiate() as Control
-	overlay.set("exit_scene_path", "res://map.tscn")
-	add_child(overlay)
+	if not is_instance_valid(settings_overlay):
+		settings_overlay = preload("res://settings_overlay.tscn").instantiate() as Control
+		settings_overlay.set("exit_scene_path", "res://map.tscn")
+		add_child(settings_overlay)
+	else:
+		settings_overlay.move_to_front()
 
 
 func _position_map_on_entry() -> void:
 	await get_tree().process_frame
 	var play_intro := input_locked
+	var target_position := _map_content_position_for_node(GameState.current_map_node)
 	if play_intro:
-		# Start focused on the boss side, then pan left until the full route is visible.
-		map_content.position = Vector2(-735, 0)
+		# Start on the authored Boss-room side, then pan to the current node.
+		# This restores the original map entrance while preserving the longer route.
+		var boss_position := _map_content_position_for_node(22)
+		map_content.position = boss_position
+		await get_tree().create_timer(1.0).timeout
 		var camera_tween := create_tween()
-		camera_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		camera_tween.tween_property(map_content, "position", Vector2.ZERO, 1.6)
+		camera_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+		camera_tween.tween_property(map_content, "position", target_position, 1.6)
 		await camera_tween.finished
 	else:
-		map_content.position = Vector2.ZERO
+		map_content.position = target_position
 	GameState.map_intro_played = true
 	input_locked = false
 	_refresh_node_interaction()
@@ -447,35 +575,33 @@ func _refresh_single_node(node_id: int) -> void:
 	var button := node_buttons.get(node_id) as TextureButton
 	if button == null:
 		return
+	var current_node := node_id == GameState.current_map_node
+	button.texture_normal = load(NODE_SELECTED_FRAME_ASSET if current_node else NODE_FRAME_ASSET) as Texture2D
+	button.texture_hover = load(NODE_SELECTED_FRAME_ASSET) as Texture2D
+	button.texture_pressed = button.texture_hover
+	button.texture_disabled = button.texture_normal
 	button.modulate = Color.WHITE
-	var overlay := node_state_overlays.get(node_id) as ColorRect
+	var overlay := node_state_overlays.get(node_id) as TextureRect
 	if overlay != null:
 		var completed := GameState.is_map_node_completed(node_id)
-		var unavailable := node_id not in _selectable_node_ids()
-		overlay.visible = completed or unavailable
-		overlay.color = Color(0, 0, 0, 0.38 if completed else 0.55)
+		overlay.visible = completed
+		overlay.modulate = Color(1, 1, 1, 0.58)
 
 
 func _on_node_hovered(node_id: int) -> void:
 	var button := node_buttons.get(node_id) as TextureButton
-	var hover_frame := node_hover_frames.get(node_id) as TextureRect
-	if hover_frame != null:
-		hover_frame.visible = true
 	if button != null and not button.disabled:
-		button.modulate = Color(1.12, 1.08, 0.90, 1.0)
+		button.modulate = Color.WHITE
 	_update_node_info(node_id)
 
 
 func _on_node_unhovered(node_id: int) -> void:
-	var hover_frame := node_hover_frames.get(node_id) as TextureRect
-	if hover_frame != null:
-		hover_frame.visible = false
 	_refresh_single_node(node_id)
 	_update_node_info(GameState.current_map_node)
 
 
 func _on_node_pressed(node_id: int) -> void:
-	if input_locked or node_id not in _selectable_node_ids():
+	if input_locked or map_drag_suppress_click or node_id not in _selectable_node_ids():
 		return
 	input_locked = true
 	for button in node_buttons.values():
@@ -517,51 +643,55 @@ func _show_event_popup() -> void:
 	shade.mouse_filter = Control.MOUSE_FILTER_STOP
 	event_overlay.add_child(shade)
 
-	var illustration := Panel.new()
-	illustration.position = Vector2(82, 30)
-	illustration.size = Vector2(690, 325)
+	var illustration := Control.new()
+	illustration.position = Vector2(394, 42)
+	illustration.size = Vector2(492, 312)
 	illustration.clip_contents = true
-	illustration.add_theme_stylebox_override("panel", _panel_style(Color("123646"), Color("d7d6df"), 5))
 	event_overlay.add_child(illustration)
-	_add_event_texture(illustration, SCENE_ASSETS + "图层 2.png", Rect2(5, 5, 680, 150), TextureRect.STRETCH_SCALE)
-	_add_event_texture(illustration, SCENE_ASSETS + "图层 5.png", Rect2(5, 128, 680, 192), TextureRect.STRETCH_SCALE)
+	_add_event_texture(illustration, EVENT_ILLUSTRATION_FRAME, Rect2(Vector2.ZERO, illustration.size))
+	var illustration_content := Control.new()
+	illustration_content.position = Vector2(14, 14)
+	illustration_content.size = Vector2(464, 284)
+	illustration_content.clip_contents = true
+	illustration.add_child(illustration_content)
+	_add_event_texture(
+		illustration_content,
+		SCENE_ASSETS + "图层 2.png",
+		Rect2(Vector2.ZERO, illustration_content.size),
+		TextureRect.STRETCH_KEEP_ASPECT_COVERED,
+	)
 	var light := ColorRect.new()
-	light.position = Vector2(240, 130)
-	light.size = Vector2(220, 150)
+	light.position = Vector2(157, 82)
+	light.size = Vector2(150, 102)
 	light.color = Color(0.36, 0.86, 0.60, 0.20)
 	light.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	illustration.add_child(light)
-	var story_creature := _add_event_texture(illustration, event_creature_path, Rect2(280, 105, 130, 155))
+	illustration_content.add_child(light)
+	var story_creature := _add_event_texture(illustration_content, event_creature_path, Rect2(188, 68, 89, 106))
 	story_creature.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_add_label(illustration, _event_title(), Rect2(18, 12, 654, 42), 25, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 
 	event_option_area = Control.new()
-	event_option_area.position = Vector2(82, 365)
-	event_option_area.size = Vector2(760, 180)
+	event_option_area.position = Vector2(394, 368)
+	event_option_area.size = Vector2(492, 155)
 	event_overlay.add_child(event_option_area)
 
-	_add_event_texture(event_overlay, EVENT + "image-1785667721191-bpnz232e87t.png", Rect2(54, 565, 824, 126), TextureRect.STRETCH_SCALE)
+	var text_box := _add_event_texture(event_overlay, EVENT_TEXT_BOX, Rect2(220, 536, 840, 180))
+	text_box.z_index = 4
 	event_description = RichTextLabel.new()
-	event_description.position = Vector2(80, 582)
-	event_description.size = Vector2(772, 88)
+	event_description.position = Vector2(245, 558)
+	event_description.size = Vector2(790, 132)
 	event_description.bbcode_enabled = true
 	event_description.fit_content = false
 	event_description.scroll_active = false
 	event_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	event_description.add_theme_font_override("normal_font", source_han_font)
-	event_description.add_theme_font_size_override("normal_font_size", 18)
+	event_description.add_theme_font_size_override("normal_font_size", 20)
 	event_description.add_theme_color_override("default_color", Color("313440"))
+	event_description.add_theme_color_override("font_shadow_color", Color("d7d8df"))
+	event_description.add_theme_constant_override("shadow_offset_x", 1)
+	event_description.add_theme_constant_override("shadow_offset_y", 1)
 	event_description.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	event_description.z_index = 5
 	event_overlay.add_child(event_description)
-
-	_add_event_texture(event_overlay, EVENT + "02_切图_2.png", Rect2(922, 24, 330, 666), TextureRect.STRETCH_SCALE)
-	event_detail_title = _add_label(event_overlay, "", Rect2(947, 42, 150, 38), 20, Color.WHITE)
-	event_detail_type = _add_label(event_overlay, "", Rect2(1100, 42, 125, 38), 14, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
-	_add_event_texture(event_overlay, EVENT + "image-1785667710877-puzgzca6peo.png", Rect2(950, 105, 126, 112), TextureRect.STRETCH_SCALE)
-	event_detail_icon = _add_event_texture(event_overlay, event_creature_path, Rect2(964, 116, 98, 88))
-	event_detail_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	event_detail_summary = _event_rich_label(event_overlay, Rect2(1090, 112, 130, 98), 15)
-	event_detail_effect = _event_rich_label(event_overlay, Rect2(958, 260, 252, 338), 16)
 
 	event_stage_id = "root"
 	_render_event_stage()
@@ -573,24 +703,26 @@ func _prepare_event_rewards() -> void:
 	var creature_index := rng.randi_range(0, EVENT_CREATURES.size() - 1)
 	event_creature_path = EVENT_CREATURES[creature_index]
 	event_creature_name = EVENT_CREATURE_NAMES[creature_index]
-	var item_files: Array[String] = []
-	for file_name in DirAccess.get_files_at("res://assets/items/64x64"):
-		if file_name.ends_with(".png"):
-			item_files.append(file_name)
-	if item_files.is_empty():
-		event_item_path = ""
-		event_item_name = "神秘道具"
-	else:
-		var item_file := item_files[rng.randi_range(0, item_files.size() - 1)]
-		event_item_path = "res://assets/items/64x64/%s" % item_file
-		event_item_name = item_file.get_basename().replace("_", " ").capitalize()
-	chest_coin_amount = rng.randi_range(5, 9)
+	event_consumable = ITEM_CATALOG.random_entry("item", rng)
+	event_loot = ITEM_CATALOG.random_entry("accessory" if rng.randf() < 0.5 else "item", rng)
+	chest_coin_amount = rng.randi_range(2, 4)
 
 
 func _event_title() -> String:
 	if chest_event:
 		return "遗失的宝箱"
 	return ["月光遗迹", "暴雨中的旧驿站", "沉睡的孵化庭院"][event_story_id]
+
+
+func _loot_option(text: String, entry: Dictionary) -> Dictionary:
+	var type_name := "饰品" if entry["kind"] == "accessory" else "道具"
+	return {
+		"text": text,
+		"tag": "（%s：%s）" % [type_name, String(entry["name"])],
+		"kind": entry["kind"],
+		"entry": entry,
+		"detail": entry["effect"],
+	}
 
 
 func _event_stage_data() -> Dictionary:
@@ -609,11 +741,11 @@ func _event_stage_data() -> Dictionary:
 		if chest_roll < 8:
 			return {
 				"story": "宝箱缝隙中透出微光，一件保存完好的装备正静静躺在其中。",
-				"options": [{"text": "打开宝箱", "tag": "（道具：%s）" % event_item_name, "kind": "item", "detail": "获得一件随机道具并放入背包。"}],
+				"options": [_loot_option("打开宝箱", event_consumable)],
 			}
 		return {
 			"story": "宝箱突然轻轻晃动，里面似乎藏着一位等待同行的伙伴。",
-			"options": [{"text": "打开宝箱", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得一张角色卡；队伍已满时转化为 8 金币。"}],
+			"options": [{"text": "打开宝箱", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得一张角色卡；队伍已满时转化为 3 金币。"}],
 		}
 	match event_story_id:
 		0:
@@ -625,12 +757,12 @@ func _event_stage_data() -> Dictionary:
 					]}
 				"camp":
 					return {"story": "脚印通向一处废弃营地。火堆早已熄灭，箱子里却传来轻微碰撞声。", "options": [
-						{"text": "打开旅行者留下的箱子", "tag": "（道具：%s）" % event_item_name, "kind": "item", "detail": "获得一件随机道具并放入背包。"},
-						{"text": "整理散落的钱袋", "tag": "（金币：+5）", "kind": "coins", "amount": 5, "detail": "获得 5 枚金币。"},
+						_loot_option("打开旅行者留下的箱子", event_loot),
+						{"text": "整理散落的钱袋", "tag": "（金币：+2）", "kind": "coins", "amount": 2, "detail": "获得 2 枚金币。"},
 					]}
 				"nest":
 					return {"story": "低语来自破碎石柱后的巢穴。一只迷失的生物正被古代锁链困住。", "options": [
-						{"text": "破坏锁链并带它离开", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；队伍已满时会转化为 8 金币。"},
+						{"text": "破坏锁链并带它离开", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；队伍已满时会转化为 3 金币。"},
 						{"text": "吸收锁链残留的能量", "tag": "（属性：全队充能速度 +8%）", "kind": "attribute", "attribute": "charge", "amount": 0.08, "detail": "提高本次远征中全队的技能充能速度。"},
 					]}
 				_:
@@ -644,16 +776,16 @@ func _event_stage_data() -> Dictionary:
 				"generator":
 					return {"story": "你清理掉缠绕发电机的藤蔓。残存的雷光汇成两条不同频率的回路。", "options": [
 						{"text": "接通高速回路", "tag": "（属性：全队充能速度 +10%）", "kind": "attribute", "attribute": "charge", "amount": 0.10, "detail": "提高本次远征中全队的技能充能速度。"},
-						{"text": "拆下稳定器", "tag": "（道具：%s）" % event_item_name, "kind": "item", "detail": "获得发电机中保存的一件随机道具。"},
+						_loot_option("拆下稳定器", event_loot),
 					]}
 				"archive":
 					return {"story": "值班室的日志记录了最后一场暴雨。柜台下还压着驿站管理员未发出的补给。", "options": [
-						{"text": "取走密封补给", "tag": "（道具：%s）" % event_item_name, "kind": "item", "detail": "获得一件随机道具并放入背包。"},
-						{"text": "回收旧时代货币", "tag": "（金币：+6）", "kind": "coins", "amount": 6, "detail": "获得 6 枚金币。"},
+						_loot_option("取走密封补给", event_loot),
+						{"text": "回收旧时代货币", "tag": "（金币：+3）", "kind": "coins", "amount": 3, "detail": "获得 3 枚金币。"},
 					]}
 				"signal":
 					return {"story": "信号并非求救，而是一只躲雨生物发出的回应。它谨慎地注视着你。", "options": [
-						{"text": "分享食物并邀请同行", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；队伍已满时会转化为 8 金币。"},
+						{"text": "分享食物并邀请同行", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；队伍已满时会转化为 3 金币。"},
 						{"text": "让它为队伍指路", "tag": "（属性：全队最大生命 +10%）", "kind": "attribute", "attribute": "health", "amount": 0.10, "detail": "安全路线使全队在之后的战斗中拥有更多最大生命。"},
 					]}
 				_:
@@ -671,12 +803,12 @@ func _event_stage_data() -> Dictionary:
 					]}
 				"greenhouse":
 					return {"story": "温室中央生长着一株透明植物，根系包裹着一枚保存完好的容器。", "options": [
-						{"text": "摘下根系中的容器", "tag": "（道具：%s）" % event_item_name, "kind": "item", "detail": "获得一件被植物保护至今的随机道具。"},
-						{"text": "采集成熟的能量果实", "tag": "（金币：+7）", "kind": "coins", "amount": 7, "detail": "出售能量果实，获得 7 枚金币。"},
+						_loot_option("摘下根系中的容器", event_loot),
+						{"text": "采集成熟的能量果实", "tag": "（金币：+4）", "kind": "coins", "amount": 4, "detail": "出售能量果实，获得 4 枚金币。"},
 					]}
 				"cradle":
 					return {"story": "哭声来自被花藤覆盖的摇篮。里面的生物睁开眼睛，主动把爪子伸向你。", "options": [
-						{"text": "抱起它并一起旅行", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；队伍已满时会转化为 8 金币。"},
+						{"text": "抱起它并一起旅行", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；队伍已满时会转化为 3 金币。"},
 						{"text": "修复摇篮的供能装置", "tag": "（属性：全队充能速度 +9%）", "kind": "attribute", "attribute": "charge", "amount": 0.09, "detail": "带走装置中的技术，提高全队技能充能速度。"},
 					]}
 				_:
@@ -694,16 +826,16 @@ func _render_event_stage() -> void:
 		child.queue_free()
 	event_corner_groups.clear()
 	var stage := _event_stage_data()
-	event_description.text = "[center]%s[/center]" % String(stage["story"])
+	event_description.text = String(stage["story"])
 	var options: Array = stage["options"]
 	for index in options.size():
 		var option: Dictionary = options[index]
 		var row := Control.new()
-		row.position = Vector2(0, index * 58.0)
-		row.size = Vector2(760, 52)
+		row.position = Vector2(0, index * 54.0)
+		row.size = Vector2(492, 46)
 		event_option_area.add_child(row)
-		_add_event_texture(row, EVENT + "03_切图_3.png", Rect2(Vector2.ZERO, row.size), TextureRect.STRETCH_SCALE)
-		var text_label := _event_rich_label(row, Rect2(22, 4, 716, 43), 15)
+		_add_event_texture(row, EVENT_OPTION_FRAME, Rect2(Vector2.ZERO, row.size))
+		var text_label := _event_rich_label(row, Rect2(16, 10, 460, 30), 15)
 		var kind := String(option.get("kind", "story"))
 		var tag := String(option.get("tag", ""))
 		var color: Color = REWARD_COLORS.get(kind, REWARD_COLORS["story"])
@@ -719,31 +851,13 @@ func _render_event_stage() -> void:
 		hit.pressed.connect(_choose_event_option.bind(option))
 		row.add_child(hit)
 		event_corner_groups.append(_create_event_corners(row))
-	if not options.is_empty():
-		_show_event_stage_overview(options[0])
 
 
-func _select_event_option(index: int, option: Dictionary) -> void:
+func _select_event_option(index: int, _option: Dictionary) -> void:
 	for group_index in event_corner_groups.size():
 		for corner in event_corner_groups[group_index]:
 			(corner as TextureRect).visible = group_index == index
 	_start_event_corner_animation(index)
-	var kind := String(option.get("kind", "story"))
-	var color: Color = REWARD_COLORS.get(kind, REWARD_COLORS["story"])
-	event_detail_title.text = String(option.get("text", "事件选择"))
-	event_detail_title.add_theme_color_override("font_color", color if kind != "story" else Color.WHITE)
-	event_detail_type.text = _event_kind_name(kind)
-	event_detail_type.add_theme_color_override("font_color", color if kind != "story" else Color.WHITE)
-	var summary_text := String(option.get("tag", ""))
-	if summary_text.is_empty():
-		summary_text = "继续故事"
-	event_detail_summary.text = "[center][color=#%s]%s[/color][/center]" % [color.to_html(false), summary_text]
-	event_detail_effect.text = "[center][color=#31343e]%s[/color][/center]" % String(option.get("detail", "选择后继续探索。"))
-	event_detail_icon.visible = kind == "item" or kind == "creature"
-	if kind == "item" and not event_item_path.is_empty():
-		event_detail_icon.texture = load(event_item_path) as Texture2D
-	elif kind == "creature":
-		event_detail_icon.texture = load(event_creature_path) as Texture2D
 
 
 func _clear_event_option_selection() -> void:
@@ -755,15 +869,6 @@ func _clear_event_option_selection() -> void:
 			corner_texture.position = corner_texture.get_meta("base_position", corner_texture.position)
 			corner_texture.modulate.a = 1.0
 			corner_texture.visible = false
-
-
-func _show_event_stage_overview(first_option: Dictionary) -> void:
-	event_detail_title.text = _event_title()
-	event_detail_title.add_theme_color_override("font_color", Color.WHITE)
-	event_detail_type.text = "宝箱奖励" if chest_event else "随机事件"
-	event_detail_summary.text = "[center][color=#667080]将鼠标放到选项上\n查看可能的结果[/color][/center]"
-	event_detail_effect.text = "[center][color=#31343e]%s[/color][/center]" % String(first_option.get("detail", "探索故事并作出选择。"))
-	event_detail_icon.visible = false
 
 
 func _choose_event_option(option: Dictionary) -> void:
@@ -781,19 +886,23 @@ func _choose_event_option(option: Dictionary) -> void:
 			GameState.add_event_attribute(String(option["attribute"]), float(option["amount"]))
 			event_result_text = "你接受了遗迹的力量。%s 已在本次远征中生效。" % String(option["tag"])
 		"item":
-			if not event_item_path.is_empty():
-				GameState.add_item(event_item_path)
-			event_result_text = "你收好了找到的物品。%s 已放入背包。" % String(option["tag"])
+			var item_entry: Dictionary = option.get("entry", event_consumable)
+			GameState.add_item(item_entry)
+			event_result_text = "你收好了%s。%s" % [String(item_entry["name"]), String(item_entry["effect"])]
+		"accessory":
+			var accessory_entry: Dictionary = option.get("entry", event_loot)
+			GameState.add_accessory(accessory_entry)
+			event_result_text = "你佩戴了%s。%s" % [String(accessory_entry["name"]), String(accessory_entry["effect"])]
 		"creature":
 			if GameState.add_creature_reward(event_creature_path):
 				GameState.mark_creature_seen(event_creature_path)
 				event_result_text = "%s 决定加入你的远征。%s" % [event_creature_name, String(option["tag"])]
 			else:
-				GameState.coins += 8
-				event_result_text = "队伍和备战席已满，角色卡转化为了 8 枚金币。"
+				GameState.add_coins(3)
+				event_result_text = "队伍和备战席已满，角色卡转化为了 3 枚金币。"
 		"coins":
 			var amount := int(option.get("amount", 0))
-			GameState.coins += amount
+			GameState.add_coins(amount)
 			event_result_text = "你整理好旅途中找到的货币。%s" % String(option["tag"])
 		_:
 			event_result_text = "你结束了调查，继续踏上远征。"
@@ -801,15 +910,6 @@ func _choose_event_option(option: Dictionary) -> void:
 	event_stage_id = "result"
 	coin_label.text = "$%d" % GameState.coins
 	_render_event_stage()
-
-
-func _event_kind_name(kind: String) -> String:
-	match kind:
-		"attribute": return "属性强化"
-		"item": return "道具奖励"
-		"creature": return "角色卡"
-		"coins": return "金币"
-		_: return "故事选择"
 
 
 func _create_event_corners(parent: Control) -> Array[TextureRect]:
@@ -871,6 +971,9 @@ func _event_rich_label(parent: Control, rect: Rect2, font_size: int) -> RichText
 	label.add_theme_font_override("normal_font", source_han_font)
 	label.add_theme_font_size_override("normal_font_size", font_size)
 	label.add_theme_color_override("default_color", Color("30333d"))
+	label.add_theme_color_override("font_shadow_color", Color("d7d8df"))
+	label.add_theme_constant_override("shadow_offset_x", 1)
+	label.add_theme_constant_override("shadow_offset_y", 1)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(label)
 	return label
@@ -883,6 +986,7 @@ func _add_event_texture(parent: Control, path: String, rect: Rect2, stretch := T
 	texture.texture = load(path) as Texture2D
 	texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	texture.stretch_mode = stretch
+	texture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	texture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(texture)
 	return texture
@@ -908,7 +1012,23 @@ func _show_run_complete() -> void:
 
 func _node_position(node_id: int) -> Vector2:
 	var node_position: Vector2 = GameState.map_nodes[node_id]["position"]
+	node_position.x = MAP_NODE_X_ANCHOR + (node_position.x - MAP_NODE_X_ANCHOR) * MAP_NODE_X_STRETCH
 	return node_position
+
+
+func _map_content_position_for_node(node_id: int) -> Vector2:
+	var focus_x := _node_position(node_id).x
+	var maximum_scroll := maxf(0.0, MAP_CONTENT_WIDTH - MAP_VIEWPORT_SIZE.x)
+	var visible_left := clampf(focus_x - 430.0, MAP_CAMERA_LEFT_OVERSCAN, maximum_scroll)
+	return Vector2(-MAP_VIEWPORT_POSITION.x - visible_left, -MAP_VIEWPORT_POSITION.y)
+
+
+func _map_content_min_x() -> float:
+	return -MAP_VIEWPORT_POSITION.x - maxf(0.0, MAP_CONTENT_WIDTH - MAP_VIEWPORT_SIZE.x)
+
+
+func _map_content_max_x() -> float:
+	return -MAP_VIEWPORT_POSITION.x - MAP_CAMERA_LEFT_OVERSCAN
 
 
 func _focus_offset(node_id: int) -> Vector2:
