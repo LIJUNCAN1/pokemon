@@ -4,7 +4,7 @@ const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
 const ACHIEVEMENT_TROPHY := 1
 const ACHIEVEMENT_MEDAL := 2
 const ACHIEVEMENT_STAR := 4
-const STARTING_COINS := 5
+const STARTING_COINS := 8
 const BATTLE_BASE_GOLD := 5
 const ELITE_BATTLE_BONUS := 2
 const BOSS_BATTLE_BONUS := 5
@@ -18,11 +18,14 @@ const FIRST_BATTLE_CHEST_GOLD := 3
 const CREATURE_BUY_PRICES: Array[int] = [1, 2, 3]
 const CREATURE_STAR_COPIES: Array[int] = [1, 3, 9]
 const CREATURE_SELL_RATE := 0.70
+const SAVE_PATH := "user://run_save.cfg"
+const MAX_FLOORS := 9
+const FLOORS_PER_REGION := 3
 
-var day := 1
-var progress := 1
 var coins := STARTING_COINS
 var run_lives := 3
+var floor := 1
+var region := 1
 var pending_life_loss_animation := false
 var player_team: Array[String] = []
 var player_bench: Array[String] = []
@@ -52,10 +55,10 @@ var has_started_new_game := false
 
 
 func reset_run() -> void:
-	day = 1
-	progress = 1
 	coins = STARTING_COINS
 	run_lives = 3
+	floor = 1
+	region = 1
 	pending_life_loss_animation = false
 	player_team.clear()
 	player_bench.clear()
@@ -82,11 +85,13 @@ func reset_run() -> void:
 func set_player_team(team: Array[String], levels: Array[int] = []) -> void:
 	player_team = team.duplicate()
 	player_team_levels = _normalized_creature_levels(player_team, levels)
+	save_run()
 
 
 func set_player_bench(bench: Array[String], levels: Array[int] = []) -> void:
 	player_bench = bench.duplicate()
 	player_bench_levels = _normalized_creature_levels(player_bench, levels)
+	save_run()
 
 
 func _normalized_creature_levels(creatures: Array[String], levels: Array[int]) -> Array[int]:
@@ -103,6 +108,7 @@ func add_item(value: Variant) -> Dictionary:
 	var entry := ITEM_CATALOG.normalize_entry(value, "item")
 	item_inventory.append(entry)
 	mark_item_seen(entry)
+	save_run()
 	return entry
 
 
@@ -111,6 +117,7 @@ func add_accessory(value: Variant) -> Dictionary:
 	accessory_inventory.append(entry)
 	mark_item_seen(entry)
 	add_event_attribute(String(entry["effect_type"]), float(entry["amount"]))
+	save_run()
 	return entry
 
 
@@ -126,6 +133,7 @@ func use_item(index: int) -> String:
 		"coins": add_coins(roundi(amount))
 		_: return "该道具暂时无法使用"
 	item_inventory.remove_at(index)
+	save_run()
 	return "%s已使用：%s" % [String(entry.get("name", "道具")), String(entry.get("effect", "效果已生效"))]
 
 
@@ -138,6 +146,7 @@ func take_next_battle_bonuses() -> Dictionary:
 	next_battle_health_bonus = 0.0
 	next_battle_damage_bonus = 0.0
 	next_battle_charge_bonus = 0.0
+	save_run()
 	return bonuses
 
 
@@ -146,31 +155,52 @@ func add_event_attribute(attribute: String, amount: float) -> void:
 		"health": run_health_bonus += amount
 		"damage": run_damage_bonus += amount
 		"charge": run_charge_bonus += amount
+	save_run()
 
 
 func add_coins(amount: int) -> void:
 	coins = maxi(coins + amount, 0)
+	save_run()
 
 
 func try_spend_coins(amount: int) -> bool:
 	if amount < 0 or coins < amount:
 		return false
 	coins -= amount
+	save_run()
 	return true
 
 
 func battle_gold_breakdown(node_type: String) -> Dictionary:
 	var node_bonus := 0
 	match node_type:
-		"elite": node_bonus = ELITE_BATTLE_BONUS
-		"boss": node_bonus = BOSS_BATTLE_BONUS
+		"elite": node_bonus = ELITE_BATTLE_BONUS + floori(float(floor - 1) / FLOORS_PER_REGION)
+		"boss": node_bonus = BOSS_BATTLE_BONUS + maxi(region - 1, 0)
+	var scaled_base := BATTLE_BASE_GOLD + floori(float(floor - 1) / FLOORS_PER_REGION)
 	var interest := mini(coins / 10, MAX_INTEREST_GOLD)
 	return {
-		"base": BATTLE_BASE_GOLD,
+		"base": scaled_base,
 		"node_bonus": node_bonus,
 		"interest": interest,
-		"total": BATTLE_BASE_GOLD + node_bonus + interest,
+		"total": scaled_base + node_bonus + interest,
 	}
+
+
+func floor_in_region() -> int:
+	return 1 + (floor - 1) % FLOORS_PER_REGION
+
+
+func is_region_boss_floor() -> bool:
+	return floor_in_region() == FLOORS_PER_REGION
+
+
+func scaled_event_gold(base_amount: int) -> int:
+	return base_amount + floori(float(floor - 1) / 2.0)
+
+
+func chest_gold_range() -> Vector2i:
+	var floor_bonus := floori(float(floor - 1) / 2.0)
+	return Vector2i(CHEST_GOLD_MIN + floor_bonus, CHEST_GOLD_MAX + floor_bonus)
 
 
 func creature_sell_value(rarity: int, level: int) -> int:
@@ -184,6 +214,7 @@ func lose_run_life() -> int:
 	if run_lives > 0:
 		run_lives -= 1
 		pending_life_loss_animation = true
+	save_run()
 	return run_lives
 
 
@@ -214,14 +245,37 @@ func set_map_data(seed_value: int, nodes: Array[Dictionary], edges: Dictionary) 
 	completed_map_nodes = {}
 	map_initialized = true
 	map_intro_played = false
+	save_run()
 
 
 func set_current_map_node(node_id: int) -> void:
 	current_map_node = node_id
+	save_run()
 
 
 func complete_current_map_node() -> void:
 	completed_map_nodes[current_map_node] = true
+	save_run()
+
+
+func advance_floor() -> bool:
+	if floor >= MAX_FLOORS:
+		return false
+	floor += 1
+	region = 1 + floori(float(floor - 1) / FLOORS_PER_REGION)
+	map_initialized = false
+	map_intro_played = false
+	map_seed = 0
+	map_nodes.clear()
+	map_edges.clear()
+	current_map_node = 0
+	completed_map_nodes.clear()
+	save_run()
+	return true
+
+
+func is_final_floor() -> bool:
+	return floor >= MAX_FLOORS
 
 
 func is_map_node_completed(node_id: int) -> bool:
@@ -239,13 +293,14 @@ func current_map_node_type() -> String:
 
 
 func creature_key(texture_path: String) -> String:
-	return texture_path.get_file()
+	return texture_path
 
 
 func mark_creature_seen(texture_path: String) -> void:
 	if texture_path.is_empty():
 		return
 	seen_creatures[creature_key(texture_path)] = true
+	save_run()
 
 
 func has_seen_creature(texture_path: String) -> bool:
@@ -258,6 +313,7 @@ func unlock_creature_achievement(texture_path: String, achievement: int) -> void
 	mark_creature_seen(texture_path)
 	var key := creature_key(texture_path)
 	creature_achievements[key] = int(creature_achievements.get(key, 0)) | achievement
+	save_run()
 
 
 func creature_achievement_mask(texture_path: String) -> int:
@@ -273,9 +329,117 @@ func mark_item_seen(value: Variant, kind_hint := "item") -> void:
 	var entry := ITEM_CATALOG.normalize_entry(value, kind_hint)
 	var collection := seen_accessories if String(entry.get("kind", kind_hint)) == "accessory" else seen_items
 	collection[item_key(entry, kind_hint)] = true
+	save_run()
 
 
 func has_seen_item(value: Variant, kind_hint := "item") -> bool:
 	var entry := ITEM_CATALOG.normalize_entry(value, kind_hint)
 	var collection := seen_accessories if String(entry.get("kind", kind_hint)) == "accessory" else seen_items
 	return bool(collection.get(item_key(entry, kind_hint), false))
+
+
+func has_saved_run() -> bool:
+	if not FileAccess.file_exists(SAVE_PATH):
+		return false
+	var config := ConfigFile.new()
+	if config.load(SAVE_PATH) != OK:
+		return false
+	return bool(config.get_value("run", "active", false))
+
+
+func save_run() -> void:
+	if not has_started_new_game:
+		return
+	var config := ConfigFile.new()
+	config.set_value("run", "active", true)
+	config.set_value("run", "coins", coins)
+	config.set_value("run", "lives", run_lives)
+	config.set_value("run", "floor", floor)
+	config.set_value("run", "region", region)
+	config.set_value("run", "team", player_team)
+	config.set_value("run", "team_levels", player_team_levels)
+	config.set_value("run", "bench", player_bench)
+	config.set_value("run", "bench_levels", player_bench_levels)
+	config.set_value("run", "items", item_inventory)
+	config.set_value("run", "accessories", accessory_inventory)
+	config.set_value("run", "map_initialized", map_initialized)
+	config.set_value("run", "map_intro_played", map_intro_played)
+	config.set_value("run", "map_seed", map_seed)
+	config.set_value("run", "map_nodes", map_nodes)
+	config.set_value("run", "map_edges", map_edges)
+	config.set_value("run", "current_map_node", current_map_node)
+	config.set_value("run", "completed_map_nodes", completed_map_nodes)
+	config.set_value("run", "health_bonus", run_health_bonus)
+	config.set_value("run", "damage_bonus", run_damage_bonus)
+	config.set_value("run", "charge_bonus", run_charge_bonus)
+	config.set_value("run", "next_health_bonus", next_battle_health_bonus)
+	config.set_value("run", "next_damage_bonus", next_battle_damage_bonus)
+	config.set_value("run", "next_charge_bonus", next_battle_charge_bonus)
+	config.set_value("run", "battle_victories", battle_victories)
+	config.set_value("meta", "seen_creatures", seen_creatures)
+	config.set_value("meta", "seen_items", seen_items)
+	config.set_value("meta", "seen_accessories", seen_accessories)
+	config.set_value("meta", "creature_achievements", creature_achievements)
+	config.save(SAVE_PATH)
+
+
+func load_run() -> bool:
+	var config := ConfigFile.new()
+	if config.load(SAVE_PATH) != OK or not bool(config.get_value("run", "active", false)):
+		return false
+	coins = int(config.get_value("run", "coins", STARTING_COINS))
+	run_lives = int(config.get_value("run", "lives", 3))
+	floor = clampi(int(config.get_value("run", "floor", 1)), 1, MAX_FLOORS)
+	region = maxi(int(config.get_value("run", "region", 1)), 1)
+	player_team = _string_array(config.get_value("run", "team", []))
+	player_team_levels = _int_array(config.get_value("run", "team_levels", []))
+	player_bench = _string_array(config.get_value("run", "bench", []))
+	player_bench_levels = _int_array(config.get_value("run", "bench_levels", []))
+	item_inventory = _dictionary_array(config.get_value("run", "items", []))
+	accessory_inventory = _dictionary_array(config.get_value("run", "accessories", []))
+	map_initialized = bool(config.get_value("run", "map_initialized", false))
+	map_intro_played = bool(config.get_value("run", "map_intro_played", false))
+	map_seed = int(config.get_value("run", "map_seed", 0))
+	map_nodes = _dictionary_array(config.get_value("run", "map_nodes", []))
+	map_edges = Dictionary(config.get_value("run", "map_edges", {}))
+	current_map_node = int(config.get_value("run", "current_map_node", 0))
+	completed_map_nodes = Dictionary(config.get_value("run", "completed_map_nodes", {}))
+	run_health_bonus = float(config.get_value("run", "health_bonus", 0.0))
+	run_damage_bonus = float(config.get_value("run", "damage_bonus", 0.0))
+	run_charge_bonus = float(config.get_value("run", "charge_bonus", 0.0))
+	next_battle_health_bonus = float(config.get_value("run", "next_health_bonus", 0.0))
+	next_battle_damage_bonus = float(config.get_value("run", "next_damage_bonus", 0.0))
+	next_battle_charge_bonus = float(config.get_value("run", "next_charge_bonus", 0.0))
+	battle_victories = int(config.get_value("run", "battle_victories", 0))
+	seen_creatures = Dictionary(config.get_value("meta", "seen_creatures", {}))
+	seen_items = Dictionary(config.get_value("meta", "seen_items", {}))
+	seen_accessories = Dictionary(config.get_value("meta", "seen_accessories", {}))
+	creature_achievements = Dictionary(config.get_value("meta", "creature_achievements", {}))
+	has_started_new_game = true
+	return true
+
+
+func clear_run_save() -> void:
+	if FileAccess.file_exists(SAVE_PATH):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+
+
+func _string_array(value: Variant) -> Array[String]:
+	var result: Array[String] = []
+	for entry in Array(value):
+		result.append(String(entry))
+	return result
+
+
+func _int_array(value: Variant) -> Array[int]:
+	var result: Array[int] = []
+	for entry in Array(value):
+		result.append(int(entry))
+	return result
+
+
+func _dictionary_array(value: Variant) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for entry in Array(value):
+		result.append(Dictionary(entry))
+	return result

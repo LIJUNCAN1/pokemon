@@ -33,10 +33,10 @@ func _ready() -> void:
 	_assert(matching_slots.size() == 1, "three 1-star copies should produce one 2-star copy")
 	_assert(prep._matching_creature_slots(TEST_CREATURE, 1).is_empty(), "no 1-star copy should remain after merge")
 	var merged_slot := matching_slots[0]
-	_assert(prep.creature_hp_labels[merged_slot].text == "40", "2-star health display should be doubled")
+	_assert(prep.creature_hp_labels[merged_slot].text == "144", "2-star health display should be doubled")
 	_assert(_visible_star_count(prep.creature_star_rows[merged_slot]) == 2, "2-star card should show two star icons")
 	_assert(prep.shop_sold_out_overlays[0].visible, "purchased shop card should show sold-out art")
-	_assert(is_equal_approx(prep.shop_sold_out_overlays[0].rotation, deg_to_rad(30.0)), "sold-out art should rotate 30 degrees")
+	_assert(is_equal_approx(prep.shop_sold_out_overlays[0].rotation, deg_to_rad(-30.0)), "sold-out art should rotate 30 degrees to the left")
 
 	prep._save_current_team()
 	_assert(GameState.player_bench_levels.has(2), "merged star level should persist in GameState")
@@ -61,6 +61,9 @@ func _ready() -> void:
 	_assert(is_equal_approx(player_fighter.damage_multiplier, 2.0), "2-star battle damage should be doubled")
 
 	print("CREATURE_MERGE_TEST: PASS")
+	battle._release_battle_audio()
+	battle.queue_free()
+	await get_tree().process_frame
 	get_tree().quit()
 
 

@@ -28,28 +28,13 @@ const HEALTH_FRAMES: Array[Texture2D] = [
 	preload("res://素材/主菜单/aseprite_export/health/runtime/heart_3.png"),
 	preload("res://素材/主菜单/aseprite_export/health/runtime/heart_4.png"),
 ]
-const CREATURE_TEXTURES: Array[String] = [
-	POKEMON + "1 (1).png", POKEMON + "1 (2).png", POKEMON + "1 (3).png",
-	POKEMON + "1 (4).png", POKEMON + "1 (5).png", POKEMON + "1 (6).png",
-	POKEMON + "1 (7).png", POKEMON + "1 (8).png", POKEMON + "1 (9).png",
-	POKEMON + "1 (10).png", POKEMON + "图层 2.png", POKEMON + "图层 3.png",
-	POKEMON + "图层 4.png", POKEMON + "图层 5.png", POKEMON + "图层 6.png",
-]
+var CREATURE_TEXTURES: Array[String] = CATALOG.all_textures()
 const ATTRIBUTE_COLORS: Array[Color] = [
 	Color("e59a64"), Color("8eb9d1"), Color("a9b85f"),
 	Color("b99b78"), Color("aebd57"), Color("aa91c5"),
 ]
-const CREATURE_ATTRIBUTE_INDEX: Array[int] = [2, 3, 5, 3, 5, 1, 2, 1, 3, 0, 2, 4, 5, 2, 0]
 const LEVEL_COLORS: Array[Color] = [Color.WHITE, Color("58d66b"), Color("ef4b52")]
-const CREATURE_NAMES: Array[String] = [
-	"芽叶兽", "钢甲象", "烛灵", "岩甲龟", "夜翼兽", "冰角鹿", "菌盖兽", "深海贤者",
-	"绵云羊", "烈焰犬", "花叶兽", "铁壳蛛", "星云兽", "花甲虫", "熔岩蛛",
-]
-const SHOP_RARITY_POOLS: Array = [
-	[0, 1, 2, 3, 4, 5, 6, 7],
-	[8, 9, 10, 11],
-	[12, 13, 14],
-]
+var CREATURE_NAMES: Array[String] = CATALOG.all_names()
 const SHOP_RARITY_NAMES: Array[String] = ["普通", "稀有", "史诗"]
 const SHOP_RARITY_COLORS: Array[Color] = [Color("737983"), Color("3e95d8"), Color("c45ad9")]
 const SHOP_CARD_COUNT := 5
@@ -248,7 +233,7 @@ func _build_top_bar() -> void:
 	stripe.color = Color(0.42, 0.9, 1.0, 0.9)
 	bar.add_child(stripe)
 	_build_health_display()
-	_add_label(self, "第 1 天", Rect2(525, 7, 230, 54), 38, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	_add_label(self, "远 征 准 备", Rect2(500, 7, 280, 54), 34, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_add_icon_button(UI + "01_切图_1.png", Rect2(1068, 5, 58, 58), _open_inventory, "打开物品栏")
 	_add_static_icon_button("res://assets/ui/collection_book_icon.png", Rect2(1137, 7, 52, 52), _open_dex, "打开图鉴")
 	_add_icon_button(UI + "02_切图_2.png", Rect2(1202, 6, 56, 56), _on_settings_pressed, "设置")
@@ -443,10 +428,11 @@ func _build_shop() -> void:
 	_add_texture(self, SHOP_PANEL_ASSET, Rect2(242, 526, 796, 190))
 	var header_center_y := 551.0
 	_add_label(self, "商店", Rect2(260, header_center_y - 15.0, 76, 30), 18, Color.WHITE)
+	var rarity_chances := _shop_rarity_chances()
 	var rarity_labels := [
-		_add_label(self, "普通 60%", Rect2(354, header_center_y - 12.0, 72, 24), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER),
-		_add_label(self, "稀有 30%", Rect2(430, header_center_y - 12.0, 72, 24), 10, SHOP_RARITY_COLORS[1], HORIZONTAL_ALIGNMENT_CENTER),
-		_add_label(self, "史诗 10%", Rect2(506, header_center_y - 12.0, 72, 24), 10, SHOP_RARITY_COLORS[2], HORIZONTAL_ALIGNMENT_CENTER),
+		_add_label(self, "普通 %d%%" % roundi(rarity_chances[0] * 100.0), Rect2(354, header_center_y - 12.0, 72, 24), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER),
+		_add_label(self, "稀有 %d%%" % roundi(rarity_chances[1] * 100.0), Rect2(430, header_center_y - 12.0, 72, 24), 10, SHOP_RARITY_COLORS[1], HORIZONTAL_ALIGNMENT_CENTER),
+		_add_label(self, "史诗 %d%%" % roundi(rarity_chances[2] * 100.0), Rect2(506, header_center_y - 12.0, 72, 24), 10, SHOP_RARITY_COLORS[2], HORIZONTAL_ALIGNMENT_CENTER),
 	]
 	rarity_labels[0].add_theme_color_override("font_color", Color.WHITE)
 	shop_data = _roll_shop_entries(false)
@@ -497,13 +483,17 @@ func _build_footer_actions() -> void:
 	_add_label(reroll, "刷新", Rect2(0, 23, 198, 36), 25, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_add_label(reroll, "$1", Rect2(0, 62, 198, 32), 21, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	var shop_node := GameState.map_initialized and GameState.current_map_node_type() == "shop"
-	var battle := _add_texture_button(UI + "血量.png", Rect2(1075, 598, 198, 118), "离开商店" if shop_node else "进入战斗")
+	var start_node := GameState.map_initialized and GameState.current_map_node_type() == "start"
+	var action_text := "离开商店" if shop_node else ("开始远征" if start_node else "进入战斗")
+	var battle := _add_texture_button(UI + "血量.png", Rect2(1075, 598, 198, 118), action_text)
 	battle.focus_mode = Control.FOCUS_NONE
 	if shop_node:
 		battle.pressed.connect(_leave_shop)
+	elif start_node:
+		battle.pressed.connect(_leave_start)
 	else:
 		battle.pressed.connect(_on_battle_pressed)
-	_add_label(battle, "返回地图" if shop_node else "战斗！", Rect2(0, 38, 198, 42), 27, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	_add_label(battle, "返回地图" if shop_node else ("开始远征" if start_node else "战斗！"), Rect2(0, 38, 198, 42), 27, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String, saved_level: int = 1) -> void:
@@ -817,17 +807,12 @@ func _on_shop_card_gui_input(event: InputEvent, index: int) -> void:
 
 
 func _show_card_tooltip(texture_path: String, level: int) -> void:
-	var data_index := maxi(CREATURE_TEXTURES.find(texture_path), 0)
 	var elements: PackedStringArray = CATALOG.elements_for_texture(texture_path)
 	var races: PackedStringArray = CATALOG.races_for_texture(texture_path)
-	var rarity_index := 0
-	for pool_index in SHOP_RARITY_POOLS.size():
-		if data_index in SHOP_RARITY_POOLS[pool_index]:
-			rarity_index = pool_index
-			break
+	var rarity_index := CATALOG.rarity_for_texture(texture_path)
 	card_tooltip_element_panel.visible = true
 	card_tooltip_race_panel.visible = true
-	card_tooltip_name.text = CREATURE_NAMES[data_index]
+	card_tooltip_name.text = CATALOG.name_for_texture(texture_path)
 	card_tooltip_rarity.text = SHOP_RARITY_NAMES[rarity_index]
 	card_tooltip_rarity.add_theme_color_override("font_color", _rarity_text_color(rarity_index))
 	card_tooltip_sprite.texture = load(texture_path) as Texture2D
@@ -838,11 +823,12 @@ func _show_card_tooltip(texture_path: String, level: int) -> void:
 	card_tooltip_race.text = races[0]
 	card_tooltip_race_panel.add_theme_stylebox_override("panel", _slot_style(TRAIT_COLORS[races[0]], TRAIT_COLORS[races[0]].lightened(0.18), 1))
 	var rarity_multiplier := CATALOG.RARITY_STAT_MULTIPLIERS[rarity_index]
-	var cooldown := (3.0 + float(data_index % 5) * 0.5) / CATALOG.RARITY_CHARGE_MULTIPLIERS[rarity_index]
-	var damage := roundi((15 + data_index * 2) * maxi(level, 1) * rarity_multiplier)
+	var cooldown := CATALOG.cooldown_for_texture(texture_path) / CATALOG.RARITY_CHARGE_MULTIPLIERS[rarity_index]
+	var damage_range := CATALOG.damage_range_for_texture(texture_path)
+	var damage := roundi(damage_range.y * maxi(level, 1) * rarity_multiplier)
 	card_tooltip_cooldown.text = "%.1f\n秒" % cooldown
-	card_tooltip_damage.text = "造成 %d 点伤害" % damage
-	card_tooltip_extra.text = "定位：%s · 品级加成 +%d%%\n%s" % [CATALOG.combat_role_name(texture_path), roundi((rarity_multiplier - 1.0) * 100.0), _creature_extra_text(texture_path, rarity_index)]
+	card_tooltip_damage.text = "%s：最高 %d 点伤害" % [CATALOG.skill_name_for_texture(texture_path), damage]
+	card_tooltip_extra.text = "定位：%s · 品级加成 +%d%%\n%s" % [CATALOG.combat_role_name(texture_path), roundi((rarity_multiplier - 1.0) * 100.0), CATALOG.skill_text_for_texture(texture_path)]
 	_position_card_tooltip()
 
 
@@ -980,7 +966,7 @@ func _drop_shop_sell_data(_at_position: Vector2, data: Variant) -> void:
 		return
 	var source_index := int(data.get("source_index", -1))
 	var sell_value := _creature_sell_value(source_index)
-	var sold_name := CREATURE_NAMES[maxi(CREATURE_TEXTURES.find(creature_data[source_index]), 0)]
+	var sold_name := CATALOG.name_for_texture(creature_data[source_index])
 	_clear_creature_slot(source_index)
 	GameState.add_coins(sell_value)
 	_sync_coins()
@@ -1181,20 +1167,30 @@ func _on_reroll_pressed() -> void:
 
 func _roll_shop_rarity() -> int:
 	var roll := rng.randf()
-	if roll >= 0.9:
-		return 2
-	if roll >= 0.6:
+	var chances := _shop_rarity_chances()
+	if roll < chances[0]:
+		return 0
+	if roll < chances[0] + chances[1]:
 		return 1
-	return 0
+	return 2
+
+
+func _shop_rarity_chances() -> PackedFloat32Array:
+	# The climb gradually exchanges common cards for rare and epic cards.
+	# Floor 1 = 60/30/10, floor 9 = 36/38/26.
+	var progress := float(clampi(GameState.floor - 1, 0, GameState.MAX_FLOORS - 1)) / float(GameState.MAX_FLOORS - 1)
+	var epic := lerpf(0.10, 0.26, progress)
+	var rare := lerpf(0.30, 0.38, progress)
+	return PackedFloat32Array([1.0 - rare - epic, rare, epic])
 
 
 func _draw_creature_shop_entry() -> Dictionary:
 	var rarity_index := _roll_shop_rarity()
-	var pool: Array = SHOP_RARITY_POOLS[rarity_index]
-	var creature_index: int = pool[rng.randi_range(0, pool.size() - 1)]
+	var pool: Array[String] = CATALOG.textures_for_rarity(rarity_index)
+	var texture_path := pool[rng.randi_range(0, pool.size() - 1)]
 	return {
 		"kind": "creature",
-		"path": CREATURE_TEXTURES[creature_index],
+		"path": texture_path,
 		"rarity": rarity_index,
 		"price": GameState.CREATURE_BUY_PRICES[rarity_index],
 	}
@@ -1223,8 +1219,7 @@ func _mark_shop_creature_seen(entry: Dictionary) -> void:
 
 func _shop_entry_name(entry: Dictionary) -> String:
 	if entry["kind"] == "creature":
-		var creature_index := CREATURE_TEXTURES.find(entry["path"])
-		return CREATURE_NAMES[maxi(creature_index, 0)]
+		return CATALOG.name_for_texture(String(entry["path"]))
 	return String(entry.get("name", "未知物品"))
 
 
@@ -1355,6 +1350,20 @@ func _leave_shop() -> void:
 	get_tree().change_scene_to_file("res://map.tscn")
 
 
+func _leave_start() -> void:
+	var has_team_member := false
+	for index in range(4, 10):
+		if not creature_data[index].is_empty():
+			has_team_member = true
+			break
+	if not has_team_member:
+		_set_notice("请先购买并放置至少一个角色")
+		return
+	_save_current_team()
+	GameState.complete_current_map_node()
+	get_tree().change_scene_to_file("res://map.tscn")
+
+
 func _on_back_pressed() -> void:
 	if GameState.map_initialized:
 		_save_current_team()
@@ -1443,12 +1452,12 @@ func _render_creature_slot(index: int) -> void:
 	creature_hp_badges[index].visible = true
 	creature_special_badges[index].visible = true
 	creature_sprites[index].texture = load(creature_data[index]) as Texture2D
-	var data_index := maxi(CREATURE_TEXTURES.find(creature_data[index]), 0)
 	var level := clampi(creature_levels[index], 1, 3)
 	creature_star_rows[index].visible = true
 	_set_star_level(creature_star_rows[index], level)
-	var hp_value := (20 + data_index * 3) * level
-	var special_value := (5 + data_index * 2) * level
+	var rarity_multiplier := CATALOG.rarity_stat_multiplier(creature_data[index])
+	var hp_value := roundi(CATALOG.base_hp_for_texture(creature_data[index]) * rarity_multiplier) * level
+	var special_value := roundi(CATALOG.damage_range_for_texture(creature_data[index]).y * rarity_multiplier) * level
 	creature_hp_labels[index].text = "%d" % hp_value
 	creature_special_labels[index].text = "%d" % special_value
 	_set_stat_badge_value(creature_hp_badges[index], hp_value, true)
@@ -1531,11 +1540,10 @@ func _render_shop_card(index: int) -> void:
 		shop_hp_labels[index].text = ""
 		shop_special_labels[index].text = ""
 		return
-	var data_index := maxi(CREATURE_TEXTURES.find(texture_path), 0)
 	var rarity_multiplier := CATALOG.RARITY_STAT_MULTIPLIERS[clampi(rarity_index, 0, 2)]
 	shop_attribute_layers[index].modulate = Color.WHITE
-	var hp_value := roundi((20 + data_index * 3) * rarity_multiplier)
-	var special_value := roundi((5 + data_index * 2) * rarity_multiplier)
+	var hp_value := roundi(CATALOG.base_hp_for_texture(texture_path) * rarity_multiplier)
+	var special_value := roundi(CATALOG.damage_range_for_texture(texture_path).y * rarity_multiplier)
 	shop_hp_labels[index].text = "%d" % hp_value
 	shop_special_labels[index].text = "%d" % special_value
 	_set_stat_badge_value(shop_hp_badges[index], hp_value, true)

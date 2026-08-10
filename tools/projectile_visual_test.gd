@@ -48,6 +48,9 @@ func _ready() -> void:
 	var second_reward: Dictionary = GameState.item_inventory[item_count_before + 1]
 	_assert(int(first_reward["id"]) != int(second_reward["id"]), "Starting chest items should be different")
 	_assert(not reward_text.is_empty(), "Starting chest result text is empty")
+	battle._release_battle_audio()
+	battle.queue_free()
+	await get_tree().process_frame
 	get_tree().quit()
 
 

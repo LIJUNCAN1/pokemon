@@ -5,17 +5,8 @@ const CATALOG = preload("res://scripts/creature_catalog.gd")
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
 const DEX := "res://素材/图鉴/"
 const POKEMON := "res://素材/宝可梦图/"
-const CREATURES: Array[String] = [
-	POKEMON + "1 (1).png", POKEMON + "1 (2).png", POKEMON + "1 (3).png", POKEMON + "1 (4).png",
-	POKEMON + "1 (5).png", POKEMON + "1 (6).png", POKEMON + "1 (7).png", POKEMON + "1 (8).png",
-	POKEMON + "1 (9).png", POKEMON + "1 (10).png", POKEMON + "图层 2.png", POKEMON + "图层 3.png",
-	POKEMON + "图层 4.png", POKEMON + "图层 5.png", POKEMON + "图层 6.png",
-]
-const NAMES: Array[String] = [
-	"芽叶兽", "钢甲象", "烛灵", "岩甲龟", "夜翼兽", "冰角鹿",
-	"菌盖兽", "深海贤者", "绵云羊", "烈焰犬", "花叶兽", "铁壳蛛",
-	"星云兽", "花甲虫", "熔岩蛛",
-]
+var CREATURES: Array[String] = CATALOG.all_textures()
+var NAMES: Array[String] = CATALOG.all_names()
 const TAB_NAMES: Array[String] = ["怪兽", "饰品", "道具", "训练家"]
 const INACTIVE_TABS: Array[String] = [DEX + "03_切图_3.png", DEX + "03_切图_3.png", DEX + "04_切图_4.png", DEX + "05_切图_5.png"]
 const TRAINER_TEXTURES: Array[String] = [
@@ -402,9 +393,9 @@ func _select_creature(index: int) -> void:
 	var element_text := "/".join(elements)
 	var race_text := races[0] if not races.is_empty() else "未知"
 	detail_type.text = "%s·%s" % [element_text, race_text]
-	detail_cooldown.text = "%.1f\n秒" % [4.0 + index * 0.2]
-	detail_stats.text = "技能强度  %d" % [20 + index * 3]
-	detail_description.text = "释放技能时\n为队伍提供%s与%s加成" % [element_text, race_text]
+	detail_cooldown.text = "%.1f\n秒" % (CATALOG.cooldown_for_texture(CREATURES[index]) / CATALOG.rarity_charge_multiplier(CREATURES[index]))
+	_refresh_creature_level_stats()
+	detail_description.text = "%s\n%s" % [CATALOG.skill_name_for_texture(CREATURES[index]), CATALOG.skill_text_for_texture(CREATURES[index])]
 	for frame_index in selection_frames.size():
 		selection_frames[frame_index].visible = frame_index == index
 
@@ -462,7 +453,18 @@ func _on_level_pressed(level_index: int) -> void:
 		return
 	selected_level_index = clampi(level_index, 0, level_buttons.size() - 1)
 	_update_level_buttons()
-	detail_stats.text = "Lv%d  技能强度 %d" % [level_index + 1, 20 + selected_index * 3 + level_index * 8]
+	_refresh_creature_level_stats()
+
+
+func _refresh_creature_level_stats() -> void:
+	if selected_index < 0 or selected_index >= CREATURES.size():
+		return
+	var texture_path := CREATURES[selected_index]
+	var level := selected_level_index + 1
+	var multiplier := CATALOG.rarity_stat_multiplier(texture_path) * level
+	var hp := roundi(CATALOG.base_hp_for_texture(texture_path) * multiplier)
+	var damage := CATALOG.damage_range_for_texture(texture_path)
+	detail_stats.text = "Lv%d  生命 %d\n伤害 %d-%d" % [level, hp, roundi(damage.x * multiplier), roundi(damage.y * multiplier)]
 
 
 func _create_level_button(index: int) -> Button:
