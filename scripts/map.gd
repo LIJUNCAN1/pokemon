@@ -524,7 +524,7 @@ func _node_description(node_type: String) -> String:
 func _open_map_settings() -> void:
 	if not is_instance_valid(settings_overlay):
 		settings_overlay = preload("res://settings_overlay.tscn").instantiate() as Control
-		settings_overlay.set("exit_scene_path", "res://map.tscn")
+		settings_overlay.set("exit_scene_path", "res://main.tscn")
 		add_child(settings_overlay)
 	else:
 		settings_overlay.move_to_front()

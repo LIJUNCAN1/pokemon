@@ -249,10 +249,10 @@ func _build_top_bar() -> void:
 	bar.add_child(stripe)
 	_build_health_display()
 	_add_label(self, "第 1 天", Rect2(525, 7, 230, 54), 38, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-	_add_static_icon_button("res://assets/ui/collection_book_icon.png", Rect2(1073, 7, 52, 52), _open_dex, "打开图鉴")
-	_add_icon_button(UI + "02_切图_2.png", Rect2(1138, 6, 56, 56), _on_settings_pressed, "设置")
-	_add_icon_button(UI + "01_切图_1.png", Rect2(1207, 5, 58, 58), _open_inventory, "打开物品栏")
-	inventory_count_label = _add_label(self, "", Rect2(1240, 43, 24, 24), 18, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	_add_icon_button(UI + "01_切图_1.png", Rect2(1068, 5, 58, 58), _open_inventory, "打开物品栏")
+	_add_static_icon_button("res://assets/ui/collection_book_icon.png", Rect2(1137, 7, 52, 52), _open_dex, "打开图鉴")
+	_add_icon_button(UI + "02_切图_2.png", Rect2(1202, 6, 56, 56), _on_settings_pressed, "设置")
+	inventory_count_label = _add_label(self, "", Rect2(1101, 43, 24, 24), 18, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_refresh_inventory_count()
 
 
@@ -458,8 +458,8 @@ func _build_shop() -> void:
 	var card_height := 130.0
 	for index in SHOP_CARD_COUNT:
 		_create_shop_card(index, Rect2(card_start_x + index * (card_width + card_gap), 574, card_width, card_height))
-	_add_texture(self, UI + "04_切图_4.png", Rect2(871, header_center_y - 11.0, 22, 22))
-	coin_label = _add_label(self, "%dG" % coins, Rect2(895, header_center_y - 15.0, 58, 28), 14, Color("e4aa2f"), HORIZONTAL_ALIGNMENT_RIGHT)
+	_add_texture(self, UI + "04_切图_4.png", Rect2(871, header_center_y - 10.0, 20, 20))
+	coin_label = _add_label(self, "%dG" % coins, Rect2(895, header_center_y - 12.0, 58, 24), 13, Color("e4aa2f"), HORIZONTAL_ALIGNMENT_RIGHT)
 	lock_button_texture = _add_texture(self, LOCK_ICON, Rect2(1000, header_center_y - 9.0, 18, 18))
 	lock_button_texture.visible = false
 	lock_button = Button.new()
@@ -473,8 +473,7 @@ func _build_shop() -> void:
 	lock_button.button_up.connect(_set_lock_button_pressed.bind(false))
 	lock_button.mouse_exited.connect(_set_lock_button_pressed.bind(false))
 	lock_button.pressed.connect(_on_lock_pressed)
-	lock_label = _add_label(self, "锁定", Rect2(954, header_center_y - 14.0, 70, 28), 12, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-	_apply_stat_pixel_font(lock_label)
+	lock_label = _add_label(self, "锁定", Rect2(954, header_center_y - 12.0, 70, 24), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_build_shop_sell_overlay()
 
 
@@ -613,12 +612,12 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	var top_height := 100.0
 	var content_layer := _add_texture(button, SHOP_CARD_TEMPLATE_ASSET, Rect2(Vector2.ZERO, rect.size), TextureRect.STRETCH_KEEP_ASPECT_CENTERED)
 	var trait_background := TextureRect.new()
-	trait_background.position = Vector2(6, 6)
-	trait_background.size = Vector2(133, 94)
+	trait_background.position = Vector2(5, 5)
+	trait_background.size = Vector2(135, 96)
 	trait_background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	trait_background.stretch_mode = TextureRect.STRETCH_SCALE
 	trait_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	trait_background.modulate = Color(1, 1, 1, 0.78)
+	trait_background.modulate = Color.WHITE
 	trait_background.visible = false
 	button.add_child(trait_background)
 	var creature_overlay := TextureRect.new()
@@ -1275,6 +1274,7 @@ func _set_lock_button_pressed(pressed: bool) -> void:
 func _on_settings_pressed() -> void:
 	if not is_instance_valid(settings_overlay):
 		settings_overlay = SETTINGS_OVERLAY_SCENE.instantiate() as Control
+		settings_overlay.set("exit_scene_path", "res://main.tscn")
 		add_child(settings_overlay)
 	else:
 		settings_overlay.move_to_front()
@@ -1501,6 +1501,8 @@ func _render_shop_card(index: int) -> void:
 	var texture_path: String = entry["path"]
 	var rarity_index := int(entry.get("rarity", CATALOG.rarity_for_texture(texture_path)))
 	shop_card_outlines[index].add_theme_stylebox_override("panel", _shop_card_outline_style(SHOP_RARITY_COLORS[clampi(rarity_index, 0, 2)]))
+	shop_trait_backgrounds[index].texture = _make_rarity_background(rarity_index)
+	shop_trait_backgrounds[index].visible = true
 	shop_sprites[index].texture = load(texture_path) as Texture2D
 	shop_sprites[index].visible = true
 	shop_name_labels[index].text = _shop_entry_name(entry)
@@ -1521,7 +1523,6 @@ func _render_shop_card(index: int) -> void:
 	shop_element_icons[index].visible = false
 	shop_extra_trait_icons[index].visible = false
 	shop_race_icons[index].visible = false
-	shop_trait_backgrounds[index].visible = false
 	if not is_creature:
 		shop_attribute_layers[index].modulate = Color.WHITE
 		shop_element_icon_backgrounds[index].visible = false
@@ -1548,8 +1549,6 @@ func _render_shop_card(index: int) -> void:
 	shop_extra_trait_icons[index].texture = load(TRAIT_ICON_PATHS[secondary_trait]) as Texture2D
 	shop_element_icons[index].visible = true
 	shop_race_icons[index].visible = false
-	shop_trait_backgrounds[index].texture = _make_trait_background(elements)
-	shop_trait_backgrounds[index].visible = true
 	shop_element_icon_backgrounds[index].modulate = TRAIT_COLORS.get(elements[0], Color("737983"))
 	shop_element_icon_backgrounds[index].visible = true
 	shop_race_icon_backgrounds[index].modulate = TRAIT_COLORS.get(races[0], Color("737983"))
@@ -1650,6 +1649,21 @@ func _make_trait_background(traits: PackedStringArray) -> GradientTexture2D:
 	return texture
 
 
+func _make_rarity_background(rarity_index: int) -> GradientTexture2D:
+	var base_color := SHOP_RARITY_COLORS[clampi(rarity_index, 0, SHOP_RARITY_COLORS.size() - 1)]
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 1.0])
+	gradient.colors = PackedColorArray([base_color.darkened(0.52), base_color.lightened(0.24)])
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.width = 128
+	texture.height = 128
+	texture.fill = GradientTexture2D.FILL_LINEAR
+	texture.fill_from = Vector2.ZERO
+	texture.fill_to = Vector2.ONE
+	return texture
+
+
 func _add_texture_button(path: String, rect: Rect2, tooltip: String) -> TextureButton:
 	var button := TextureButton.new()
 	button.position = rect.position
@@ -1716,7 +1730,11 @@ func _slot_style(fill: Color, border: Color, width := 0) -> StyleBoxFlat:
 
 
 func _shop_card_outline_style(border: Color) -> StyleBoxFlat:
-	var style := _slot_style(Color.TRANSPARENT, border, 3)
+	var style := _slot_style(Color.TRANSPARENT, border, 4)
+	style.corner_radius_top_left = 0
+	style.corner_radius_top_right = 0
+	style.corner_radius_bottom_left = 0
+	style.corner_radius_bottom_right = 0
 	style.anti_aliasing = false
 	return style
 

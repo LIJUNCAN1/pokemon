@@ -363,7 +363,7 @@ func _cycle_battle_speed() -> void:
 func _open_battle_settings() -> void:
 	if not is_instance_valid(settings_overlay):
 		settings_overlay = SETTINGS_OVERLAY_SCENE.instantiate() as Control
-		settings_overlay.set("exit_scene_path", "res://map.tscn" if GameState.map_initialized else "res://battle_prep.tscn")
+		settings_overlay.set("exit_scene_path", "res://main.tscn")
 		add_child(settings_overlay)
 	else:
 		settings_overlay.move_to_front()

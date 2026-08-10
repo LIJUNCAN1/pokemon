@@ -11,6 +11,7 @@ func _ready() -> void:
 	_test_catalog_assets()
 	_test_inventory_effects()
 	await _test_shop_rolls()
+	await _test_collection_ui()
 	if failures.is_empty():
 		print("ITEM_SYSTEM_TEST: PASS")
 		get_tree().quit()
@@ -98,6 +99,39 @@ func _test_shop_rolls() -> void:
 	_check(GameState.coins == coins_before_sale + sell_value, "Selling a creature granted the wrong amount of gold")
 	_check(not prep.shop_sell_overlay.visible, "Sell target remained visible after the sale")
 	prep.queue_free()
+
+
+func _test_collection_ui() -> void:
+	var common_item := ITEM_CATALOG.entry_for_id("item", 1)
+	var epic_item := ITEM_CATALOG.entry_for_id("item", 109)
+	GameState.add_item(common_item)
+	GameState.add_item(epic_item)
+	var inventory := preload("res://inventory_popup.tscn").instantiate()
+	add_child(inventory)
+	await get_tree().process_frame
+	inventory._select_tab("item")
+	await get_tree().process_frame
+	_check(inventory.item_grid.columns == 3, "Inventory must show three items per row")
+	_check(inventory.item_grid.get_child_count() >= 24, "Inventory must preserve eight rows before scrolling")
+	var first_slot := inventory.item_grid.get_child(0)
+	var rarity_found := false
+	for child in first_slot.get_children():
+		if child is Label and child.text == ITEM_CATALOG.RARITY_NAMES[int(common_item["rarity"])]:
+			rarity_found = true
+	_check(rarity_found, "Inventory items must display their rarity")
+	inventory.queue_free()
+
+	GameState.mark_creature_seen("res://素材/宝可梦图/1 (1).png")
+	var dex := preload("res://dex_overlay.tscn").instantiate()
+	add_child(dex)
+	await get_tree().process_frame
+	_check(dex.level_buttons.size() == 4, "Dex must build four level buttons")
+	dex._on_level_pressed(2)
+	_check(dex.level_buttons[2].disabled and not dex.level_buttons[0].disabled, "Dex selected level color must move with the selected level")
+	for button in dex.level_buttons:
+		_check(button.tooltip_text.is_empty(), "Dex level buttons must not show hover name boxes")
+	_check(dex.detail_description.get_theme_color("font_shadow_color").a == 0.0, "Dex dark text must not keep a black shadow")
+	dex.queue_free()
 
 
 func _run_bonus(effect_type: String) -> float:
