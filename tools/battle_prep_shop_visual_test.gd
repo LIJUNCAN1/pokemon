@@ -25,7 +25,7 @@ func _ready() -> void:
 		_creature_entry(CREATURES[1], 1),
 		_creature_entry(CREATURES[2], 2),
 		_creature_entry(CREATURES[3], 0),
-		_creature_entry(CREATURES[4], 1),
+		ITEM_CATALOG.entry_for_id("item", 109),
 	]
 	prep.shop_data = entries
 	for index in prep.shop_data.size():
@@ -72,6 +72,14 @@ func _ready() -> void:
 	_assert(prep.shop_card_outlines[0].get_theme_stylebox("panel").border_color == prep.SHOP_RARITY_COLORS[0], "normal rarity border color")
 	_assert(prep.shop_card_outlines[1].get_theme_stylebox("panel").border_color == prep.SHOP_RARITY_COLORS[1], "rare rarity border color")
 	_assert(prep.shop_card_outlines[2].get_theme_stylebox("panel").border_color == prep.SHOP_RARITY_COLORS[2], "epic rarity border color")
+	_assert(prep.shop_card_outlines[0].get_theme_stylebox("panel").border_width_left == 4, "rarity border must extend one pixel farther inward")
+	_assert(prep.shop_card_outlines[0].get_theme_stylebox("panel").corner_radius_top_left == 0, "rarity border corners must not leak white pixels")
+	_assert(prep.shop_trait_backgrounds[0].texture is GradientTexture2D, "creature cards must use a rarity gradient")
+	_assert(prep.shop_trait_backgrounds[4].texture is GradientTexture2D, "item cards must use a rarity gradient")
+	_assert(prep.shop_trait_backgrounds[4].visible, "item rarity background must remain visible")
+	_assert(not prep.shop_element_icon_backgrounds[4].visible and not prep.shop_extra_icon_backgrounds[4].visible and not prep.shop_race_icon_backgrounds[4].visible, "item cards must not show trait slots")
+	_assert(prep.lock_label.get_theme_font("font") == prep.source_han_font, "lock text must use the same UI font as the shop header")
+	_assert(is_equal_approx(prep.coin_label.position.y + prep.coin_label.size.y * 0.5, 551.0), "coin amount must align to the shop header center")
 	_assert(is_equal_approx(prep.shop_star_rows[0].position.x, 8.0), "shop stars must be placed at the top-left")
 	_assert(is_equal_approx(prep.creature_star_rows[0].position.x, 7.0), "bench stars must be placed at the top-left")
 	_assert(is_equal_approx(prep.creature_star_rows[4].position.x, 5.0), "team stars must be placed at the top-left")
@@ -84,6 +92,24 @@ func _ready() -> void:
 	_assert(prep.shop_sold_out_overlays[0].size == Vector2(80, 30), "sold-out stamp must be scaled down by 50 percent")
 	_assert(is_equal_approx(prep.shop_sold_out_overlays[0].rotation, deg_to_rad(-30.0)), "sold-out stamp must rotate 30 degrees to the left")
 	await _capture("res://battle_prep_shop_sold.png")
+
+	GameState.add_accessory(ITEM_CATALOG.entry_for_id("accessory", 2))
+	GameState.add_accessory(ITEM_CATALOG.entry_for_id("accessory", 79))
+	GameState.add_item(ITEM_CATALOG.entry_for_id("item", 1))
+	GameState.add_item(ITEM_CATALOG.entry_for_id("item", 109))
+	prep._open_inventory()
+	await get_tree().process_frame
+	_assert(prep.inventory_popup.item_grid.columns == 3, "inventory must show three entries per row")
+	await _capture("res://inventory_popup_polished.png")
+	prep.inventory_popup.queue_free()
+	await get_tree().process_frame
+
+	GameState.mark_creature_seen(CREATURES[0])
+	prep._open_dex()
+	await get_tree().process_frame
+	prep.dex_overlay._on_level_pressed(2)
+	_assert(prep.dex_overlay.level_buttons[2].disabled, "selected dex level must move to the pressed button")
+	await _capture("res://dex_overlay_polished.png")
 	print("BATTLE_PREP_SHOP_VISUAL_TEST: PASS")
 	get_tree().quit()
 

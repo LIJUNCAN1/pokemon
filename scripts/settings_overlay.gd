@@ -138,7 +138,6 @@ func _build_interface() -> void:
 	exit_button.add_theme_stylebox_override("pressed", _pixel_button_style(MENU_BUTTON_PRESSED, 1.0))
 	exit_button.add_theme_stylebox_override("focus", _pixel_button_style(MENU_BUTTON_NORMAL))
 	exit_button.pressed.connect(_exit_current_mode)
-	exit_button.text = "退出战斗"
 	overlay_frame.add_child(exit_button)
 
 

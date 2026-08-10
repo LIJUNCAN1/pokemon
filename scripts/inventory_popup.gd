@@ -2,9 +2,10 @@ extends Control
 
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
-const VISIBLE_SLOT_COUNT := 32
-const GRID_COLUMNS := 4
-const CELL_SIZE := Vector2(112, 54)
+const VISIBLE_SLOT_COUNT := 24
+const GRID_COLUMNS := 3
+const CELL_SIZE := Vector2(157, 68)
+const RARITY_COLORS: Array[Color] = [Color("8e929b"), Color("3e95d8"), Color("c45ad9")]
 
 var source_han_font: FontFile
 var item_grid: GridContainer
@@ -91,7 +92,7 @@ func _build_interface() -> void:
 
 	item_grid = GridContainer.new()
 	item_grid.columns = GRID_COLUMNS
-	item_grid.custom_minimum_size.x = 472
+	item_grid.custom_minimum_size.x = 487
 	item_grid.add_theme_constant_override("h_separation", 8)
 	item_grid.add_theme_constant_override("v_separation", 8)
 	scroll.add_child(item_grid)
@@ -115,22 +116,25 @@ func _create_item_slot(entry: Dictionary, index: int) -> void:
 	slot.custom_minimum_size = CELL_SIZE
 	slot.mouse_filter = Control.MOUSE_FILTER_STOP
 	var occupied := not entry.is_empty()
-	var occupied_color := Color("2d2440") if active_kind == "accessory" else Color("183643")
-	slot.add_theme_stylebox_override("panel", _panel_style(occupied_color if occupied else Color(0.2, 0.21, 0.25, 0.58), Color("d8d3e3") if occupied else Color("777985"), 2))
+	var rarity := clampi(int(entry.get("rarity", 0)), 0, RARITY_COLORS.size() - 1) if occupied else 0
+	var rarity_color := RARITY_COLORS[rarity]
+	var occupied_color := rarity_color.darkened(0.62)
+	slot.add_theme_stylebox_override("panel", _panel_style(occupied_color if occupied else Color(0.2, 0.21, 0.25, 0.58), rarity_color if occupied else Color("777985"), 2))
 	item_grid.add_child(slot)
 	if not occupied:
 		return
 	var icon := TextureRect.new()
-	icon.position = Vector2(5, 5)
-	icon.size = Vector2(44, 44)
+	icon.position = Vector2(7, 7)
+	icon.size = Vector2(54, 54)
 	icon.texture = load(String(entry["path"])) as Texture2D
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_child(icon)
-	var label := _add_label(slot, String(entry["name"]), Rect2(51, 4, 56, 46), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	var label := _add_label(slot, String(entry["name"]), Rect2(66, 3, 86, 38), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var rarity_label := _add_label(slot, ITEM_CATALOG.RARITY_NAMES[rarity], Rect2(66, 40, 86, 23), 10, rarity_color.lightened(0.18), HORIZONTAL_ALIGNMENT_CENTER)
 	slot.tooltip_text = "%s\n%s" % [String(entry["name"]), String(entry["effect"])]
 	if active_kind == "item":
 		var use_button := Button.new()

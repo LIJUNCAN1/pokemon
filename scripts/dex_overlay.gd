@@ -32,6 +32,8 @@ const TRAINER_SKILLS: Array[String] = [
 
 var source_han_font: FontFile
 var tab_buttons: Array[TextureButton] = []
+var level_buttons: Array[Button] = []
+var selected_level_index := 0
 var monster_scroll: ScrollContainer
 var monster_page: Control
 var scroll_thumb: TextureRect
@@ -158,11 +160,11 @@ func _build_detail_panel() -> void:
 	_use_dark_text(shift_hint)
 
 	for index in 4:
-		var path := DEX + ("image-1785682708652-8ni6x6cdnyo.png" if index == 0 else "%02d_切图_%d.png" % [17 + index, 17 + index])
-		var button := _add_texture_button(path, Rect2(27 + index * 68, 510, 60, 38), "等级 %d" % (index + 1), detail_root)
+		var button := _create_level_button(index)
 		creature_detail_controls.append(button)
 		button.pressed.connect(_on_level_pressed.bind(index))
-		creature_detail_controls.append(_add_label(detail_root, "Lv%d" % (index + 1), Rect2(27 + index * 68, 515, 60, 28), 12, HORIZONTAL_ALIGNMENT_CENTER))
+		level_buttons.append(button)
+	_update_level_buttons()
 	creature_detail_controls.append(_add_texture(detail_root, DEX + "24_切图_24.png", Rect2(27, 560, 264, 37), TextureRect.STRETCH_SCALE))
 	creature_detail_controls.append(_add_label(detail_root, "闪光", Rect2(27, 563, 264, 28), 13, HORIZONTAL_ALIGNMENT_CENTER))
 
@@ -243,7 +245,7 @@ func _create_creature_card(index: int, rect: Rect2) -> void:
 	hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hit.flat = true
 	hit.focus_mode = Control.FOCUS_NONE
-	hit.tooltip_text = NAMES[index]
+	hit.tooltip_text = ""
 	hit.pressed.connect(_select_creature.bind(index))
 	card.add_child(hit)
 
@@ -271,7 +273,7 @@ func _create_item_card(kind: String, index: int, rect: Rect2) -> void:
 	hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hit.flat = true
 	hit.focus_mode = Control.FOCUS_NONE
-	hit.tooltip_text = String(entry["name"])
+	hit.tooltip_text = ""
 	hit.pressed.connect(_select_item_entry.bind(kind, index))
 	card.add_child(hit)
 	if kind == "accessory":
@@ -306,7 +308,7 @@ func _create_trainer_card(index: int, rect: Rect2) -> void:
 	hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hit.flat = true
 	hit.focus_mode = Control.FOCUS_NONE
-	hit.tooltip_text = TRAINER_NAMES[index]
+	hit.tooltip_text = ""
 	hit.pressed.connect(_select_trainer.bind(index))
 	card.add_child(hit)
 
@@ -458,7 +460,36 @@ func _on_level_pressed(level_index: int) -> void:
 		return
 	if not GameState.has_seen_creature(CREATURES[selected_index]):
 		return
+	selected_level_index = clampi(level_index, 0, level_buttons.size() - 1)
+	_update_level_buttons()
 	detail_stats.text = "Lv%d  技能强度 %d" % [level_index + 1, 20 + selected_index * 3 + level_index * 8]
+
+
+func _create_level_button(index: int) -> Button:
+	var button := Button.new()
+	button.position = Vector2(27 + index * 68, 510)
+	button.size = Vector2(60, 38)
+	button.text = "Lv%d" % (index + 1)
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_font_override("font", source_han_font)
+	button.add_theme_font_size_override("font_size", 12)
+	button.add_theme_color_override("font_color", Color.WHITE)
+	button.add_theme_color_override("font_hover_color", Color.WHITE)
+	button.add_theme_color_override("font_pressed_color", Color.WHITE)
+	button.add_theme_color_override("font_disabled_color", Color.WHITE)
+	button.add_theme_stylebox_override("normal", _panel_style(Color("77787c"), Color("34343a"), 3))
+	button.add_theme_stylebox_override("hover", _panel_style(Color("8b8c91"), Color("34343a"), 3))
+	button.add_theme_stylebox_override("pressed", _panel_style(Color("d9325c"), Color("34343a"), 3))
+	detail_root.add_child(button)
+	return button
+
+
+func _update_level_buttons() -> void:
+	for index in level_buttons.size():
+		var button := level_buttons[index]
+		var selected := index == selected_level_index
+		button.disabled = selected
+		button.add_theme_stylebox_override("disabled", _panel_style(Color("ef3f68"), Color("34343a"), 3))
 
 
 func refresh_data() -> void:
@@ -588,7 +619,7 @@ func _add_texture_button(path: String, rect: Rect2, tooltip: String, parent: Con
 	button.ignore_texture_size = true
 	button.stretch_mode = TextureButton.STRETCH_SCALE
 	button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	button.tooltip_text = tooltip
+	button.tooltip_text = ""
 	(parent if parent != null else self).add_child(button)
 	return button
 
@@ -635,9 +666,9 @@ func _add_label(parent: Control, text: String, rect: Rect2, font_size: int, alig
 	label.add_theme_font_override("font", source_han_font)
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", Color.WHITE)
-	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
-	label.add_theme_color_override("font_outline_color", Color.BLACK)
-	label.add_theme_constant_override("outline_size", 1)
+	label.add_theme_color_override("font_shadow_color", Color(0.08, 0.09, 0.12, 0.38))
+	label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	label.add_theme_constant_override("outline_size", 0)
 	label.add_theme_constant_override("shadow_offset_x", 1)
 	label.add_theme_constant_override("shadow_offset_y", 1)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -647,8 +678,8 @@ func _add_label(parent: Control, text: String, rect: Rect2, font_size: int, alig
 
 func _use_dark_text(label: Label) -> void:
 	label.add_theme_color_override("font_color", Color("202127"))
-	label.add_theme_color_override("font_shadow_color", Color(0.47, 0.48, 0.52, 0.88))
-	label.add_theme_color_override("font_outline_color", Color("202127"))
+	label.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+	label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
 
 
 func _panel_style(fill: Color, border: Color, width: int) -> StyleBoxFlat:
