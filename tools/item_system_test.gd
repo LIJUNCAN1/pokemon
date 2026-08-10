@@ -113,7 +113,7 @@ func _test_collection_ui() -> void:
 	await get_tree().process_frame
 	_check(inventory.item_grid.columns == 3, "Inventory must show three items per row")
 	_check(inventory.item_grid.get_child_count() >= 24, "Inventory must preserve eight rows before scrolling")
-	var first_slot := inventory.item_grid.get_child(0)
+	var first_slot := inventory.item_grid.get_child(0) as Control
 	var rarity_found := false
 	for child in first_slot.get_children():
 		if child is Label and child.text == ITEM_CATALOG.RARITY_NAMES[int(common_item["rarity"])]:

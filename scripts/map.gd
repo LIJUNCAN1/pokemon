@@ -182,26 +182,64 @@ func _apply_full_hd_layout() -> void:
 
 func _generate_map() -> void:
 	rng.randomize()
-	var seed_value := rng.randi()
+	var seed_value := rng.randi() ^ (GameState.floor * 104729)
+	rng.seed = seed_value
 	var nodes: Array[Dictionary] = []
 	for spec in _reference_node_specs():
+		var node_id := int(spec["id"])
+		var node_type := String(spec["type"])
+		if node_id == 22:
+			node_type = "boss" if GameState.is_region_boss_floor() else "elite"
+		elif node_id > 0:
+			node_type = _random_node_type(int(spec["column"]), node_id)
 		nodes.append({
-			"id": spec["id"],
+			"id": node_id,
 			"column": spec["column"],
-			"type": spec["type"],
+			"type": node_type,
 			"position": spec["center"],
 		})
-	var edges := {
-		0: [1, 2, 3],
-		1: [4], 2: [5], 3: [6],
-		4: [7], 5: [7, 8, 9], 6: [9],
-		7: [10], 8: [11], 9: [12],
-		10: [13], 11: [14], 12: [15],
-		13: [16, 17], 14: [17], 15: [17, 18],
-		16: [19], 17: [20], 18: [21],
-		19: [22], 20: [22], 21: [22], 22: [],
-	}
+	var edges := _generate_route_edges()
 	GameState.set_map_data(seed_value, nodes, edges)
+
+
+func _random_node_type(column: int, node_id: int) -> String:
+	# The first route always exposes a real combat so the opening encounter
+	# remains deterministic; later columns and floors are seeded per run.
+	if GameState.floor == 1 and node_id in [1, 3]:
+		return "battle"
+	var pool: Array[String] = ["battle", "battle", "event", "rest", "chest", "shop"]
+	if column >= 3:
+		pool.append("elite")
+	return pool[rng.randi_range(0, pool.size() - 1)]
+
+
+func _generate_route_edges() -> Dictionary:
+	var edges: Dictionary = {0: [1, 2, 3], 22: []}
+	for column in range(1, 7):
+		var current_start := 1 + (column - 1) * 3
+		var next_start := current_start + 3
+		var incoming: Dictionary = {}
+		for row in 3:
+			var from_id := current_start + row
+			var targets: Array[int] = [next_start + row]
+			if rng.randf() < 0.58:
+				var adjacent_row := clampi(row + (-1 if rng.randf() < 0.5 else 1), 0, 2)
+				var adjacent_id := next_start + adjacent_row
+				if adjacent_id not in targets:
+					targets.append(adjacent_id)
+			edges[from_id] = targets
+			for target_id in targets:
+				incoming[target_id] = true
+		for row in 3:
+			var required_id := next_start + row
+			if not incoming.has(required_id):
+				var source_id := current_start + row
+				var source_targets: Array = edges[source_id]
+				source_targets.append(required_id)
+				edges[source_id] = source_targets
+	for node_id in range(19, 22):
+		edges[node_id] = [22]
+	return edges
 
 
 func _reference_node_specs() -> Array[Dictionary]:
@@ -496,8 +534,8 @@ func _update_node_info(node_id: int) -> void:
 func _build_map_title() -> void:
 	var title := Label.new()
 	title.position = Vector2(48, 39)
-	title.size = Vector2(180, 54)
-	title.text = "MAP"
+	title.size = Vector2(280, 54)
+	title.text = "区域 %d · 第 %d 层" % [GameState.region, GameState.floor]
 	title.add_theme_font_override("font", source_han_font)
 	title.add_theme_font_size_override("font_size", 33)
 	title.add_theme_color_override("font_color", Color.WHITE)
@@ -547,10 +585,11 @@ func _position_map_on_entry() -> void:
 	else:
 		map_content.position = target_position
 	GameState.map_intro_played = true
+	GameState.save_run()
 	input_locked = false
 	_refresh_node_interaction()
 	_update_node_info(GameState.current_map_node)
-	if GameState.current_map_node_type() == "boss" and GameState.is_map_node_completed(GameState.current_map_node):
+	if GameState.current_map_node == GameState.map_nodes.size() - 1 and GameState.is_map_node_completed(GameState.current_map_node):
 		_show_run_complete()
 
 
@@ -706,7 +745,8 @@ func _prepare_event_rewards() -> void:
 	event_creature_name = EVENT_CREATURE_NAMES[creature_index]
 	event_consumable = ITEM_CATALOG.random_entry("item", rng)
 	event_loot = ITEM_CATALOG.random_entry("accessory" if rng.randf() < 0.5 else "item", rng)
-	chest_coin_amount = rng.randi_range(GameState.CHEST_GOLD_MIN, GameState.CHEST_GOLD_MAX)
+	var chest_range := GameState.chest_gold_range()
+	chest_coin_amount = rng.randi_range(chest_range.x, chest_range.y)
 
 
 func _event_title() -> String:
@@ -727,6 +767,9 @@ func _loot_option(text: String, entry: Dictionary) -> Dictionary:
 
 
 func _event_stage_data() -> Dictionary:
+	var gold_small := GameState.scaled_event_gold(GameState.EVENT_GOLD_SMALL)
+	var gold_medium := GameState.scaled_event_gold(GameState.EVENT_GOLD_MEDIUM)
+	var gold_large := GameState.scaled_event_gold(GameState.EVENT_GOLD_LARGE)
 	if event_stage_id == "result":
 		return {
 			"story": event_result_text,
@@ -759,7 +802,7 @@ func _event_stage_data() -> Dictionary:
 				"camp":
 					return {"story": "脚印通向一处废弃营地。火堆早已熄灭，箱子里却传来轻微碰撞声。", "options": [
 						_loot_option("打开旅行者留下的箱子", event_loot),
-						{"text": "整理散落的钱袋", "tag": "（金币：+%d）" % GameState.EVENT_GOLD_SMALL, "kind": "coins", "amount": GameState.EVENT_GOLD_SMALL, "detail": "获得 %d 枚金币。" % GameState.EVENT_GOLD_SMALL},
+						{"text": "整理散落的钱袋", "tag": "（金币：+%d）" % gold_small, "kind": "coins", "amount": gold_small, "detail": "获得 %d 枚金币。" % gold_small},
 					]}
 				"nest":
 					return {"story": "低语来自破碎石柱后的巢穴。一只迷失的生物正被古代锁链困住。", "options": [
@@ -782,7 +825,7 @@ func _event_stage_data() -> Dictionary:
 				"archive":
 					return {"story": "值班室的日志记录了最后一场暴雨。柜台下还压着驿站管理员未发出的补给。", "options": [
 						_loot_option("取走密封补给", event_loot),
-						{"text": "回收旧时代货币", "tag": "（金币：+%d）" % GameState.EVENT_GOLD_MEDIUM, "kind": "coins", "amount": GameState.EVENT_GOLD_MEDIUM, "detail": "获得 %d 枚金币。" % GameState.EVENT_GOLD_MEDIUM},
+						{"text": "回收旧时代货币", "tag": "（金币：+%d）" % gold_medium, "kind": "coins", "amount": gold_medium, "detail": "获得 %d 枚金币。" % gold_medium},
 					]}
 				"signal":
 					return {"story": "信号并非求救，而是一只躲雨生物发出的回应。它谨慎地注视着你。", "options": [
@@ -805,7 +848,7 @@ func _event_stage_data() -> Dictionary:
 				"greenhouse":
 					return {"story": "温室中央生长着一株透明植物，根系包裹着一枚保存完好的容器。", "options": [
 						_loot_option("摘下根系中的容器", event_loot),
-						{"text": "采集成熟的能量果实", "tag": "（金币：+%d）" % GameState.EVENT_GOLD_LARGE, "kind": "coins", "amount": GameState.EVENT_GOLD_LARGE, "detail": "出售能量果实，获得 %d 枚金币。" % GameState.EVENT_GOLD_LARGE},
+						{"text": "采集成熟的能量果实", "tag": "（金币：+%d）" % gold_large, "kind": "coins", "amount": gold_large, "detail": "出售能量果实，获得 %d 枚金币。" % gold_large},
 					]}
 				"cradle":
 					return {"story": "哭声来自被花藤覆盖的摇篮。里面的生物睁开眼睛，主动把爪子伸向你。", "options": [
@@ -1003,13 +1046,17 @@ func _show_run_complete() -> void:
 	overlay.z_index = 150
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(overlay)
-	_add_label(overlay, "远 征 完 成", Rect2(340, 225, 600, 90), 42, Color("ffd45f"), HORIZONTAL_ALIGNMENT_CENTER)
+	var final_floor := GameState.is_final_floor()
+	var result_title := "远 征 完 成" if final_floor else "第 %d 层 完 成" % GameState.floor
+	_add_label(overlay, result_title, Rect2(340, 225, 600, 90), 42, Color("ffd45f"), HORIZONTAL_ALIGNMENT_CENTER)
+	var result_detail := "区域 %d · 本区第 %d 层\n完成战斗：%d · 当前金币：%d · 剩余生命：%d" % [GameState.region, GameState.floor_in_region(), GameState.battle_victories, GameState.coins, GameState.run_lives]
+	_add_label(overlay, result_detail, Rect2(340, 305, 600, 58), 16, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	var back := Button.new()
-	back.position = Vector2(515, 350)
+	back.position = Vector2(515, 382)
 	back.size = Vector2(250, 66)
-	back.text = "返回主菜单"
+	back.text = "返回主菜单" if final_floor else "进入下一层"
 	_style_button(back, Color("3d7180"), Color.WHITE, 20)
-	back.pressed.connect(_return_to_main)
+	back.pressed.connect(_return_to_main if final_floor else _advance_to_next_floor)
 	overlay.add_child(back)
 
 
@@ -1039,7 +1086,14 @@ func _focus_offset(node_id: int) -> Vector2:
 
 
 func _return_to_main() -> void:
+	GameState.has_started_new_game = false
+	GameState.clear_run_save()
 	get_tree().change_scene_to_file("res://main.tscn")
+
+
+func _advance_to_next_floor() -> void:
+	if GameState.advance_floor():
+		get_tree().reload_current_scene()
 
 
 func _style_button(button: Button, fill: Color, border: Color, font_size: int) -> void:

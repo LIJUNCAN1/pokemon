@@ -3,11 +3,11 @@ extends Node
 const PREP_SCENE: PackedScene = preload("res://battle_prep.tscn")
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
 const CREATURES: Array[String] = [
-	"res://素材/宝可梦图/1 (1).png",
-	"res://素材/宝可梦图/1 (9).png",
-	"res://素材/宝可梦图/图层 4.png",
-	"res://素材/宝可梦图/图层 5.png",
-	"res://素材/宝可梦图/图层 6.png",
+	"res://素材/图鉴/角色/1 (3).png",
+	"res://素材/图鉴/角色/1 (2).png",
+	"res://素材/图鉴/角色/1 (1).png",
+	"res://素材/图鉴/角色/1 (12).png",
+	"res://素材/图鉴/角色/1 (14).png",
 ]
 
 
@@ -107,6 +107,8 @@ func _ready() -> void:
 	GameState.mark_creature_seen(CREATURES[0])
 	prep._open_dex()
 	await get_tree().process_frame
+	var dex_index: int = prep.dex_overlay.CREATURES.find(CREATURES[0])
+	prep.dex_overlay._select_creature(dex_index)
 	prep.dex_overlay._on_level_pressed(2)
 	_assert(prep.dex_overlay.level_buttons[2].disabled, "selected dex level must move to the pressed button")
 	await _capture("res://dex_overlay_polished.png")

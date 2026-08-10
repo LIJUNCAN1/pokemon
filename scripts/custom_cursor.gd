@@ -53,6 +53,8 @@ func _notification(what: int) -> void:
 		left_pressed = false
 		set_inspecting(false)
 		set_dragging(false)
+	elif what == NOTIFICATION_PREDELETE:
+		_clear_custom_cursors()
 
 
 func set_dragging(value: bool) -> void:
@@ -84,3 +86,8 @@ func _apply_cursor() -> void:
 		texture = PRESSED_CURSOR
 	for cursor_shape in MANAGED_SHAPES:
 		Input.set_custom_mouse_cursor(texture, cursor_shape, hotspot)
+
+
+func _clear_custom_cursors() -> void:
+	for cursor_shape in MANAGED_SHAPES:
+		Input.set_custom_mouse_cursor(null, cursor_shape)

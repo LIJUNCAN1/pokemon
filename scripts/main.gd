@@ -40,6 +40,9 @@ var logo_at_menu := false
 var intro_running := false
 var intro_tween: Tween
 var settings_overlay: Control
+var menu_font: FontFile
+var delete_save_button: Button
+var delete_confirm_deadline := 0
 
 
 func _ready() -> void:
@@ -47,6 +50,8 @@ func _ready() -> void:
 	_build_pixel_theme()
 	_connect_buttons()
 	_configure_menu_state()
+	_build_delete_save_button()
+	_update_continue_availability()
 	version_label.text = VERSION
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	_on_viewport_resized()
@@ -81,6 +86,7 @@ func _process(delta: float) -> void:
 
 func _build_pixel_theme() -> void:
 	var source_han_font := SOURCE_HAN_FONT.duplicate() as FontFile
+	menu_font = source_han_font
 	source_han_font.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
 	source_han_font.multichannel_signed_distance_field = true
 	source_han_font.msdf_pixel_range = 8
@@ -226,11 +232,61 @@ func _configure_menu_state() -> void:
 
 
 func _update_continue_availability() -> void:
-	var continue_disabled := not GameState.has_started_new_game
+	var continue_disabled := not GameState.has_started_new_game and not GameState.has_saved_run()
 	buttons[1].disabled = continue_disabled
 	var overlay := buttons[1].get_node_or_null("DisabledOverlay") as ColorRect
 	if overlay:
 		overlay.visible = continue_disabled
+	if is_instance_valid(delete_save_button):
+		delete_save_button.visible = not continue_disabled
+		if continue_disabled:
+			delete_save_button.text = "删除存档"
+			delete_confirm_deadline = 0
+
+
+func _build_delete_save_button() -> void:
+	delete_save_button = Button.new()
+	delete_save_button.position = Vector2(448, 215)
+	delete_save_button.size = Vector2(76, 34)
+	delete_save_button.text = "删除存档"
+	delete_save_button.focus_mode = Control.FOCUS_NONE
+	delete_save_button.z_index = 4
+	delete_save_button.add_theme_font_override("font", menu_font)
+	delete_save_button.add_theme_font_size_override("font_size", 10)
+	delete_save_button.add_theme_color_override("font_color", Color.WHITE)
+	delete_save_button.add_theme_color_override("font_outline_color", Color.BLACK)
+	delete_save_button.add_theme_constant_override("outline_size", 1)
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(0.18, 0.22, 0.26, 0.94)
+	normal.border_color = Color("b8bec8")
+	normal.set_border_width_all(1)
+	var hover := normal.duplicate() as StyleBoxFlat
+	hover.bg_color = Color(0.55, 0.18, 0.25, 0.98)
+	delete_save_button.add_theme_stylebox_override("normal", normal)
+	delete_save_button.add_theme_stylebox_override("hover", hover)
+	delete_save_button.add_theme_stylebox_override("pressed", hover)
+	delete_save_button.pressed.connect(_on_delete_save_pressed)
+	add_child(delete_save_button)
+
+
+func _on_delete_save_pressed() -> void:
+	var now := Time.get_ticks_msec()
+	if now > delete_confirm_deadline:
+		delete_confirm_deadline = now + 3000
+		delete_save_button.text = "确认删除"
+		var confirm_timer := get_tree().create_timer(3.0)
+		confirm_timer.timeout.connect(func() -> void:
+			if is_instance_valid(delete_save_button) and Time.get_ticks_msec() >= delete_confirm_deadline:
+				delete_save_button.text = "删除存档"
+				delete_confirm_deadline = 0
+		)
+		return
+	GameState.reset_run()
+	GameState.has_started_new_game = false
+	GameState.clear_run_save()
+	delete_confirm_deadline = 0
+	_show_status("远征存档已删除")
+	_update_continue_availability()
 
 
 func _play_intro() -> void:
@@ -381,6 +437,7 @@ func _on_start_pressed() -> void:
 	await transition.finished
 	GameState.has_started_new_game = true
 	GameState.reset_run()
+	GameState.save_run()
 	get_tree().change_scene_to_file("res://map.tscn")
 
 
@@ -392,6 +449,10 @@ func _on_continue_pressed() -> void:
 	transition.tween_property(fade, "color:a", 1.0, 0.45)
 	transition.tween_property(menu_music, "volume_db", -40.0, 0.4)
 	await transition.finished
+	if not GameState.has_started_new_game and not GameState.load_run():
+		_show_status("没有可以继续的远征")
+		_update_continue_availability()
+		return
 	get_tree().change_scene_to_file("res://map.tscn")
 
 

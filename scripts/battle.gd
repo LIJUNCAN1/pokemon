@@ -28,6 +28,9 @@ class Fighter:
 	var rock_armor_stacks := 0
 	var formation_index := 0
 	var attack_range := "melee"
+	var damage_range := Vector2i(9, 17)
+	var skill_id := "basic"
+	var skill_name := "基础攻击"
 	var locked_target: Fighter
 
 
@@ -95,11 +98,22 @@ func _ready() -> void:
 	_play_transition_in.call_deferred()
 
 
+func _exit_tree() -> void:
+	_release_battle_audio()
+
+
+func _release_battle_audio() -> void:
+	if is_instance_valid(battle_music):
+		battle_music.stop()
+		battle_music.stream = null
+
+
 func _start_battle_music() -> void:
 	if AudioServer.get_bus_index("Music") < 0:
 		AudioServer.add_bus()
 		AudioServer.set_bus_name(AudioServer.bus_count - 1, "Music")
 	battle_music.bus = "Music"
+	battle_music.stream = load("res://assets/audio/echoes_of_the_crystal_cavern.mp3") as AudioStream
 	var mp3_stream := battle_music.stream as AudioStreamMP3
 	if mp3_stream:
 		mp3_stream.loop = true
@@ -186,11 +200,11 @@ func _enemy_count_for_current_node() -> int:
 	if not GameState.map_initialized:
 		return 6
 	var node_type := GameState.current_map_node_type()
+	if _is_first_battle_node():
+		return 1
 	if node_type == "boss":
 		return 6
 	var column := int(GameState.current_map_node_data().get("column", 0))
-	if node_type == "battle" and column == 0:
-		return 1
 	var count: int = clampi(2 + floori(float(column) / 2.0), 2, 6)
 	if node_type == "elite":
 		count = mini(count + 1, 6)
@@ -198,9 +212,9 @@ func _enemy_count_for_current_node() -> int:
 
 
 func _is_first_battle_node() -> bool:
-	if not GameState.map_initialized or GameState.current_map_node_type() != "battle":
+	if not GameState.map_initialized or GameState.battle_victories != 0:
 		return false
-	return int(GameState.current_map_node_data().get("column", -1)) == 0
+	return GameState.current_map_node_type() in ["battle", "elite", "boss"]
 
 
 func _create_fighter(texture_path: String, center: Vector2, player_side: bool, index: int, level: int = 1) -> void:
@@ -211,10 +225,13 @@ func _create_fighter(texture_path: String, center: Vector2, player_side: bool, i
 	fighter.formation_index = index
 	fighter.attack_range = CATALOG.attack_range_for_texture(texture_path)
 	fighter.traits = CATALOG.traits_for_texture(texture_path)
-	var base_hp := 72 + index * 7
+	var base_hp := CATALOG.base_hp_for_texture(texture_path)
 	var rarity_stat_multiplier := CATALOG.rarity_stat_multiplier(texture_path)
 	base_hp = roundi(base_hp * rarity_stat_multiplier)
 	fighter.damage_multiplier *= rarity_stat_multiplier
+	fighter.damage_range = CATALOG.damage_range_for_texture(texture_path)
+	fighter.skill_id = CATALOG.skill_id_for_texture(texture_path)
+	fighter.skill_name = CATALOG.skill_name_for_texture(texture_path)
 	if player_side:
 		base_hp *= fighter.level
 		fighter.damage_multiplier *= fighter.level
@@ -222,8 +239,9 @@ func _create_fighter(texture_path: String, center: Vector2, player_side: bool, i
 		fighter.damage_multiplier *= 1.0 + GameState.run_damage_bonus + float(consumable_bonuses["damage"])
 	if not player_side and GameState.map_initialized:
 		var encounter_column := int(GameState.current_map_node_data().get("column", 0))
-		base_hp = roundi(base_hp * (1.0 + encounter_column * 0.07))
-		fighter.damage_multiplier *= 1.0 + encounter_column * 0.045
+		var floor_scale := maxf(float(GameState.floor - 1), 0.0)
+		base_hp = roundi(base_hp * (1.0 + encounter_column * 0.07 + floor_scale * 0.09))
+		fighter.damage_multiplier *= 1.0 + encounter_column * 0.045 + floor_scale * 0.055
 		match GameState.current_map_node_type():
 			"elite":
 				base_hp = roundi(base_hp * 1.35)
@@ -236,13 +254,13 @@ func _create_fighter(texture_path: String, center: Vector2, player_side: bool, i
 			fighter.damage_multiplier *= 0.45
 	fighter.max_hp = base_hp
 	fighter.hp = fighter.max_hp
-	fighter.base_charge_rate = rng.randf_range(0.18, 0.29)
+	fighter.base_charge_rate = 1.0 / maxf(CATALOG.cooldown_for_texture(texture_path), 0.5)
 	fighter.base_charge_rate *= CATALOG.rarity_charge_multiplier(texture_path)
 	if player_side:
 		fighter.base_charge_rate *= 1.0 + GameState.run_charge_bonus + float(consumable_bonuses["charge"])
 	if not player_side and GameState.map_initialized:
 		var encounter_column := int(GameState.current_map_node_data().get("column", 0))
-		fighter.base_charge_rate *= 1.0 + encounter_column * 0.035
+		fighter.base_charge_rate *= 1.0 + encounter_column * 0.035 + maxf(float(GameState.floor - 1), 0.0) * 0.025
 		if GameState.current_map_node_type() == "elite":
 			fighter.base_charge_rate *= 1.12
 		elif GameState.current_map_node_type() == "boss":
@@ -304,9 +322,10 @@ func _create_fighter(texture_path: String, center: Vector2, player_side: bool, i
 
 
 func _build_hud() -> void:
-	var battle_title := "第 1 天 · 战斗"
+	var battle_title := "远 征 战 斗"
 	if GameState.map_initialized:
 		match GameState.current_map_node_type():
+			"battle": battle_title = "普 通 战"
 			"elite": battle_title = "精 英 战"
 			"boss": battle_title = "B O S S 战"
 	_add_label(battle_title, Rect2(430, 7, 420, 48), 30, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 45)
@@ -382,11 +401,12 @@ func _perform_skill(attacker: Fighter) -> void:
 	var attack_multiplier := attacker.damage_multiplier
 	if attacker.player_side and attacker.traits.has("龙族") and attacker.hp * 2 < attacker.max_hp and CATALOG.active_tier("龙族", int(player_synergies.get("龙族", 0))) >= 2:
 		attack_multiplier *= 1.35
-	var damage := roundi(rng.randi_range(9, 17) * attack_multiplier * (1.0 - target.damage_reduction))
+	var damage := roundi(rng.randi_range(attacker.damage_range.x, attacker.damage_range.y) * attack_multiplier * (1.0 - target.damage_reduction))
 	damage = maxi(damage, 1)
 	var dealt := _apply_damage(target, damage)
-	status_label.text = "%s发动技能，造成 %d 点伤害" % ["我方" if attacker.player_side else "敌方", dealt]
+	status_label.text = "%s%s，造成 %d 点伤害" % ["我方释放" if attacker.player_side else "敌方释放", attacker.skill_name, dealt]
 	_play_attack_animation(attacker, target, dealt)
+	_apply_unique_skill(attacker, target, dealt)
 	_apply_fire_attack(attacker, target)
 	_apply_lightning_attack(attacker, target, dealt)
 	_apply_dragon_splash(attacker, target, dealt)
@@ -397,6 +417,56 @@ func _perform_skill(attacker: Fighter) -> void:
 	if target.hp <= 0:
 		_defeat_fighter(target)
 	_check_battle_end()
+
+
+func _apply_unique_skill(attacker: Fighter, primary_target: Fighter, base_damage: int) -> void:
+	match attacker.skill_id:
+		"shield_self":
+			var shield_gain := maxi(roundi(attacker.max_hp * 0.18), 1)
+			attacker.shield += shield_gain
+			_show_effect_label("护盾 +%d" % shield_gain, attacker, Color(0.62, 0.82, 1.0))
+		"heal_ally":
+			var allies := _living_fighters(attacker.player_side)
+			if not allies.is_empty():
+				var lowest: Fighter = allies[0]
+				for ally in allies:
+					if float(ally.hp) / maxf(float(ally.max_hp), 1.0) < float(lowest.hp) / maxf(float(lowest.max_hp), 1.0):
+						lowest = ally
+				_heal_fighter(lowest, maxi(roundi(attacker.max_hp * 0.16), 1))
+		"team_charge":
+			for ally in _living_fighters(attacker.player_side):
+				if ally != attacker:
+					ally.charge = minf(ally.charge + 0.16, 1.0)
+					_update_charge_bar(ally)
+			_show_effect_label("全队充能", attacker, Color(0.55, 0.85, 1.0))
+		"burn":
+			primary_target.burn_stacks += 2
+			_show_effect_label("燃烧 +2", primary_target, Color(1.0, 0.38, 0.10))
+		"slow":
+			primary_target.charge = maxf(primary_target.charge - 0.35, 0.0)
+			_update_charge_bar(primary_target)
+			_show_effect_label("充能降低", primary_target, Color(0.50, 0.78, 1.0))
+		"double_hit":
+			_damage_secondary(primary_target, maxi(roundi(base_damage * 0.55), 1), Color(1.0, 0.72, 0.32), "连击")
+		"seed_burst", "chain":
+			var extra_targets := _living_fighters(not attacker.player_side)
+			extra_targets.erase(primary_target)
+			if not extra_targets.is_empty():
+				var extra: Fighter = extra_targets[rng.randi_range(0, extra_targets.size() - 1)]
+				_damage_secondary(extra, maxi(roundi(base_damage * (0.55 if attacker.skill_id == "chain" else 0.45)), 1), Color(0.62, 0.88, 0.42), "追击")
+				if extra.hp <= 0:
+					_defeat_fighter(extra)
+		"aoe", "aoe_burn":
+			for enemy in _living_fighters(not attacker.player_side):
+				if enemy == primary_target:
+					if attacker.skill_id == "aoe_burn":
+						enemy.burn_stacks += 1
+					continue
+				_damage_secondary(enemy, maxi(roundi(base_damage * (0.48 if attacker.skill_id == "aoe" else 0.38)), 1), Color(0.72, 0.62, 1.0), "范围")
+				if attacker.skill_id == "aoe_burn":
+					enemy.burn_stacks += 1
+				if enemy.hp <= 0:
+					_defeat_fighter(enemy)
 
 
 func _select_attack_target(attacker: Fighter, targets: Array[Fighter]) -> Fighter:
@@ -844,6 +914,7 @@ func _finish_battle(player_won: bool) -> void:
 		return
 	battle_over = true
 	if player_won:
+		var first_battle_victory := _is_first_battle_node()
 		for texture_path in GameState.player_team:
 			if not texture_path.is_empty():
 				GameState.unlock_creature_achievement(texture_path, GameState.ACHIEVEMENT_STAR)
@@ -859,10 +930,20 @@ func _finish_battle(player_won: bool) -> void:
 			victory_reward_text += "\n三战奖励：%s" % _grant_battle_streak_item()
 		if GameState.map_initialized:
 			GameState.complete_current_map_node()
-			if _is_first_battle_node():
+			if first_battle_victory:
 				victory_reward_text += "\n" + _grant_first_battle_chest()
 	else:
 		GameState.lose_run_life()
+		if GameState.run_lives > 0 and GameState.map_initialized:
+			# A lost encounter still consumes the route node. Hearts are the run's
+			# failure budget; the player continues forward instead of replaying it.
+			var loss_reward := GameState.battle_gold_breakdown("battle")
+			var loss_gold := int(loss_reward["base"]) + int(loss_reward["interest"])
+			GameState.add_coins(loss_gold)
+			victory_reward_text = "失去 1 颗心 · 剩余生命：%d\n战败补给：+%d（基础 %d，利息 +%d）" % [GameState.run_lives, loss_gold, int(loss_reward["base"]), int(loss_reward["interest"])]
+			GameState.complete_current_map_node()
+		elif GameState.run_lives <= 0:
+			victory_reward_text = "远征止步于区域 %d · 第 %d 层\n完成战斗：%d · 最终金币：%d" % [GameState.region, GameState.floor, GameState.battle_victories, GameState.coins]
 	var shade := ColorRect.new()
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	shade.color = Color(0, 0, 0, 0.7)
@@ -872,12 +953,16 @@ func _finish_battle(player_won: bool) -> void:
 	if not victory_reward_text.is_empty():
 		_add_label(victory_reward_text, Rect2(300, 315, 680, 58), 15, Color("ffd159"), HORIZONTAL_ALIGNMENT_CENTER, 110)
 	var result_button_y := 390.0 if not victory_reward_text.is_empty() else 350.0
-	if (not player_won and GameState.run_lives > 0) or (player_won and not GameState.map_initialized):
+	if player_won and not GameState.map_initialized:
 		var retry := _create_result_button("重新战斗", Vector2(435, result_button_y))
 		retry.pressed.connect(_restart_battle)
 	elif not player_won:
-		var failed_run := _create_result_button("远征结束", Vector2(435, result_button_y))
-		failed_run.pressed.connect(_return_to_main_after_defeat)
+		if GameState.run_lives <= 0:
+			var failed_run := _create_result_button("远征结束", Vector2(545, result_button_y))
+			failed_run.pressed.connect(_return_to_main_after_defeat)
+			return
+		var continue_run := _create_result_button("继续远征", Vector2(545, result_button_y))
+		continue_run.pressed.connect(_back_to_prep)
 		return
 	var back_position := Vector2(545, result_button_y) if player_won and GameState.map_initialized else Vector2(655, result_button_y)
 	var back := _create_result_button("返回地图" if GameState.map_initialized else "返回备战", back_position)
@@ -939,15 +1024,20 @@ func _play_transition_in() -> void:
 
 
 func _restart_battle() -> void:
+	_release_battle_audio()
 	get_tree().reload_current_scene()
 
 
 func _back_to_prep() -> void:
+	_release_battle_audio()
 	get_tree().change_scene_to_file("res://map.tscn" if GameState.map_initialized else "res://battle_prep.tscn")
 
 
 func _return_to_main_after_defeat() -> void:
+	_release_battle_audio()
 	GameState.reset_run()
+	GameState.has_started_new_game = false
+	GameState.clear_run_save()
 	get_tree().change_scene_to_file("res://main.tscn")
 
 
