@@ -17,8 +17,6 @@ const SHOP_PANEL_ASSET := "res://素材/事件/aseprite_export/shop_table/runtim
 const SHOP_CARD_FRAME_ASSET := "res://素材/事件/aseprite_export/shop_table/runtime/shop_card_frame.png"
 const SHOP_CARD_TEMPLATE_ASSET := "res://素材/事件/aseprite_export/shop_table/runtime/shop_card_template.png"
 const SHOP_ATTRIBUTE_FRAME_ASSET := "res://素材/事件/aseprite_export/shop_table/runtime/attribute_swatch.png"
-const DETAIL_ICON := "res://素材/主菜单/deteai2l.png"
-const DETAIL_ICON_PRESSED := "res://素材/主菜单/deteail.png"
 const LOCK_ICON := "res://素材/主菜单/lock.png"
 const LOCK_ICON_PRESSED := "res://素材/主菜单/lock2.png"
 const STAR_ICON: Texture2D = preload("res://素材/事件/精灵图-0007.png")
@@ -54,20 +52,19 @@ const SHOP_RARITY_POOLS: Array = [
 ]
 const SHOP_RARITY_NAMES: Array[String] = ["普通", "稀有", "史诗"]
 const SHOP_RARITY_COLORS: Array[Color] = [Color("737983"), Color("3e95d8"), Color("c45ad9")]
-const SHOP_RARITY_PRICES: Array[int] = [1, 2, 3]
 const SHOP_CARD_COUNT := 5
 const SHOP_ITEM_CHANCE := 0.58
 const SHOP_ACCESSORY_CHANCE := 0.46
 const TRAIT_ICON_PATHS: Dictionary = {
-	"自然": UI + "图层 8.png",
-	"火": "res://assets/ui/synergy_fire.png",
-	"雷": "res://assets/ui/synergy_water.png",
-	"岩": UI + "图层 4.png",
-	"植物": UI + "图层 7.png",
-	"虫群": UI + "图层 2.png",
-	"龙族": UI + "图层 3.png",
-	"机械": UI + "图层 5.png",
-	"亡灵": UI + "图层 6.png",
+	"自然": "res://assets/ui/trait_icons/nature.png",
+	"火": "res://assets/ui/trait_icons/fire.png",
+	"雷": "res://assets/ui/trait_icons/lightning.png",
+	"岩": "res://assets/ui/trait_icons/rock.png",
+	"植物": "res://assets/ui/trait_icons/plant.png",
+	"虫群": "res://assets/ui/trait_icons/insect.png",
+	"龙族": "res://assets/ui/trait_icons/dragon.png",
+	"机械": "res://assets/ui/trait_icons/mechanical.png",
+	"亡灵": "res://assets/ui/trait_icons/undead.png",
 }
 const TRAIT_COLORS: Dictionary = {
 	"自然": Color("a8c957"),
@@ -119,14 +116,13 @@ var shop_outer_layers: Array[TextureRect] = []
 var shop_name_labels: Array[Label] = []
 var shop_price_labels: Array[Label] = []
 var shop_sold_out_overlays: Array[TextureRect] = []
+var shop_sold_out_shades: Array[ColorRect] = []
 var shop_card_outlines: Array[Panel] = []
 var shop_lock_overlays: Array[TextureRect] = []
-var shop_detail_icons: Array[TextureRect] = []
 var shop_element_icon_backgrounds: Array[TextureRect] = []
 var shop_extra_icon_backgrounds: Array[TextureRect] = []
 var shop_race_icon_backgrounds: Array[TextureRect] = []
 var shop_data: Array[Dictionary] = []
-var notice_label: Label
 var coin_label: Label
 var lock_label: Label
 var lock_button_texture: TextureRect
@@ -134,6 +130,8 @@ var inventory_count_label: Label
 var coins := 5
 var shop_locked := false
 var lock_button: Button
+var shop_sell_overlay: Panel
+var shop_sell_label: Label
 var health_icons: Array[TextureRect] = []
 var dex_overlay: Control
 var settings_overlay: Control
@@ -234,7 +232,6 @@ func _build_interface() -> void:
 	_build_synergy()
 	_build_shop()
 	_build_footer_actions()
-	notice_label = _add_label(self, "拖动角色即可在队伍与备战席之间换位", Rect2(338, 516, 604, 20), 11, Color(0.82, 0.96, 1.0), HORIZONTAL_ALIGNMENT_CENTER)
 	_build_card_tooltip()
 	_play_transition_in.call_deferred()
 
@@ -444,12 +441,14 @@ func _update_synergies() -> void:
 
 func _build_shop() -> void:
 	_add_texture(self, SHOP_PANEL_ASSET, Rect2(242, 526, 796, 190))
-	_add_label(self, "商店", Rect2(260, 528, 86, 25), 18, Color.WHITE)
+	var header_center_y := 551.0
+	_add_label(self, "商店", Rect2(260, header_center_y - 15.0, 76, 30), 18, Color.WHITE)
 	var rarity_labels := [
-		_add_label(self, "普通 60%", Rect2(348, 530, 88, 21), 10, SHOP_RARITY_COLORS[0], HORIZONTAL_ALIGNMENT_CENTER),
-		_add_label(self, "稀有 30%", Rect2(436, 530, 88, 21), 10, SHOP_RARITY_COLORS[1], HORIZONTAL_ALIGNMENT_CENTER),
-		_add_label(self, "史诗 10%", Rect2(524, 530, 88, 21), 10, SHOP_RARITY_COLORS[2], HORIZONTAL_ALIGNMENT_CENTER),
+		_add_label(self, "普通 60%", Rect2(354, header_center_y - 12.0, 72, 24), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER),
+		_add_label(self, "稀有 30%", Rect2(430, header_center_y - 12.0, 72, 24), 10, SHOP_RARITY_COLORS[1], HORIZONTAL_ALIGNMENT_CENTER),
+		_add_label(self, "史诗 10%", Rect2(506, header_center_y - 12.0, 72, 24), 10, SHOP_RARITY_COLORS[2], HORIZONTAL_ALIGNMENT_CENTER),
 	]
+	rarity_labels[0].add_theme_color_override("font_color", Color.WHITE)
 	shop_data = _roll_shop_entries(false)
 	for entry in shop_data:
 		_mark_shop_creature_seen(entry)
@@ -459,12 +458,13 @@ func _build_shop() -> void:
 	var card_height := 130.0
 	for index in SHOP_CARD_COUNT:
 		_create_shop_card(index, Rect2(card_start_x + index * (card_width + card_gap), 574, card_width, card_height))
-	_add_texture(self, UI + "04_切图_4.png", Rect2(871, 529, 22, 22))
-	coin_label = _add_label(self, "%dG" % coins, Rect2(895, 528, 58, 24), 14, Color("e4aa2f"), HORIZONTAL_ALIGNMENT_RIGHT)
-	lock_button_texture = _add_texture(self, LOCK_ICON, Rect2(1000, 530, 18, 18))
+	_add_texture(self, UI + "04_切图_4.png", Rect2(871, header_center_y - 11.0, 22, 22))
+	coin_label = _add_label(self, "%dG" % coins, Rect2(895, header_center_y - 15.0, 58, 28), 14, Color("e4aa2f"), HORIZONTAL_ALIGNMENT_RIGHT)
+	lock_button_texture = _add_texture(self, LOCK_ICON, Rect2(1000, header_center_y - 9.0, 18, 18))
+	lock_button_texture.visible = false
 	lock_button = Button.new()
-	lock_button.position = Vector2(954, 526)
-	lock_button.size = Vector2(70, 28)
+	lock_button.position = Vector2(954, header_center_y - 16.0)
+	lock_button.size = Vector2(70, 32)
 	lock_button.flat = true
 	lock_button.tooltip_text = "锁定商店"
 	lock_button.focus_mode = Control.FOCUS_NONE
@@ -473,8 +473,22 @@ func _build_shop() -> void:
 	lock_button.button_up.connect(_set_lock_button_pressed.bind(false))
 	lock_button.mouse_exited.connect(_set_lock_button_pressed.bind(false))
 	lock_button.pressed.connect(_on_lock_pressed)
-	lock_label = _add_label(self, "锁定", Rect2(954, 528, 43, 24), 12, Color("596575"), HORIZONTAL_ALIGNMENT_CENTER)
+	lock_label = _add_label(self, "锁定", Rect2(954, header_center_y - 14.0, 70, 28), 12, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_apply_stat_pixel_font(lock_label)
+	_build_shop_sell_overlay()
+
+
+func _build_shop_sell_overlay() -> void:
+	shop_sell_overlay = Panel.new()
+	shop_sell_overlay.position = Vector2(242, 526)
+	shop_sell_overlay.size = Vector2(796, 190)
+	shop_sell_overlay.z_index = 120
+	shop_sell_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	shop_sell_overlay.add_theme_stylebox_override("panel", _slot_style(Color(0.015, 0.02, 0.025, 0.88), Color("e4aa2f"), 4))
+	shop_sell_overlay.visible = false
+	add_child(shop_sell_overlay)
+	shop_sell_label = _add_label(shop_sell_overlay, "", Rect2(80, 50, 636, 90), 30, Color("ffd159"), HORIZONTAL_ALIGNMENT_CENTER)
+	shop_sell_overlay.set_drag_forwarding(_get_shop_sell_drag_data, _can_drop_shop_sell_data, _drop_shop_sell_data)
 
 
 func _build_footer_actions() -> void:
@@ -525,9 +539,9 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String,
 	var level_label := _add_label(button, "", Rect2(5, 2, 48, 17) if compact_card else Rect2(7, 3, 54, 19), 9 if compact_card else 10, Color.WHITE)
 	level_label.visible = false
 	var star_row := _create_star_row(button, Rect2(5, 2, 48, 17) if compact_card else Rect2(7, 3, 54, 19))
-	var badge_width := 30.0 if compact_card else 34.0
-	var badge_gap := 3.0
-	var badge_x := (rect.size.x - badge_width * 2.0 - badge_gap) * 0.5
+	var badge_width := 27.0 if compact_card else 30.0
+	var badge_gap := 2.0 if compact_card else 3.0
+	var badge_x := rect.size.x - badge_width * 2.0 - badge_gap - 3.0
 	var badge_height := 21.0 if compact_card else 24.0
 	var badge_y := rect.size.y - (23.0 if compact_card else 27.0)
 	var hp_badge := _add_stat_badge(button, Rect2(badge_x, badge_y, badge_width, badge_height), Color("ef3f67"))
@@ -536,11 +550,13 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String,
 	var special_label := _add_label(button, "", Rect2(badge_x + badge_width + badge_gap, badge_y + 1, badge_width, badge_height - 3), 9 if compact_card else 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_apply_stat_pixel_font(hp_label)
 	_apply_stat_pixel_font(special_label)
-	var trait_icon_size := 18.0 if compact_card else 22.0
-	var trait_icon_x := rect.size.x - (23.0 if compact_card else 28.0)
-	var element_icon := _add_texture(button, TRAIT_ICON_PATHS["自然"], Rect2(trait_icon_x, 4 if compact_card else 5, trait_icon_size, trait_icon_size))
-	var extra_trait_icon := _add_texture(button, TRAIT_ICON_PATHS["雷"], Rect2(trait_icon_x, 24 if compact_card else 31, trait_icon_size, trait_icon_size))
-	var race_icon := _add_texture(button, TRAIT_ICON_PATHS["机械"], Rect2(trait_icon_x, 44 if compact_card else 57, trait_icon_size, trait_icon_size))
+	var trait_icon_size := 16.0 if compact_card else 18.0
+	var trait_icon_gap := 3.0
+	var trait_icon_x := 5.0 if compact_card else 6.0
+	var trait_icon_y := rect.size.y - (21.0 if compact_card else 25.0)
+	var element_icon := _add_texture(button, TRAIT_ICON_PATHS["自然"], Rect2(trait_icon_x, trait_icon_y, trait_icon_size, trait_icon_size))
+	var extra_trait_icon := _add_texture(button, TRAIT_ICON_PATHS["雷"], Rect2(trait_icon_x + trait_icon_size + trait_icon_gap, trait_icon_y, trait_icon_size, trait_icon_size))
+	var race_icon := _add_texture(button, TRAIT_ICON_PATHS["机械"], Rect2(trait_icon_x + (trait_icon_size + trait_icon_gap) * 2.0, trait_icon_y, trait_icon_size, trait_icon_size))
 	element_icon.visible = false
 	extra_trait_icon.visible = false
 	race_icon.visible = false
@@ -644,15 +660,13 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	special_label.move_to_front()
 	_apply_stat_pixel_font(hp_label)
 	_apply_stat_pixel_font(special_label)
-	var detail_icon := _add_texture(button, DETAIL_ICON, Rect2(7, top_height + 8, 16, 16))
-	detail_icon.z_index = 28
-	var name_label := _add_label(button, "", Rect2(27, top_height + 4, 108, 29), 11, Color("f4f5f6"))
+	var name_label := _add_label(button, "", Rect2(8, top_height + 4, 127, 29), 11, Color("f4f5f6"))
 	var price_label := _add_label(button, "", Rect2(rect.size.x - 50, top_height + 4, 43, 29), 12, Color("e4aa2f"), HORIZONTAL_ALIGNMENT_RIGHT)
 	var card_outline := Panel.new()
 	card_outline.position = Vector2.ZERO
 	card_outline.size = rect.size
 	card_outline.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card_outline.add_theme_stylebox_override("panel", _slot_style(Color(0, 0, 0, 0), Color(0.66, 0.67, 0.72, 1.0), 3))
+	card_outline.add_theme_stylebox_override("panel", _shop_card_outline_style(Color(0.66, 0.67, 0.72, 1.0)))
 	button.add_child(card_outline)
 	var outer_layer := _add_texture(button, SHOP_CARD_FRAME_ASSET, Rect2(Vector2.ZERO, rect.size))
 	outer_layer.visible = false
@@ -660,15 +674,26 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	var shop_level := _add_label(button, "", Rect2(8, 5, 64, 20), 9, Color.WHITE)
 	shop_level.visible = false
 	shop_level.add_theme_color_override("font_color", LEVEL_COLORS[0])
-	var shop_stars := _create_star_row(button, Rect2(8, 5, 64, 20))
+	var shop_stars := _create_star_row(button, Rect2(8, 4, 54, 20))
 	var sold_out := _add_texture(button, SOLD_OUT_ICON.resource_path, Rect2((rect.size.x - 160.0) * 0.5, (top_height - 60.0) * 0.5, 160, 60))
+	var sold_shade := ColorRect.new()
+	sold_shade.position = Vector2(3, 3)
+	sold_shade.size = rect.size - Vector2(6, 6)
+	sold_shade.color = Color(0, 0, 0, 0.68)
+	sold_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sold_shade.visible = false
+	sold_shade.z_index = 25
+	button.add_child(sold_shade)
+	sold_out.position = Vector2((rect.size.x - 80.0) * 0.5, (rect.size.y - 30.0) * 0.5)
+	sold_out.size = Vector2(80, 30)
 	sold_out.pivot_offset = sold_out.size * 0.5
-	sold_out.rotation = deg_to_rad(30.0)
+	sold_out.rotation = deg_to_rad(-30.0)
 	sold_out.visible = false
 	sold_out.z_index = 30
-	var lock_overlay := _add_texture(button, LOCK_ICON, Rect2((rect.size.x - 26.0) * 0.5, (top_height - 26.0) * 0.5, 26, 26))
+	var lock_overlay := _add_texture(button, LOCK_ICON, Rect2(rect.size.x - 31, 3, 26, 26))
 	lock_overlay.visible = false
 	lock_overlay.z_index = 40
+	lock_overlay.pivot_offset = lock_overlay.size * 0.5
 	shop_sprites.append(sprite)
 	shop_hp_labels.append(hp_label)
 	shop_special_labels.append(special_label)
@@ -686,16 +711,15 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	shop_name_labels.append(name_label)
 	shop_price_labels.append(price_label)
 	shop_sold_out_overlays.append(sold_out)
+	shop_sold_out_shades.append(sold_shade)
 	shop_card_outlines.append(card_outline)
 	shop_lock_overlays.append(lock_overlay)
-	shop_detail_icons.append(detail_icon)
 	shop_element_icon_backgrounds.append(element_background)
 	shop_extra_icon_backgrounds.append(extra_background)
 	shop_race_icon_backgrounds.append(race_background)
 	button.pressed.connect(_on_shop_card_pressed.bind(index))
 	button.mouse_entered.connect(_shake_shop_card.bind(button))
 	button.mouse_exited.connect(_hide_card_tooltip)
-	button.mouse_exited.connect(_reset_shop_detail_icon.bind(index))
 	button.gui_input.connect(_on_shop_card_gui_input.bind(index))
 	_render_shop_card(index)
 
@@ -765,9 +789,12 @@ func _show_creature_card_tooltip(index: int) -> void:
 
 
 func _on_creature_card_gui_input(event: InputEvent, index: int) -> void:
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+	if not event is InputEventMouseButton or event.button_index != MOUSE_BUTTON_RIGHT:
+		return
+	CursorManager.set_inspecting(event.pressed)
+	if event.pressed:
 		_show_creature_card_tooltip(index)
-		creature_buttons[index].accept_event()
+	creature_buttons[index].accept_event()
 
 
 func _show_shop_card_tooltip(index: int) -> void:
@@ -784,15 +811,10 @@ func _show_shop_card_tooltip(index: int) -> void:
 func _on_shop_card_gui_input(event: InputEvent, index: int) -> void:
 	if not event is InputEventMouseButton or event.button_index != MOUSE_BUTTON_RIGHT:
 		return
-	shop_detail_icons[index].texture = load(DETAIL_ICON_PRESSED if event.pressed else DETAIL_ICON) as Texture2D
+	CursorManager.set_inspecting(event.pressed)
 	if event.pressed:
 		_show_shop_card_tooltip(index)
 	shop_buttons[index].accept_event()
-
-
-func _reset_shop_detail_icon(index: int) -> void:
-	if index >= 0 and index < shop_detail_icons.size():
-		shop_detail_icons[index].texture = load(DETAIL_ICON) as Texture2D
 
 
 func _show_card_tooltip(texture_path: String, level: int) -> void:
@@ -808,6 +830,7 @@ func _show_card_tooltip(texture_path: String, level: int) -> void:
 	card_tooltip_race_panel.visible = true
 	card_tooltip_name.text = CREATURE_NAMES[data_index]
 	card_tooltip_rarity.text = SHOP_RARITY_NAMES[rarity_index]
+	card_tooltip_rarity.add_theme_color_override("font_color", _rarity_text_color(rarity_index))
 	card_tooltip_sprite.texture = load(texture_path) as Texture2D
 	card_tooltip_element_icon.texture = load(TRAIT_ICON_PATHS[elements[0]]) as Texture2D
 	card_tooltip_element.text = "/".join(elements)
@@ -828,12 +851,18 @@ func _show_item_card_tooltip(entry: Dictionary) -> void:
 	card_tooltip_element_panel.visible = false
 	card_tooltip_race_panel.visible = false
 	card_tooltip_name.text = _shop_entry_name(entry)
-	card_tooltip_rarity.text = SHOP_RARITY_NAMES[int(entry["rarity"])]
+	var rarity_index := clampi(int(entry["rarity"]), 0, SHOP_RARITY_NAMES.size() - 1)
+	card_tooltip_rarity.text = SHOP_RARITY_NAMES[rarity_index]
+	card_tooltip_rarity.add_theme_color_override("font_color", _rarity_text_color(rarity_index))
 	card_tooltip_sprite.texture = load(entry["path"]) as Texture2D
 	card_tooltip_cooldown.text = "饰品" if entry["kind"] == "accessory" else "道具"
 	card_tooltip_damage.text = "售价 $%d" % int(entry["price"])
 	card_tooltip_extra.text = String(entry["effect"])
 	_position_card_tooltip()
+
+
+func _rarity_text_color(rarity_index: int) -> Color:
+	return Color.WHITE if rarity_index <= 0 else SHOP_RARITY_COLORS[clampi(rarity_index, 0, SHOP_RARITY_COLORS.size() - 1)]
 
 
 func _position_card_tooltip() -> void:
@@ -860,6 +889,7 @@ func _creature_extra_text(texture_path: String, rarity_index: int) -> String:
 
 
 func _hide_card_tooltip() -> void:
+	CursorManager.set_inspecting(false)
 	if card_tooltip:
 		card_tooltip.visible = false
 
@@ -905,6 +935,7 @@ func _get_creature_drag_data(_at_position: Vector2, slot_index: int) -> Variant:
 	drag_source_slot = slot_index
 	CursorManager.set_dragging(true)
 	_show_drag_exchange_targets(slot_index)
+	_show_shop_sell_target(slot_index)
 	var preview := Panel.new()
 	preview.size = Vector2(92, 92)
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -934,6 +965,47 @@ func _drop_creature_data(_at_position: Vector2, data: Variant, slot_index: int) 
 	_set_notice("角色已拖动到%s" % destination)
 
 
+func _get_shop_sell_drag_data(_at_position: Vector2) -> Variant:
+	return null
+
+
+func _can_drop_shop_sell_data(_at_position: Vector2, data: Variant) -> bool:
+	if not data is Dictionary or String(data.get("kind", "")) != "creature_slot":
+		return false
+	var source_index := int(data.get("source_index", -1))
+	return source_index >= 0 and source_index < creature_data.size() and not creature_data[source_index].is_empty()
+
+
+func _drop_shop_sell_data(_at_position: Vector2, data: Variant) -> void:
+	if not _can_drop_shop_sell_data(_at_position, data):
+		return
+	var source_index := int(data.get("source_index", -1))
+	var sell_value := _creature_sell_value(source_index)
+	var sold_name := CREATURE_NAMES[maxi(CREATURE_TEXTURES.find(creature_data[source_index]), 0)]
+	_clear_creature_slot(source_index)
+	GameState.add_coins(sell_value)
+	_sync_coins()
+	_update_synergies()
+	_clear_drag_exchange_targets()
+	_set_notice("已售出%s，获得 %dG" % [sold_name, sell_value])
+
+
+func _creature_sell_value(slot_index: int) -> int:
+	if slot_index < 0 or slot_index >= creature_data.size() or creature_data[slot_index].is_empty():
+		return 0
+	var rarity := CATALOG.rarity_for_texture(creature_data[slot_index])
+	return GameState.creature_sell_value(rarity, creature_levels[slot_index])
+
+
+func _show_shop_sell_target(slot_index: int) -> void:
+	if not shop_sell_overlay or not shop_sell_label:
+		return
+	var sell_value := _creature_sell_value(slot_index)
+	shop_sell_label.text = "售出  +%dG" % sell_value
+	shop_sell_overlay.visible = sell_value > 0
+	shop_sell_overlay.move_to_front()
+
+
 func _show_drag_exchange_targets(source_index: int) -> void:
 	for index in creature_masks.size():
 		creature_masks[index].visible = index != source_index and not creature_data[index].is_empty()
@@ -943,6 +1015,8 @@ func _show_drag_exchange_targets(source_index: int) -> void:
 func _clear_drag_exchange_targets() -> void:
 	drag_source_slot = -1
 	CursorManager.set_dragging(false)
+	if shop_sell_overlay:
+		shop_sell_overlay.visible = false
 	for mask in creature_masks:
 		mask.visible = false
 
@@ -1123,7 +1197,7 @@ func _draw_creature_shop_entry() -> Dictionary:
 		"kind": "creature",
 		"path": CREATURE_TEXTURES[creature_index],
 		"rarity": rarity_index,
-		"price": SHOP_RARITY_PRICES[rarity_index],
+		"price": GameState.CREATURE_BUY_PRICES[rarity_index],
 	}
 
 
@@ -1158,20 +1232,39 @@ func _shop_entry_name(entry: Dictionary) -> String:
 func _on_lock_pressed() -> void:
 	shop_locked = not shop_locked
 	lock_label.text = "已锁" if shop_locked else "锁定"
+	lock_label.add_theme_color_override("font_color", Color.WHITE)
 	_set_lock_button_pressed(false)
-	for overlay in shop_lock_overlays:
+	for index in shop_lock_overlays.size():
+		var overlay := shop_lock_overlays[index]
 		if shop_locked:
+			overlay.texture = load(LOCK_ICON) as Texture2D
+			overlay.scale = Vector2.ONE
 			overlay.visible = true
 			overlay.modulate.a = 1.0
 		else:
-			var fade := create_tween()
-			fade.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			fade.tween_property(overlay, "modulate:a", 0.0, 0.45)
-			fade.tween_callback(func() -> void:
-				overlay.visible = false
-				overlay.modulate.a = 1.0
-			)
+			_animate_shop_unlock(index)
 	_set_notice("商店已锁定" if shop_locked else "商店已解锁")
+
+
+func _animate_shop_unlock(index: int) -> void:
+	if index < 0 or index >= shop_lock_overlays.size():
+		return
+	var overlay := shop_lock_overlays[index]
+	overlay.texture = load(LOCK_ICON_PRESSED) as Texture2D
+	overlay.visible = true
+	overlay.modulate.a = 1.0
+	overlay.scale = Vector2.ONE
+	var unlock_tween := create_tween().set_parallel(true)
+	unlock_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	unlock_tween.tween_property(overlay, "scale", Vector2(1.28, 1.28), 0.16)
+	unlock_tween.tween_property(overlay, "modulate:a", 0.0, 0.32)
+	unlock_tween.chain().tween_callback(func() -> void:
+		overlay.visible = false
+		overlay.modulate.a = 1.0
+		overlay.scale = Vector2.ONE
+		if not shop_locked and index < shop_data.size() and not shop_data[index].is_empty():
+			shop_star_rows[index].visible = String(shop_data[index].get("kind", "")) == "creature"
+	)
 
 
 func _set_lock_button_pressed(pressed: bool) -> void:
@@ -1382,13 +1475,19 @@ func _render_shop_card(index: int) -> void:
 		shop_level_labels[index].visible = false
 		shop_star_rows[index].visible = false
 		shop_sold_out_overlays[index].visible = true
+		shop_sold_out_shades[index].visible = true
 		shop_lock_overlays[index].visible = shop_locked
-		shop_detail_icons[index].visible = false
-		shop_card_outlines[index].add_theme_stylebox_override("panel", _slot_style(Color(0, 0, 0, 0), Color("737983"), 3))
+		shop_attribute_layers[index].visible = false
+		shop_creature_overlays[index].visible = false
+		shop_outer_layers[index].visible = false
+		shop_card_outlines[index].add_theme_stylebox_override("panel", _shop_card_outline_style(Color("737983")))
 		shop_element_icons[index].visible = false
 		shop_extra_trait_icons[index].visible = false
 		shop_race_icons[index].visible = false
 		shop_trait_backgrounds[index].visible = false
+		shop_element_icon_backgrounds[index].visible = false
+		shop_extra_icon_backgrounds[index].visible = false
+		shop_race_icon_backgrounds[index].visible = false
 		shop_hp_labels[index].text = ""
 		shop_special_labels[index].text = ""
 		shop_name_labels[index].text = ""
@@ -1396,17 +1495,18 @@ func _render_shop_card(index: int) -> void:
 		return
 	var entry: Dictionary = shop_data[index]
 	shop_sold_out_overlays[index].visible = false
+	shop_sold_out_shades[index].visible = false
 	shop_lock_overlays[index].visible = shop_locked
-	shop_detail_icons[index].visible = true
 	var is_creature: bool = String(entry["kind"]) == "creature"
 	var texture_path: String = entry["path"]
 	var rarity_index := int(entry.get("rarity", CATALOG.rarity_for_texture(texture_path)))
-	shop_card_outlines[index].add_theme_stylebox_override("panel", _slot_style(Color(0, 0, 0, 0), SHOP_RARITY_COLORS[clampi(rarity_index, 0, 2)], 3))
+	shop_card_outlines[index].add_theme_stylebox_override("panel", _shop_card_outline_style(SHOP_RARITY_COLORS[clampi(rarity_index, 0, 2)]))
 	shop_sprites[index].texture = load(texture_path) as Texture2D
 	shop_sprites[index].visible = true
 	shop_name_labels[index].text = _shop_entry_name(entry)
 	shop_price_labels[index].text = "$%d" % int(entry["price"])
 	shop_creature_overlays[index].visible = is_creature
+	shop_attribute_layers[index].visible = true
 	shop_attribute_layers[index].texture = load(SHOP_CARD_TEMPLATE_ASSET) as Texture2D
 	shop_attribute_layers[index].modulate = Color.WHITE
 	shop_outer_layers[index].visible = false
@@ -1499,9 +1599,8 @@ func _hide_creature_selection_frame(index: int) -> void:
 	creature_selection_frames[index].scale = Vector2.ONE
 
 
-func _set_notice(message: String) -> void:
-	if notice_label:
-		notice_label.text = message
+func _set_notice(_message: String) -> void:
+	pass
 
 
 func _add_texture(parent: Control, path: String, rect: Rect2, stretch := TextureRect.STRETCH_KEEP_ASPECT_CENTERED) -> TextureRect:
@@ -1595,10 +1694,10 @@ func _add_label(parent: Control, text: String, rect: Rect2, font_size: int, colo
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
 	var is_dark_text := color.get_luminance() < 0.62
-	label.add_theme_color_override("font_shadow_color", Color("d9dde3") if is_dark_text else Color("3b414b"))
+	label.add_theme_color_override("font_shadow_color", Color.TRANSPARENT if is_dark_text else Color(0.08, 0.10, 0.14, 0.62))
 	label.add_theme_constant_override("outline_size", 0)
-	label.add_theme_constant_override("shadow_offset_x", 2)
-	label.add_theme_constant_override("shadow_offset_y", 2)
+	label.add_theme_constant_override("shadow_offset_x", 0 if is_dark_text else 1)
+	label.add_theme_constant_override("shadow_offset_y", 0 if is_dark_text else 1)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(label)
 	return label
@@ -1613,6 +1712,12 @@ func _slot_style(fill: Color, border: Color, width := 0) -> StyleBoxFlat:
 	style.corner_radius_top_right = 3
 	style.corner_radius_bottom_left = 3
 	style.corner_radius_bottom_right = 3
+	return style
+
+
+func _shop_card_outline_style(border: Color) -> StyleBoxFlat:
+	var style := _slot_style(Color.TRANSPARENT, border, 3)
+	style.anti_aliasing = false
 	return style
 
 

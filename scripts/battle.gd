@@ -40,7 +40,6 @@ const FULL_HD_SCALE := Vector2(0.5, 0.5)
 const SCENE_ASSETS := "res://素材/场景/"
 const POKEMON := "res://素材/宝可梦图/"
 const P7_PROJECTILE_SHEET: Texture2D = preload("res://素材/战斗场景/aseprite_export/P7kD08_sheet.png")
-const P7_PROJECTILE_CHARACTER := "1 (7).png"
 const P7_PROJECTILE_FRAME_SIZE := Vector2i(95, 76)
 const P7_PROJECTILE_FRAME_COUNT := 22
 const P7_PROJECTILE_FPS := 12.5
@@ -473,8 +472,7 @@ func _play_attack_animation(attacker: Fighter, target: Fighter, damage: int) -> 
 	float_tween.tween_property(damage_label, "modulate:a", 0.0, 0.55)
 	float_tween.chain().tween_callback(damage_label.queue_free)
 
-	if attacker.texture_path.get_file() == P7_PROJECTILE_CHARACTER:
-		_play_p7_projectile(attacker, target)
+	_play_p7_projectile(attacker, target)
 
 
 func _play_p7_projectile(attacker: Fighter, target: Fighter) -> void:
@@ -485,7 +483,7 @@ func _play_p7_projectile(attacker: Fighter, target: Fighter) -> void:
 	projectile.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	projectile.flip_h = not attacker.player_side
 	projectile.z_index = 18
-	projectile.position = _fighter_visual_center(attacker)
+	projectile.position = _fighter_attack_origin(attacker)
 	add_child(projectile)
 
 	var playback_scale := maxf(battle_speed, 0.01)
@@ -523,6 +521,11 @@ func _get_p7_projectile_frames() -> SpriteFrames:
 
 func _fighter_visual_center(fighter: Fighter) -> Vector2:
 	return fighter.sprite.position + fighter.sprite.size * 0.5
+
+
+func _fighter_attack_origin(fighter: Fighter) -> Vector2:
+	var horizontal_ratio := 0.86 if fighter.player_side else 0.14
+	return fighter.sprite.position + Vector2(fighter.sprite.size.x * horizontal_ratio, fighter.sprite.size.y * 0.48)
 
 
 func _process_synergy_timers(delta: float) -> void:
@@ -844,9 +847,13 @@ func _finish_battle(player_won: bool) -> void:
 		for texture_path in GameState.player_team:
 			if not texture_path.is_empty():
 				GameState.unlock_creature_achievement(texture_path, GameState.ACHIEVEMENT_STAR)
-		var victory_gold := _victory_gold_reward()
-		GameState.add_coins(victory_gold)
-		victory_reward_text = "战斗金币：+%d" % victory_gold
+		var node_type := GameState.current_map_node_type() if GameState.map_initialized else "battle"
+		var gold_reward := GameState.battle_gold_breakdown(node_type)
+		GameState.add_coins(int(gold_reward["total"]))
+		victory_reward_text = "战斗金币：+%d（基础 %d" % [int(gold_reward["total"]), int(gold_reward["base"])]
+		if int(gold_reward["node_bonus"]) > 0:
+			victory_reward_text += "，节点 +%d" % int(gold_reward["node_bonus"])
+		victory_reward_text += "，利息 +%d）" % int(gold_reward["interest"])
 		GameState.battle_victories += 1
 		if GameState.battle_victories % 3 == 0:
 			victory_reward_text += "\n三战奖励：%s" % _grant_battle_streak_item()
@@ -880,20 +887,17 @@ func _finish_battle(player_won: bool) -> void:
 func _grant_first_battle_chest() -> String:
 	var reward_rng := RandomNumberGenerator.new()
 	reward_rng.seed = GameState.map_seed + 17041
-	var entry := ITEM_CATALOG.random_entry("item", reward_rng)
-	GameState.add_item(entry)
-	var coin_reward := 2
+	var first_entry := ITEM_CATALOG.random_entry("item", reward_rng)
+	var second_entry := ITEM_CATALOG.random_entry("item", reward_rng)
+	var reroll_attempts := 0
+	while int(second_entry.get("id", 0)) == int(first_entry.get("id", 0)) and reroll_attempts < 8:
+		second_entry = ITEM_CATALOG.random_entry("item", reward_rng)
+		reroll_attempts += 1
+	GameState.add_item(first_entry)
+	GameState.add_item(second_entry)
+	var coin_reward := GameState.FIRST_BATTLE_CHEST_GOLD
 	GameState.add_coins(coin_reward)
-	return "获得开局宝箱：%s，金币 +%d" % [String(entry["name"]), coin_reward]
-
-
-func _victory_gold_reward() -> int:
-	if not GameState.map_initialized:
-		return 2
-	match GameState.current_map_node_type():
-		"elite": return 4
-		"boss": return 8
-		_: return 2
+	return "获得开局宝箱：%s、%s，金币 +%d" % [String(first_entry["name"]), String(second_entry["name"]), coin_reward]
 
 
 func _grant_battle_streak_item() -> String:

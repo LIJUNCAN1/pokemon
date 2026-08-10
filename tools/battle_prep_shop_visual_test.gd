@@ -35,6 +35,7 @@ func _ready() -> void:
 	await _capture("res://battle_prep_shop_final.png")
 
 	prep._on_lock_pressed()
+	_assert(prep.shop_star_rows[0].visible, "locking the shop must not hide creature stars")
 	await _capture("res://battle_prep_shop_locked.png")
 	prep._on_lock_pressed()
 	await get_tree().create_timer(0.2).timeout
@@ -42,10 +43,25 @@ func _ready() -> void:
 	_assert(prep.shop_lock_overlays[0].modulate.a > 0.0 and prep.shop_lock_overlays[0].modulate.a < 1.0, "unlock animation alpha must fade gradually")
 	await _capture("res://battle_prep_shop_unlocking.png")
 
-	prep._show_shop_card_tooltip(2)
-	prep.shop_detail_icons[2].texture = load(prep.DETAIL_ICON_PRESSED) as Texture2D
+	var inspect_event := InputEventMouseButton.new()
+	inspect_event.button_index = MOUSE_BUTTON_RIGHT
+	inspect_event.pressed = true
+	prep._on_shop_card_gui_input(inspect_event, 2)
 	_assert(prep.card_tooltip.visible, "right-click detail panel must be visible")
+	_assert(CursorManager.inspecting_card, "right-click must switch to the detail cursor")
+	_assert(prep.card_tooltip_rarity.get_theme_color("font_color") == prep.SHOP_RARITY_COLORS[2], "detail rarity text must match the card rarity color")
 	await _capture("res://battle_prep_shop_detail.png")
+	inspect_event.pressed = false
+	prep._on_shop_card_gui_input(inspect_event, 2)
+	_assert(not CursorManager.inspecting_card, "releasing right-click must restore the normal cursor")
+	prep.creature_data[0] = CREATURES[0]
+	prep.creature_levels[0] = 2
+	prep._render_creature_slot(0)
+	prep._show_shop_sell_target(0)
+	_assert(prep.shop_sell_overlay.visible, "dragging a creature must reveal the shop sell overlay")
+	_assert(prep.shop_sell_label.text == "售出  +2G", "sell overlay must show the star-adjusted sale value")
+	await _capture("res://battle_prep_shop_sell.png")
+	prep._clear_drag_exchange_targets()
 
 	_assert(prep.shop_buttons.size() == 5, "shop must contain exactly five cards")
 	_assert(is_equal_approx(prep.shop_buttons[0].position.y, 574.0), "card row must use the Aseprite-authored vertical offset")
@@ -56,6 +72,18 @@ func _ready() -> void:
 	_assert(prep.shop_card_outlines[0].get_theme_stylebox("panel").border_color == prep.SHOP_RARITY_COLORS[0], "normal rarity border color")
 	_assert(prep.shop_card_outlines[1].get_theme_stylebox("panel").border_color == prep.SHOP_RARITY_COLORS[1], "rare rarity border color")
 	_assert(prep.shop_card_outlines[2].get_theme_stylebox("panel").border_color == prep.SHOP_RARITY_COLORS[2], "epic rarity border color")
+	_assert(is_equal_approx(prep.shop_star_rows[0].position.x, 8.0), "shop stars must be placed at the top-left")
+	_assert(is_equal_approx(prep.creature_star_rows[0].position.x, 7.0), "bench stars must be placed at the top-left")
+	_assert(is_equal_approx(prep.creature_star_rows[4].position.x, 5.0), "team stars must be placed at the top-left")
+	_assert(prep.creature_element_icons[0].position.x < prep.creature_hp_badges[0].position.x, "bench traits must be left of the stat badges")
+	_assert(prep.creature_element_icons[4].position.x < prep.creature_hp_badges[4].position.x, "team traits must match the shop's left-to-right content order")
+	prep.shop_data[0] = {}
+	prep._render_shop_card(0)
+	_assert(not prep.shop_attribute_layers[0].visible, "sold cards must hide the attribute layer")
+	_assert(prep.shop_sold_out_shades[0].visible, "sold cards must show a black shade")
+	_assert(prep.shop_sold_out_overlays[0].size == Vector2(80, 30), "sold-out stamp must be scaled down by 50 percent")
+	_assert(is_equal_approx(prep.shop_sold_out_overlays[0].rotation, deg_to_rad(-30.0)), "sold-out stamp must rotate 30 degrees to the left")
+	await _capture("res://battle_prep_shop_sold.png")
 	print("BATTLE_PREP_SHOP_VISUAL_TEST: PASS")
 	get_tree().quit()
 

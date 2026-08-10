@@ -4,10 +4,24 @@ const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
 const ACHIEVEMENT_TROPHY := 1
 const ACHIEVEMENT_MEDAL := 2
 const ACHIEVEMENT_STAR := 4
+const STARTING_COINS := 5
+const BATTLE_BASE_GOLD := 5
+const ELITE_BATTLE_BONUS := 2
+const BOSS_BATTLE_BONUS := 5
+const MAX_INTEREST_GOLD := 5
+const EVENT_GOLD_SMALL := 3
+const EVENT_GOLD_MEDIUM := 4
+const EVENT_GOLD_LARGE := 5
+const CHEST_GOLD_MIN := 4
+const CHEST_GOLD_MAX := 6
+const FIRST_BATTLE_CHEST_GOLD := 3
+const CREATURE_BUY_PRICES: Array[int] = [1, 2, 3]
+const CREATURE_STAR_COPIES: Array[int] = [1, 3, 9]
+const CREATURE_SELL_RATE := 0.70
 
 var day := 1
 var progress := 1
-var coins := 5
+var coins := STARTING_COINS
 var run_lives := 3
 var pending_life_loss_animation := false
 var player_team: Array[String] = []
@@ -17,6 +31,8 @@ var player_bench_levels: Array[int] = []
 var item_inventory: Array[Dictionary] = []
 var accessory_inventory: Array[Dictionary] = []
 var seen_creatures: Dictionary = {}
+var seen_items: Dictionary = {}
+var seen_accessories: Dictionary = {}
 var creature_achievements: Dictionary = {}
 var map_initialized := false
 var map_intro_played := false
@@ -38,7 +54,7 @@ var has_started_new_game := false
 func reset_run() -> void:
 	day = 1
 	progress = 1
-	coins = 5
+	coins = STARTING_COINS
 	run_lives = 3
 	pending_life_loss_animation = false
 	player_team.clear()
@@ -86,12 +102,14 @@ func _normalized_creature_levels(creatures: Array[String], levels: Array[int]) -
 func add_item(value: Variant) -> Dictionary:
 	var entry := ITEM_CATALOG.normalize_entry(value, "item")
 	item_inventory.append(entry)
+	mark_item_seen(entry)
 	return entry
 
 
 func add_accessory(value: Variant) -> Dictionary:
 	var entry := ITEM_CATALOG.normalize_entry(value, "accessory")
 	accessory_inventory.append(entry)
+	mark_item_seen(entry)
 	add_event_attribute(String(entry["effect_type"]), float(entry["amount"]))
 	return entry
 
@@ -139,6 +157,27 @@ func try_spend_coins(amount: int) -> bool:
 		return false
 	coins -= amount
 	return true
+
+
+func battle_gold_breakdown(node_type: String) -> Dictionary:
+	var node_bonus := 0
+	match node_type:
+		"elite": node_bonus = ELITE_BATTLE_BONUS
+		"boss": node_bonus = BOSS_BATTLE_BONUS
+	var interest := mini(coins / 10, MAX_INTEREST_GOLD)
+	return {
+		"base": BATTLE_BASE_GOLD,
+		"node_bonus": node_bonus,
+		"interest": interest,
+		"total": BATTLE_BASE_GOLD + node_bonus + interest,
+	}
+
+
+func creature_sell_value(rarity: int, level: int) -> int:
+	var safe_rarity := clampi(rarity, 0, CREATURE_BUY_PRICES.size() - 1)
+	var safe_level := clampi(level, 1, CREATURE_STAR_COPIES.size())
+	var invested := CREATURE_BUY_PRICES[safe_rarity] * CREATURE_STAR_COPIES[safe_level - 1]
+	return maxi(1, floori(float(invested) * CREATURE_SELL_RATE))
 
 
 func lose_run_life() -> int:
@@ -223,3 +262,20 @@ func unlock_creature_achievement(texture_path: String, achievement: int) -> void
 
 func creature_achievement_mask(texture_path: String) -> int:
 	return int(creature_achievements.get(creature_key(texture_path), 0))
+
+
+func item_key(value: Variant, kind_hint := "item") -> String:
+	var entry := ITEM_CATALOG.normalize_entry(value, kind_hint)
+	return "%s:%d" % [String(entry.get("kind", kind_hint)), int(entry.get("id", 0))]
+
+
+func mark_item_seen(value: Variant, kind_hint := "item") -> void:
+	var entry := ITEM_CATALOG.normalize_entry(value, kind_hint)
+	var collection := seen_accessories if String(entry.get("kind", kind_hint)) == "accessory" else seen_items
+	collection[item_key(entry, kind_hint)] = true
+
+
+func has_seen_item(value: Variant, kind_hint := "item") -> bool:
+	var entry := ITEM_CATALOG.normalize_entry(value, kind_hint)
+	var collection := seen_accessories if String(entry.get("kind", kind_hint)) == "accessory" else seen_items
+	return bool(collection.get(item_key(entry, kind_hint), false))

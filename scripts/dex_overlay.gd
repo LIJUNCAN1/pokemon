@@ -2,6 +2,7 @@ extends Control
 
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
 const CATALOG = preload("res://scripts/creature_catalog.gd")
+const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
 const DEX := "res://素材/图鉴/"
 const POKEMON := "res://素材/宝可梦图/"
 const CREATURES: Array[String] = [
@@ -39,6 +40,7 @@ var detail_root: Control
 var detail_outer_frame: NinePatchRect
 var detail_sprite: TextureRect
 var detail_name: Label
+var detail_rarity: Label
 var detail_type: Label
 var detail_cooldown: Label
 var detail_stats: Label
@@ -48,6 +50,19 @@ var selection_frames: Array[TextureRect] = []
 var creature_cards: Array[Control] = []
 var trainer_cards: Array[Control] = []
 var trainer_selection_frames: Array[TextureRect] = []
+var accessory_entries: Array[Dictionary] = []
+var item_entries: Array[Dictionary] = []
+var accessory_cards: Array[Control] = []
+var item_cards: Array[Control] = []
+var accessory_sprites: Array[TextureRect] = []
+var item_sprites: Array[TextureRect] = []
+var accessory_name_labels: Array[Label] = []
+var item_name_labels: Array[Label] = []
+var accessory_unknown_labels: Array[Label] = []
+var item_unknown_labels: Array[Label] = []
+var accessory_selection_frames: Array[TextureRect] = []
+var item_selection_frames: Array[TextureRect] = []
+var creature_detail_controls: Array[Control] = []
 var card_creature_sprites: Array[TextureRect] = []
 var card_name_labels: Array[Label] = []
 var card_unknown_labels: Array[Label] = []
@@ -56,6 +71,8 @@ var card_medal_icons: Array[TextureRect] = []
 var card_star_icons: Array[TextureRect] = []
 var counter_labels: Array[Label] = []
 var selected_index := 0
+var selected_accessory_index := 0
+var selected_item_index := 0
 var selected_trainer_index := 0
 var current_tab := 0
 
@@ -78,6 +95,8 @@ func _ready() -> void:
 	source_han_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	source_han_font.oversampling = 1.5
 	source_han_font.allow_system_fallback = false
+	accessory_entries = _catalog_entries("accessory")
+	item_entries = _catalog_entries("item")
 	_build_interface()
 	refresh_data()
 
@@ -110,7 +129,7 @@ func _build_detail_panel() -> void:
 	detail_outer_frame = _add_nine_patch(detail_root, DEX + "图鉴左栏_外框_九宫格.png", Rect2(Vector2.ZERO, detail_root.size), 8)
 	_add_color(detail_root, Color("d77d00"), Rect2(8, 8, 284, 35))
 	detail_name = _add_label(detail_root, "", Rect2(16, 12, 150, 26), 14)
-	_add_label(detail_root, "稀有", Rect2(198, 12, 84, 26), 13, HORIZONTAL_ALIGNMENT_RIGHT)
+	detail_rarity = _add_label(detail_root, "稀有", Rect2(198, 12, 84, 26), 13, HORIZONTAL_ALIGNMENT_RIGHT)
 
 	_add_info_frame(detail_root, Rect2(8, 49, 284, 160))
 	_add_info_frame(detail_root, Rect2(20, 61, 112, 136))
@@ -133,17 +152,19 @@ func _build_detail_panel() -> void:
 	_use_dark_text(detail_description)
 	detail_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
-	_add_info_frame(detail_root, Rect2(8, 445, 284, 36))
+	creature_detail_controls.append(_add_info_frame(detail_root, Rect2(8, 445, 284, 36)))
 	var shift_hint := _add_label(detail_root, "SHIFT  长按查看更多信息", Rect2(18, 449, 264, 28), 12)
+	creature_detail_controls.append(shift_hint)
 	_use_dark_text(shift_hint)
 
 	for index in 4:
 		var path := DEX + ("image-1785682708652-8ni6x6cdnyo.png" if index == 0 else "%02d_切图_%d.png" % [17 + index, 17 + index])
 		var button := _add_texture_button(path, Rect2(27 + index * 68, 510, 60, 38), "等级 %d" % (index + 1), detail_root)
+		creature_detail_controls.append(button)
 		button.pressed.connect(_on_level_pressed.bind(index))
-		_add_label(detail_root, "Lv%d" % (index + 1), Rect2(27 + index * 68, 515, 60, 28), 12, HORIZONTAL_ALIGNMENT_CENTER)
-	_add_texture(detail_root, DEX + "24_切图_24.png", Rect2(27, 560, 264, 37), TextureRect.STRETCH_SCALE)
-	_add_label(detail_root, "闪光", Rect2(27, 563, 264, 28), 13, HORIZONTAL_ALIGNMENT_CENTER)
+		creature_detail_controls.append(_add_label(detail_root, "Lv%d" % (index + 1), Rect2(27 + index * 68, 515, 60, 28), 12, HORIZONTAL_ALIGNMENT_CENTER))
+	creature_detail_controls.append(_add_texture(detail_root, DEX + "24_切图_24.png", Rect2(27, 560, 264, 37), TextureRect.STRETCH_SCALE))
+	creature_detail_controls.append(_add_label(detail_root, "闪光", Rect2(27, 563, 264, 28), 13, HORIZONTAL_ALIGNMENT_CENTER))
 
 
 func _build_tabs() -> void:
@@ -173,6 +194,10 @@ func _build_collection_panel() -> void:
 		var column := index % 4
 		var row := index / 4
 		_create_creature_card(index, Rect2(12 + column * 221, 10 + row * 171, 205, 152))
+	for index in accessory_entries.size():
+		_create_item_card("accessory", index, _collection_card_rect(index))
+	for index in item_entries.size():
+		_create_item_card("item", index, _collection_card_rect(index))
 	for index in TRAINER_TEXTURES.size():
 		_create_trainer_card(index, Rect2(12 + index * 221, 10, 205, 152))
 
@@ -223,6 +248,46 @@ func _create_creature_card(index: int, rect: Rect2) -> void:
 	card.add_child(hit)
 
 
+func _create_item_card(kind: String, index: int, rect: Rect2) -> void:
+	var entries := accessory_entries if kind == "accessory" else item_entries
+	var entry: Dictionary = entries[index]
+	var card := Control.new()
+	card.position = rect.position
+	card.size = rect.size
+	card.visible = false
+	monster_page.add_child(card)
+	_add_texture(card, DEX + "13_切图_13.png", Rect2(Vector2.ZERO, rect.size), TextureRect.STRETCH_SCALE)
+	var sprite := _add_texture(card, String(entry["path"]), Rect2(24, 12, 112, 104))
+	var unknown_label := _add_label(card, "?", Rect2(24, 12, 112, 104), 36, HORIZONTAL_ALIGNMENT_CENTER)
+	_use_dark_text(unknown_label)
+	var rarity := clampi(int(entry.get("rarity", 0)), 0, ITEM_CATALOG.RARITY_NAMES.size() - 1)
+	var rarity_label := _add_label(card, ITEM_CATALOG.RARITY_NAMES[rarity], Rect2(144, 18, 48, 24), 11, HORIZONTAL_ALIGNMENT_CENTER)
+	rarity_label.add_theme_color_override("font_color", _item_rarity_color(rarity))
+	var name_label := _add_label(card, "?", Rect2(12, 116, 181, 28), 12, HORIZONTAL_ALIGNMENT_CENTER)
+	_use_dark_text(name_label)
+	var selection := _add_texture(card, DEX + "image-1785681904517-raawndjoah.png", Rect2(2, 2, rect.size.x - 4, rect.size.y - 4), TextureRect.STRETCH_SCALE)
+	selection.visible = false
+	var hit := Button.new()
+	hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hit.flat = true
+	hit.focus_mode = Control.FOCUS_NONE
+	hit.tooltip_text = String(entry["name"])
+	hit.pressed.connect(_select_item_entry.bind(kind, index))
+	card.add_child(hit)
+	if kind == "accessory":
+		accessory_cards.append(card)
+		accessory_sprites.append(sprite)
+		accessory_unknown_labels.append(unknown_label)
+		accessory_name_labels.append(name_label)
+		accessory_selection_frames.append(selection)
+	else:
+		item_cards.append(card)
+		item_sprites.append(sprite)
+		item_unknown_labels.append(unknown_label)
+		item_name_labels.append(name_label)
+		item_selection_frames.append(selection)
+
+
 func _create_trainer_card(index: int, rect: Rect2) -> void:
 	var card := Control.new()
 	card.position = rect.position
@@ -251,12 +316,51 @@ func _select_trainer(index: int) -> void:
 	detail_sprite.texture = load(TRAINER_TEXTURES[selected_trainer_index]) as Texture2D
 	detail_unknown.visible = false
 	detail_name.text = TRAINER_NAMES[selected_trainer_index]
+	detail_rarity.add_theme_color_override("font_color", Color.WHITE)
+	detail_rarity.text = "训练家"
 	detail_type.text = "训练家"
 	detail_cooldown.text = "被动"
 	detail_stats.text = "训练家能力"
 	detail_description.text = TRAINER_SKILLS[selected_trainer_index]
 	for frame_index in trainer_selection_frames.size():
 		trainer_selection_frames[frame_index].visible = frame_index == selected_trainer_index
+
+
+func _select_item_entry(kind: String, index: int) -> void:
+	var entries := accessory_entries if kind == "accessory" else item_entries
+	if entries.is_empty():
+		return
+	index = clampi(index, 0, entries.size() - 1)
+	if kind == "accessory":
+		selected_accessory_index = index
+	else:
+		selected_item_index = index
+	var entry: Dictionary = entries[index]
+	var seen := GameState.has_seen_item(entry, kind)
+	var frames := accessory_selection_frames if kind == "accessory" else item_selection_frames
+	for frame_index in frames.size():
+		frames[frame_index].visible = frame_index == index
+	if not seen:
+		detail_sprite.texture = null
+		detail_unknown.visible = true
+		detail_name.text = "?"
+		detail_rarity.add_theme_color_override("font_color", Color.WHITE)
+		detail_rarity.text = "未发现"
+		detail_type.text = "饰品" if kind == "accessory" else "道具"
+		detail_cooldown.text = "?"
+		detail_stats.text = "未知"
+		detail_description.text = "获得后解锁详细信息"
+		return
+	detail_sprite.texture = load(String(entry["path"])) as Texture2D
+	detail_unknown.visible = false
+	detail_name.text = String(entry["name"])
+	var rarity := clampi(int(entry.get("rarity", 0)), 0, ITEM_CATALOG.RARITY_NAMES.size() - 1)
+	detail_rarity.text = ITEM_CATALOG.RARITY_NAMES[rarity]
+	detail_rarity.add_theme_color_override("font_color", _item_rarity_color(rarity))
+	detail_type.text = "饰品" if kind == "accessory" else "道具"
+	detail_cooldown.text = "%dG\n价格" % int(entry.get("price", 0))
+	detail_stats.text = "持有时生效" if kind == "accessory" else "使用后生效"
+	detail_description.text = String(entry.get("effect", "暂无效果说明"))
 
 
 func _build_counters() -> void:
@@ -272,10 +376,12 @@ func _build_counters() -> void:
 
 func _select_creature(index: int) -> void:
 	selected_index = index
+	detail_rarity.add_theme_color_override("font_color", Color.WHITE)
 	if not GameState.has_seen_creature(CREATURES[index]):
 		detail_sprite.texture = null
 		detail_unknown.visible = true
 		detail_name.text = "?"
+		detail_rarity.text = "未发现"
 		detail_type.text = "未知"
 		detail_cooldown.text = "?"
 		detail_stats.text = "未知"
@@ -286,6 +392,9 @@ func _select_creature(index: int) -> void:
 	detail_sprite.texture = load(CREATURES[index]) as Texture2D
 	detail_unknown.visible = false
 	detail_name.text = NAMES[index]
+	var rarity := clampi(CATALOG.rarity_for_texture(CREATURES[index]), 0, ITEM_CATALOG.RARITY_NAMES.size() - 1)
+	detail_rarity.text = ITEM_CATALOG.RARITY_NAMES[rarity]
+	detail_rarity.add_theme_color_override("font_color", _item_rarity_color(rarity))
 	var elements: PackedStringArray = CATALOG.elements_for_texture(CREATURES[index])
 	var races: PackedStringArray = CATALOG.races_for_texture(CREATURES[index])
 	var element_text := "/".join(elements)
@@ -302,18 +411,32 @@ func _on_tab_pressed(index: int) -> void:
 	current_tab = index
 	for button_index in tab_buttons.size():
 		tab_buttons[button_index].texture_normal = load(DEX + "02_切图_2.png" if button_index == index else INACTIVE_TABS[button_index]) as Texture2D
-	monster_page.visible = index == 0 or index == 3
+	monster_page.visible = true
 	for card in creature_cards:
 		card.visible = index == 0
+	for card in accessory_cards:
+		card.visible = index == 1
+	for card in item_cards:
+		card.visible = index == 2
 	for card in trainer_cards:
 		card.visible = index == 3
-	empty_label.visible = index == 1 or index == 2
-	if index == 1 or index == 2:
-		empty_label.text = "%s页素材尚未提供" % TAB_NAMES[index]
-	elif index == 0:
-		_select_creature(selected_index)
-	else:
-		_select_trainer(selected_trainer_index)
+	empty_label.visible = false
+	for control in creature_detail_controls:
+		control.visible = index == 0
+	match index:
+		0:
+			_set_collection_page_height(CREATURES.size())
+			_select_creature(selected_index)
+		1:
+			_set_collection_page_height(accessory_entries.size())
+			_select_item_entry("accessory", selected_accessory_index)
+		2:
+			_set_collection_page_height(item_entries.size())
+			_select_item_entry("item", selected_item_index)
+		_:
+			_set_collection_page_height(TRAINER_TEXTURES.size())
+			_select_trainer(selected_trainer_index)
+	_update_counters()
 	monster_scroll.scroll_vertical = 0
 
 
@@ -339,6 +462,10 @@ func _on_level_pressed(level_index: int) -> void:
 
 
 func refresh_data() -> void:
+	for entry in GameState.accessory_inventory:
+		GameState.mark_item_seen(entry, "accessory")
+	for entry in GameState.item_inventory:
+		GameState.mark_item_seen(entry, "item")
 	var trophy_count := 0
 	var medal_count := 0
 	var star_count := 0
@@ -358,7 +485,66 @@ func refresh_data() -> void:
 		counter_labels[0].text = "%d/%d" % [trophy_count, CREATURES.size()]
 		counter_labels[1].text = "%d/%d" % [medal_count, CREATURES.size()]
 		counter_labels[2].text = "%d/%d" % [star_count, CREATURES.size()]
-	_select_creature(clampi(selected_index, 0, CREATURES.size() - 1))
+	for index in accessory_entries.size():
+		var seen_accessory := GameState.has_seen_item(accessory_entries[index], "accessory")
+		accessory_sprites[index].visible = seen_accessory
+		accessory_unknown_labels[index].visible = not seen_accessory
+		accessory_name_labels[index].text = String(accessory_entries[index]["name"]) if seen_accessory else "?"
+	for index in item_entries.size():
+		var seen_item := GameState.has_seen_item(item_entries[index], "item")
+		item_sprites[index].visible = seen_item
+		item_unknown_labels[index].visible = not seen_item
+		item_name_labels[index].text = String(item_entries[index]["name"]) if seen_item else "?"
+	_update_counters()
+	_on_tab_pressed(current_tab)
+
+
+func _update_counters() -> void:
+	if counter_labels.size() != 3:
+		return
+	if current_tab == 1 or current_tab == 2:
+		var kind := "accessory" if current_tab == 1 else "item"
+		var entries := accessory_entries if current_tab == 1 else item_entries
+		for rarity in 3:
+			var total := 0
+			var seen := 0
+			for entry in entries:
+				if int(entry.get("rarity", 0)) != rarity:
+					continue
+				total += 1
+				seen += 1 if GameState.has_seen_item(entry, kind) else 0
+			counter_labels[rarity].text = "%d/%d" % [seen, total]
+		return
+	var achievement_flags := [GameState.ACHIEVEMENT_TROPHY, GameState.ACHIEVEMENT_MEDAL, GameState.ACHIEVEMENT_STAR]
+	for achievement_index in achievement_flags.size():
+		var count := 0
+		for path in CREATURES:
+			count += 1 if GameState.creature_achievement_mask(path) & achievement_flags[achievement_index] else 0
+		counter_labels[achievement_index].text = "%d/%d" % [count, CREATURES.size()]
+
+
+func _catalog_entries(kind: String) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var ids: Array = ITEM_CATALOG.ACCESSORY_IDS if kind == "accessory" else ITEM_CATALOG.CONSUMABLE_IDS
+	for id in ids:
+		result.append(ITEM_CATALOG.entry_for_id(kind, int(id)))
+	return result
+
+
+func _collection_card_rect(index: int) -> Rect2:
+	var column := index % 4
+	var row := index / 4
+	return Rect2(12 + column * 221, 10 + row * 171, 205, 152)
+
+
+func _set_collection_page_height(entry_count: int) -> void:
+	var rows := maxi(1, ceili(float(entry_count) / 4.0))
+	monster_page.custom_minimum_size = Vector2(892, maxf(690.0, 10.0 + rows * 171.0))
+	monster_page.size = monster_page.custom_minimum_size
+
+
+func _item_rarity_color(rarity: int) -> Color:
+	return [Color("d7dce4"), Color("55c6e8"), Color("d084ff")][clampi(rarity, 0, 2)]
 
 
 func _close() -> void:
