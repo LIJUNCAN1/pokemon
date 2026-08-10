@@ -2,6 +2,7 @@ extends Control
 
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
+const CREATURE_CATALOG = preload("res://scripts/creature_catalog.gd")
 const DESIGN_SIZE := Vector2(1280, 720)
 const FULL_HD_SCALE := Vector2(0.5, 0.5)
 const REFERENCE_SIZE := Vector2(1672, 941)
@@ -705,7 +706,7 @@ func _prepare_event_rewards() -> void:
 	event_creature_name = EVENT_CREATURE_NAMES[creature_index]
 	event_consumable = ITEM_CATALOG.random_entry("item", rng)
 	event_loot = ITEM_CATALOG.random_entry("accessory" if rng.randf() < 0.5 else "item", rng)
-	chest_coin_amount = rng.randi_range(2, 4)
+	chest_coin_amount = rng.randi_range(GameState.CHEST_GOLD_MIN, GameState.CHEST_GOLD_MAX)
 
 
 func _event_title() -> String:
@@ -745,7 +746,7 @@ func _event_stage_data() -> Dictionary:
 			}
 		return {
 			"story": "宝箱突然轻轻晃动，里面似乎藏着一位等待同行的伙伴。",
-			"options": [{"text": "打开宝箱", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得一张角色卡；队伍已满时转化为 3 金币。"}],
+			"options": [{"text": "打开宝箱", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得一张角色卡；队伍已满时按该角色售价转化为金币。"}],
 		}
 	match event_story_id:
 		0:
@@ -758,11 +759,11 @@ func _event_stage_data() -> Dictionary:
 				"camp":
 					return {"story": "脚印通向一处废弃营地。火堆早已熄灭，箱子里却传来轻微碰撞声。", "options": [
 						_loot_option("打开旅行者留下的箱子", event_loot),
-						{"text": "整理散落的钱袋", "tag": "（金币：+2）", "kind": "coins", "amount": 2, "detail": "获得 2 枚金币。"},
+						{"text": "整理散落的钱袋", "tag": "（金币：+%d）" % GameState.EVENT_GOLD_SMALL, "kind": "coins", "amount": GameState.EVENT_GOLD_SMALL, "detail": "获得 %d 枚金币。" % GameState.EVENT_GOLD_SMALL},
 					]}
 				"nest":
 					return {"story": "低语来自破碎石柱后的巢穴。一只迷失的生物正被古代锁链困住。", "options": [
-						{"text": "破坏锁链并带它离开", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；队伍已满时会转化为 3 金币。"},
+						{"text": "破坏锁链并带它离开", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；队伍已满时按该角色售价转化为金币。"},
 						{"text": "吸收锁链残留的能量", "tag": "（属性：全队充能速度 +8%）", "kind": "attribute", "attribute": "charge", "amount": 0.08, "detail": "提高本次远征中全队的技能充能速度。"},
 					]}
 				_:
@@ -781,11 +782,11 @@ func _event_stage_data() -> Dictionary:
 				"archive":
 					return {"story": "值班室的日志记录了最后一场暴雨。柜台下还压着驿站管理员未发出的补给。", "options": [
 						_loot_option("取走密封补给", event_loot),
-						{"text": "回收旧时代货币", "tag": "（金币：+3）", "kind": "coins", "amount": 3, "detail": "获得 3 枚金币。"},
+						{"text": "回收旧时代货币", "tag": "（金币：+%d）" % GameState.EVENT_GOLD_MEDIUM, "kind": "coins", "amount": GameState.EVENT_GOLD_MEDIUM, "detail": "获得 %d 枚金币。" % GameState.EVENT_GOLD_MEDIUM},
 					]}
 				"signal":
 					return {"story": "信号并非求救，而是一只躲雨生物发出的回应。它谨慎地注视着你。", "options": [
-						{"text": "分享食物并邀请同行", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；队伍已满时会转化为 3 金币。"},
+						{"text": "分享食物并邀请同行", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；队伍已满时按该角色售价转化为金币。"},
 						{"text": "让它为队伍指路", "tag": "（属性：全队最大生命 +10%）", "kind": "attribute", "attribute": "health", "amount": 0.10, "detail": "安全路线使全队在之后的战斗中拥有更多最大生命。"},
 					]}
 				_:
@@ -804,11 +805,11 @@ func _event_stage_data() -> Dictionary:
 				"greenhouse":
 					return {"story": "温室中央生长着一株透明植物，根系包裹着一枚保存完好的容器。", "options": [
 						_loot_option("摘下根系中的容器", event_loot),
-						{"text": "采集成熟的能量果实", "tag": "（金币：+4）", "kind": "coins", "amount": 4, "detail": "出售能量果实，获得 4 枚金币。"},
+						{"text": "采集成熟的能量果实", "tag": "（金币：+%d）" % GameState.EVENT_GOLD_LARGE, "kind": "coins", "amount": GameState.EVENT_GOLD_LARGE, "detail": "出售能量果实，获得 %d 枚金币。" % GameState.EVENT_GOLD_LARGE},
 					]}
 				"cradle":
 					return {"story": "哭声来自被花藤覆盖的摇篮。里面的生物睁开眼睛，主动把爪子伸向你。", "options": [
-						{"text": "抱起它并一起旅行", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；队伍已满时会转化为 3 金币。"},
+						{"text": "抱起它并一起旅行", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；队伍已满时按该角色售价转化为金币。"},
 						{"text": "修复摇篮的供能装置", "tag": "（属性：全队充能速度 +9%）", "kind": "attribute", "attribute": "charge", "amount": 0.09, "detail": "带走装置中的技术，提高全队技能充能速度。"},
 					]}
 				_:
@@ -898,8 +899,10 @@ func _choose_event_option(option: Dictionary) -> void:
 				GameState.mark_creature_seen(event_creature_path)
 				event_result_text = "%s 决定加入你的远征。%s" % [event_creature_name, String(option["tag"])]
 			else:
-				GameState.add_coins(3)
-				event_result_text = "队伍和备战席已满，角色卡转化为了 3 枚金币。"
+				var rarity := CREATURE_CATALOG.rarity_for_texture(event_creature_path)
+				var sell_value := GameState.creature_sell_value(rarity, 1)
+				GameState.add_coins(sell_value)
+				event_result_text = "队伍和备战席已满，角色卡按售价转化为了 %d 枚金币。" % sell_value
 		"coins":
 			var amount := int(option.get("amount", 0))
 			GameState.add_coins(amount)

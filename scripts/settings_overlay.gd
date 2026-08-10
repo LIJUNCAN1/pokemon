@@ -95,8 +95,9 @@ func _build_interface() -> void:
 	add_child(outside)
 
 	var row_bottom := 12.0 + (ROW_NAMES.size() - 1) * 61.0 + 54.0
+	var has_exit_action := not exit_scene_path.is_empty()
 	var exit_button_y := row_bottom + 18.0
-	var frame_height := exit_button_y + 42.0 + 16.0
+	var frame_height := exit_button_y + 42.0 + 16.0 if has_exit_action else row_bottom + 16.0
 	overlay_frame = Panel.new()
 	overlay_frame.size = Vector2(484, frame_height)
 	overlay_frame.position = (Vector2(1280, 720) - overlay_frame.size) * 0.5
@@ -119,6 +120,8 @@ func _build_interface() -> void:
 		var right := _arrow_button(row, "▶", Rect2(398, 7, 42, 40))
 		right.pressed.connect(_change_option.bind(index, 1))
 
+	if not has_exit_action:
+		return
 	var exit_button := Button.new()
 	exit_button.position = Vector2(16, exit_button_y)
 	exit_button.size = Vector2(452, 42)
@@ -135,6 +138,7 @@ func _build_interface() -> void:
 	exit_button.add_theme_stylebox_override("pressed", _pixel_button_style(MENU_BUTTON_PRESSED, 1.0))
 	exit_button.add_theme_stylebox_override("focus", _pixel_button_style(MENU_BUTTON_NORMAL))
 	exit_button.pressed.connect(_exit_current_mode)
+	exit_button.text = "退出战斗"
 	overlay_frame.add_child(exit_button)
 
 
@@ -162,7 +166,8 @@ func _close_overlay() -> void:
 
 
 func _exit_current_mode() -> void:
-	get_tree().change_scene_to_file("res://main.tscn")
+	if not exit_scene_path.is_empty():
+		get_tree().change_scene_to_file(exit_scene_path)
 
 
 func _change_option(row_index: int, direction: int) -> void:
