@@ -15,6 +15,16 @@ const ACCESSORY_IDS: Array[int] = [
 	33, 34, 35, 36, 37, 38, 62, 63, 64, 65, 66, 68,
 	69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
 	85, 86, 91, 92, 95, 97, 98, 99, 100, 101, 102, 103,
+	9001, 9002, 9003, 9004, 9005, 9006, 9007, 9008,
+	9009, 9010, 9011, 9012, 9013, 9014, 9015, 9016,
+	9017, 9018, 9019, 9020, 9021, 9022, 9023, 9024,
+	9025, 9026, 9027, 9028, 9029, 9030, 9031, 9032,
+]
+const SHIPIN_NAMES: Array[String] = [
+	"晨露瓶", "赤焰瓶", "潮汐瓶", "雷鸣瓶", "岩心瓶", "森息瓶", "幽魂瓶", "龙血瓶",
+	"旅者罗盘", "寻宝罗盘", "银月徽记", "烈日徽记", "风行护符", "铁壁护符", "回响护符", "复苏护符",
+	"星尘沙漏", "疾风沙漏", "古树种子", "熔岩核心", "寒霜核心", "雷霆核心", "机械核心", "亡灵核心",
+	"猎手镜片", "守望镜片", "远征号角", "集结号角", "幸运羽饰", "坚韧羽饰", "王者冠饰", "遗迹冠饰",
 ]
 const ITEM_DISPLAY_NAMES: Array[String] = [
 	"旅行药壶", "冲锋手套", "风行羽", "未知糖果", "彩虹果实", "晶蓝药剂", "石臼药粉", "炽热浓汤",
@@ -42,6 +52,8 @@ const ACCESSORY_EFFECT_TYPES: Array[String] = [
 
 
 static func rarity_for_id(id: int) -> int:
+	if id >= 9001 and id <= 9032:
+		return clampi(floori(float(id - 9001) / 11.0), 0, 2)
 	var digit := posmod(id, 10)
 	return 0 if digit < 6 else (1 if digit < 9 else 2)
 
@@ -136,6 +148,8 @@ static func _make_consumable(id: int) -> Dictionary:
 
 
 static func _make_accessory(id: int) -> Dictionary:
+	if id >= 9001 and id <= 9032:
+		return _make_shipin_accessory(id)
 	var rarity := rarity_for_id(id)
 	var catalog_index := maxi(ACCESSORY_IDS.find(id), 0)
 	var effect_index := posmod(catalog_index, ACCESSORY_EFFECT_TYPES.size())
@@ -157,6 +171,38 @@ static func _make_accessory(id: int) -> Dictionary:
 		"kind": "accessory",
 		"path": ACCESSORY_ROOT + "accessory_%04d.png" % id,
 		"name": name,
+		"effect_type": effect_type,
+		"amount": amount,
+		"effect": effect_text,
+		"rarity": rarity,
+		"price": [3, 5, 7][rarity],
+		"sell_price": [1, 2, 3][rarity],
+		"stack_limit": 1 if not exclusive_group.is_empty() else [3, 2, 1][rarity],
+		"exclusive_group": exclusive_group,
+		"sources": _drop_sources(rarity),
+	}
+
+
+static func _make_shipin_accessory(id: int) -> Dictionary:
+	var index := id - 9001
+	var rarity := clampi(floori(float(index) / 11.0), 0, 2)
+	var effect_index := posmod(index, ACCESSORY_EFFECT_TYPES.size())
+	var effect_type := ACCESSORY_EFFECT_TYPES[effect_index]
+	var amount: float = float([0.05, 0.08, 0.12][rarity]) if effect_index < 3 else 1.0
+	var effect_text := ""
+	match effect_type:
+		"health": effect_text = "持有时，本轮远征全队最大生命 +%d%%" % roundi(amount * 100.0)
+		"damage": effect_text = "持有时，本轮远征全队伤害 +%d%%" % roundi(amount * 100.0)
+		"charge": effect_text = "持有时，本轮远征全队充能速度 +%d%%" % roundi(amount * 100.0)
+		"battle_gold": effect_text = "每次战斗胜利额外获得 1 金币"
+		"interest_cap": effect_text = "金币利息上限提高 1"
+		"shop_discount": effect_text = "商店中价格高于 1 的商品便宜 1 金币"
+	var exclusive_group := "" if effect_index < 3 else "shipin_%s" % effect_type
+	return {
+		"id": id,
+		"kind": "accessory",
+		"path": "res://assets/items/shipin/icon%d.png" % (index + 1),
+		"name": SHIPIN_NAMES[index],
 		"effect_type": effect_type,
 		"amount": amount,
 		"effect": effect_text,

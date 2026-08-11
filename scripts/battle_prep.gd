@@ -13,6 +13,7 @@ const DESIGN_SIZE := Vector2(1280, 720)
 const FULL_HD_SCALE := Vector2(0.5, 0.5)
 const UI := "res://素材/主菜单/"
 const POKEMON := "res://素材/宝可梦图/"
+const MAP_PREP_MUSIC := "res://assets/audio/pixel_mountain_quest.mp3"
 const SHOP_PANEL_ASSET := "res://素材/事件/aseprite_export/shop_table/runtime/shop_panel.png"
 const SHOP_CARD_FRAME_ASSET := "res://素材/事件/aseprite_export/shop_table/runtime/shop_card_frame.png"
 const SHOP_CARD_TEMPLATE_ASSET := "res://素材/事件/aseprite_export/shop_table/runtime/shop_card_template.png"
@@ -161,6 +162,9 @@ var card_tooltip_info_panel: Panel
 
 func _ready() -> void:
 	_apply_full_hd_layout()
+	# Map and preparation intentionally share one track. The global manager
+	# keeps playback position instead of restarting it between both scenes.
+	MusicManager.play_music(MAP_PREP_MUSIC, 1.2)
 	rng.randomize()
 	coins = GameState.coins
 	source_han_font = SOURCE_HAN_FONT.duplicate() as FontFile
@@ -453,7 +457,6 @@ func _build_shop() -> void:
 	lock_button.position = Vector2(954, header_center_y - 16.0)
 	lock_button.size = Vector2(70, 32)
 	lock_button.flat = true
-	lock_button.tooltip_text = "锁定商店"
 	lock_button.focus_mode = Control.FOCUS_NONE
 	add_child(lock_button)
 	lock_button.button_down.connect(_set_lock_button_pressed.bind(true))
@@ -1105,6 +1108,8 @@ func _on_shop_card_pressed(index: int) -> void:
 	_render_shop_card(index)
 	GameState.mark_creature_seen(texture_path)
 	GameState.unlock_creature_achievement(texture_path, GameState.ACHIEVEMENT_TROPHY)
+	if merge_level >= 3:
+		GameState.unlock_creature_achievement(texture_path, GameState.ACHIEVEMENT_STAR)
 	_update_synergies()
 	selected_slot = -1
 	_update_selection()
@@ -1399,8 +1404,6 @@ func _on_battle_pressed() -> void:
 	if battle_team.is_empty():
 		_set_notice("队伍为空，请先购买并放置至少一个角色")
 		return
-	for texture_path in battle_team:
-		GameState.unlock_creature_achievement(texture_path, GameState.ACHIEVEMENT_MEDAL)
 	_save_current_team()
 	_set_notice("队伍已准备完毕 · 正在进入战斗")
 	var transition := ColorRect.new()
@@ -1756,7 +1759,7 @@ func _make_rarity_background(rarity_index: int) -> GradientTexture2D:
 	return texture
 
 
-func _add_texture_button(path: String, rect: Rect2, tooltip: String) -> TextureButton:
+func _add_texture_button(path: String, rect: Rect2, _tooltip: String) -> TextureButton:
 	var button := TextureButton.new()
 	button.position = rect.position
 	button.size = rect.size
@@ -1764,7 +1767,6 @@ func _add_texture_button(path: String, rect: Rect2, tooltip: String) -> TextureB
 	button.ignore_texture_size = true
 	button.stretch_mode = TextureButton.STRETCH_SCALE
 	button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	button.tooltip_text = tooltip
 	add_child(button)
 	return button
 
@@ -1776,14 +1778,13 @@ func _add_icon_button(path: String, rect: Rect2, callback: Callable, tooltip: St
 	return button
 
 
-func _add_static_icon_button(path: String, rect: Rect2, callback: Callable, tooltip: String) -> Button:
+func _add_static_icon_button(path: String, rect: Rect2, callback: Callable, _tooltip: String) -> Button:
 	_add_texture(self, path, rect)
 	var button := Button.new()
 	button.position = rect.position
 	button.size = rect.size
 	button.flat = true
 	button.focus_mode = Control.FOCUS_NONE
-	button.tooltip_text = tooltip
 	button.pressed.connect(callback)
 	add_child(button)
 	return button

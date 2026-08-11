@@ -98,6 +98,7 @@ func _test_map_and_first_battle() -> void:
 	await get_tree().process_frame
 	_check(_tree_has_label(prep, "挑战宝箱怪"), "开局备战按钮必须显示挑战宝箱怪")
 	_check(not _tree_has_label(prep, "第 1 天"), "备战界面不能保留旧天数文本")
+	_check(not _tree_has_nonempty_tooltip(prep), "备战界面不能保留系统悬停介绍框")
 	prep.queue_free()
 	await get_tree().process_frame
 
@@ -111,17 +112,23 @@ func _test_map_and_first_battle() -> void:
 	_check(battle.call("_is_first_battle_node"), "第一个实际战斗节点必须被识别为首战")
 	var enemy_count := 0
 	var player_count := 0
+	var inspected_enemy = null
 	for fighter in battle.fighters:
 		if fighter.player_side:
 			player_count += 1
 		else:
 			enemy_count += 1
+			inspected_enemy = fighter
 	_check(player_count == 1, "战斗必须载入玩家队伍")
 	_check(enemy_count == 1, "宝箱怪战斗必须只有 1 名敌人")
 	for fighter in battle.fighters:
 		if not fighter.player_side:
 			_check(not fighter.can_attack, "宝箱怪不能获得充能或发动攻击")
 			_check(fighter.texture_path.ends_with("宝箱怪.png") and fighter.sprite.scale.x > 0.0, "宝箱怪应保持素材原始朝向，面向我方")
+	battle.call("_show_fighter_info", inspected_enemy)
+	_check(battle.fighter_info_panel.visible, "战斗角色必须支持右键固定详情面板")
+	_check(battle.fighter_info_name.text == "宝箱怪", "战斗详情面板必须显示当前角色资料")
+	battle.call("_hide_fighter_info")
 	battle.call("_finish_battle", true)
 	_check(GameState.battle_victories == 1, "首战胜利次数没有记录")
 	_check(GameState.is_map_node_completed(0), "胜利后必须完成开局宝箱节点")
@@ -219,5 +226,14 @@ func _tree_has_label(root: Node, expected_text: String) -> bool:
 		return true
 	for child in root.get_children():
 		if _tree_has_label(child, expected_text):
+			return true
+	return false
+
+
+func _tree_has_nonempty_tooltip(root: Node) -> bool:
+	if root is Control and not (root as Control).tooltip_text.is_empty():
+		return true
+	for child in root.get_children():
+		if _tree_has_nonempty_tooltip(child):
 			return true
 	return false
