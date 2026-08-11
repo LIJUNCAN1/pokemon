@@ -12,6 +12,12 @@ var item_grid: GridContainer
 var count_label: Label
 var accessory_tab: Button
 var item_tab: Button
+var item_info_panel: Panel
+var item_info_icon: TextureRect
+var item_info_name: Label
+var item_info_rarity: Label
+var item_info_effect: Label
+var item_info_rule: Label
 var active_kind := "accessory"
 
 
@@ -96,11 +102,14 @@ func _build_interface() -> void:
 	item_grid.add_theme_constant_override("h_separation", 8)
 	item_grid.add_theme_constant_override("v_separation", 8)
 	scroll.add_child(item_grid)
+	_build_item_info_panel(frame)
 
 
 func refresh_items() -> void:
 	if item_grid == null:
 		return
+	if is_instance_valid(item_info_panel):
+		item_info_panel.visible = false
 	for child in item_grid.get_children():
 		child.queue_free()
 	var items: Array = GameState.accessory_inventory if active_kind == "accessory" else GameState.item_inventory
@@ -138,16 +147,79 @@ func _create_item_slot(entry: Dictionary, index: int) -> void:
 	var owned_count := _owned_entry_count(entry)
 	var stack_limit := int(entry.get("stack_limit", 1))
 	var rule_text := "唯一饰品" if not String(entry.get("exclusive_group", "")).is_empty() else "持有 %d/%d" % [owned_count, stack_limit]
-	slot.tooltip_text = "%s\n%s\n%s" % [String(entry["name"]), String(entry["effect"]), rule_text]
+	slot.gui_input.connect(_on_item_slot_gui_input.bind(entry, rule_text))
 	if active_kind == "item":
 		var use_button := Button.new()
 		use_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		use_button.flat = true
 		use_button.focus_mode = Control.FOCUS_NONE
-		use_button.tooltip_text = slot.tooltip_text + "\n点击使用"
 		use_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		use_button.gui_input.connect(_on_item_slot_gui_input.bind(entry, rule_text))
 		use_button.pressed.connect(_use_item.bind(index))
 		slot.add_child(use_button)
+
+
+func _build_item_info_panel(parent: Control) -> void:
+	item_info_panel = Panel.new()
+	item_info_panel.position = Vector2(22, 116)
+	item_info_panel.size = Vector2(506, 166)
+	item_info_panel.z_index = 20
+	item_info_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	item_info_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.075, 0.085, 0.12, 0.985), Color("4e4a86"), 3))
+	item_info_panel.visible = false
+	parent.add_child(item_info_panel)
+
+	item_info_icon = TextureRect.new()
+	item_info_icon.position = Vector2(16, 20)
+	item_info_icon.size = Vector2(94, 94)
+	item_info_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	item_info_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	item_info_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	item_info_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	item_info_panel.add_child(item_info_icon)
+	item_info_name = _add_label(item_info_panel, "", Rect2(126, 12, 260, 34), 18, Color.WHITE)
+	item_info_rarity = _add_label(item_info_panel, "", Rect2(386, 12, 70, 34), 12, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	item_info_effect = _add_label(item_info_panel, "", Rect2(126, 47, 352, 66), 13, Color.WHITE)
+	item_info_effect.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	item_info_rule = _add_label(item_info_panel, "", Rect2(16, 122, 462, 32), 12, Color("bfc5d4"))
+
+	var close_info := Button.new()
+	close_info.position = Vector2(462, 4)
+	close_info.size = Vector2(38, 34)
+	close_info.text = "×"
+	close_info.flat = true
+	close_info.focus_mode = Control.FOCUS_NONE
+	close_info.add_theme_font_override("font", source_han_font)
+	close_info.add_theme_font_size_override("font_size", 20)
+	close_info.add_theme_color_override("font_color", Color.WHITE)
+	close_info.pressed.connect(_hide_item_info)
+	item_info_panel.add_child(close_info)
+
+
+func _on_item_slot_gui_input(event: InputEvent, entry: Dictionary, rule_text: String) -> void:
+	if not event is InputEventMouseButton:
+		return
+	var mouse_event := event as InputEventMouseButton
+	if mouse_event.button_index != MOUSE_BUTTON_RIGHT or not mouse_event.pressed:
+		return
+	get_viewport().set_input_as_handled()
+	_show_item_info(entry, rule_text)
+
+
+func _show_item_info(entry: Dictionary, rule_text: String) -> void:
+	var rarity := clampi(int(entry.get("rarity", 0)), 0, RARITY_COLORS.size() - 1)
+	item_info_icon.texture = load(String(entry["path"])) as Texture2D
+	item_info_name.text = String(entry["name"])
+	item_info_rarity.text = ITEM_CATALOG.RARITY_NAMES[rarity]
+	item_info_rarity.add_theme_color_override("font_color", RARITY_COLORS[rarity].lightened(0.18))
+	item_info_effect.text = String(entry["effect"])
+	item_info_rule.text = "%s · 右键查看，左键使用" % rule_text if active_kind == "item" else rule_text
+	item_info_panel.visible = true
+	item_info_panel.move_to_front()
+
+
+func _hide_item_info() -> void:
+	item_info_panel.visible = false
 
 
 func _owned_entry_count(entry: Dictionary) -> int:

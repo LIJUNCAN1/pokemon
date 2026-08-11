@@ -5,20 +5,21 @@ const CATALOG = preload("res://scripts/creature_catalog.gd")
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
 const DEX := "res://素材/图鉴/"
 const POKEMON := "res://素材/宝可梦图/"
-var CREATURES: Array[String] = CATALOG.all_textures()
-var NAMES: Array[String] = CATALOG.all_names()
+var CREATURES: Array[String] = []
+var NAMES: Array[String] = []
 const TAB_NAMES: Array[String] = ["怪兽", "饰品", "道具", "训练家"]
 const INACTIVE_TABS: Array[String] = [DEX + "03_切图_3.png", DEX + "03_切图_3.png", DEX + "04_切图_4.png", DEX + "05_切图_5.png"]
 const TRAINER_TEXTURES: Array[String] = [
-	"res://素材/主菜单/03_image-1785665935144-ihuz4v0r8x.png",
-	"res://素材/主菜单/04_image-1785665946324-sdmjaqsxe3.png",
-	"res://素材/主菜单/01_image-1785665922217-kl0enxabtzl.png",
+	"res://assets/characters/trainers/trainer_green.png",
+	"res://assets/characters/trainers/trainer_red.png",
+	"res://assets/characters/trainers/trainer_yellow.png",
 ]
-const TRAINER_NAMES: Array[String] = ["银羽", "小岚", "晴"]
+const TRAINER_IDS: Array[String] = ["researcher", "vanguard", "scout"]
+const TRAINER_NAMES: Array[String] = ["森野博士", "赤城", "紫苑"]
 const TRAINER_SKILLS: Array[String] = [
-	"每回合首次刷新返还 1 枚金币",
-	"队伍中的自然角色获得额外生命",
-	"每回合购买的第一只怪兽费用降低",
+	"野外补给：初始金币 +2",
+	"斗志昂扬：本轮全队伤害 +6%",
+	"可靠伙伴：初始获得一只普通怪兽",
 ]
 
 var source_han_font: FontFile
@@ -43,6 +44,8 @@ var selection_frames: Array[TextureRect] = []
 var creature_cards: Array[Control] = []
 var trainer_cards: Array[Control] = []
 var trainer_selection_frames: Array[TextureRect] = []
+var trainer_sprites: Array[TextureRect] = []
+var trainer_name_labels: Array[Label] = []
 var accessory_entries: Array[Dictionary] = []
 var item_entries: Array[Dictionary] = []
 var accessory_cards: Array[Control] = []
@@ -53,6 +56,8 @@ var accessory_name_labels: Array[Label] = []
 var item_name_labels: Array[Label] = []
 var accessory_unknown_labels: Array[Label] = []
 var item_unknown_labels: Array[Label] = []
+var accessory_rarity_labels: Array[Label] = []
+var item_rarity_labels: Array[Label] = []
 var accessory_selection_frames: Array[TextureRect] = []
 var item_selection_frames: Array[TextureRect] = []
 var creature_detail_controls: Array[Control] = []
@@ -88,8 +93,15 @@ func _ready() -> void:
 	source_han_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	source_han_font.oversampling = 1.5
 	source_han_font.allow_system_fallback = false
-	accessory_entries = _catalog_entries("accessory")
-	item_entries = _catalog_entries("item")
+	CREATURES = _sorted_creatures_by_rarity()
+	NAMES.clear()
+	for texture_path in CREATURES:
+		NAMES.append(CATALOG.name_for_texture(texture_path))
+	accessory_entries = _catalog_entries_by_rarity("accessory")
+	item_entries = _catalog_entries_by_rarity("item")
+	selected_index = _first_seen_creature_index()
+	selected_accessory_index = _first_seen_entry_index(accessory_entries, "accessory")
+	selected_item_index = _first_seen_entry_index(item_entries, "item")
 	_build_interface()
 	refresh_data()
 
@@ -230,7 +242,7 @@ func _create_creature_card(index: int, rect: Rect2) -> void:
 	card_star_icons.append(star)
 	card_name_labels.append(name_label)
 	var selection := _add_texture(card, DEX + "image-1785681904517-raawndjoah.png", Rect2(2, 2, rect.size.x - 4, rect.size.y - 4), TextureRect.STRETCH_SCALE)
-	selection.visible = index == 0
+	selection.visible = index == selected_index
 	selection_frames.append(selection)
 	var hit := Button.new()
 	hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -272,12 +284,14 @@ func _create_item_card(kind: String, index: int, rect: Rect2) -> void:
 		accessory_sprites.append(sprite)
 		accessory_unknown_labels.append(unknown_label)
 		accessory_name_labels.append(name_label)
+		accessory_rarity_labels.append(rarity_label)
 		accessory_selection_frames.append(selection)
 	else:
 		item_cards.append(card)
 		item_sprites.append(sprite)
 		item_unknown_labels.append(unknown_label)
 		item_name_labels.append(name_label)
+		item_rarity_labels.append(rarity_label)
 		item_selection_frames.append(selection)
 
 
@@ -289,12 +303,14 @@ func _create_trainer_card(index: int, rect: Rect2) -> void:
 	monster_page.add_child(card)
 	trainer_cards.append(card)
 	_add_texture(card, DEX + "13_切图_13.png", Rect2(Vector2.ZERO, rect.size), TextureRect.STRETCH_SCALE)
-	_add_texture(card, TRAINER_TEXTURES[index], Rect2(26, 13, 153, 108))
+	var trainer_sprite := _add_texture(card, TRAINER_TEXTURES[index], Rect2(26, 13, 153, 108))
 	var name_label := _add_label(card, TRAINER_NAMES[index], Rect2(16, 116, 173, 28), 14, HORIZONTAL_ALIGNMENT_CENTER)
 	_use_dark_text(name_label)
 	var selection := _add_texture(card, DEX + "image-1785681904517-raawndjoah.png", Rect2(2, 2, rect.size.x - 4, rect.size.y - 4), TextureRect.STRETCH_SCALE)
 	selection.visible = index == 0
 	trainer_selection_frames.append(selection)
+	trainer_sprites.append(trainer_sprite)
+	trainer_name_labels.append(name_label)
 	var hit := Button.new()
 	hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hit.flat = true
@@ -306,15 +322,17 @@ func _create_trainer_card(index: int, rect: Rect2) -> void:
 
 func _select_trainer(index: int) -> void:
 	selected_trainer_index = clampi(index, 0, TRAINER_TEXTURES.size() - 1)
+	var unlocked := GameState.has_unlocked_trainer(TRAINER_IDS[selected_trainer_index])
 	detail_sprite.texture = load(TRAINER_TEXTURES[selected_trainer_index]) as Texture2D
 	detail_unknown.visible = false
-	detail_name.text = TRAINER_NAMES[selected_trainer_index]
+	_set_silhouette(detail_sprite, not unlocked)
+	detail_name.text = TRAINER_NAMES[selected_trainer_index] if unlocked else "未解锁"
 	detail_rarity.add_theme_color_override("font_color", Color.WHITE)
-	detail_rarity.text = "训练家"
-	detail_type.text = "训练家"
-	detail_cooldown.text = "被动"
-	detail_stats.text = "训练家能力"
-	detail_description.text = TRAINER_SKILLS[selected_trainer_index]
+	detail_rarity.text = "训练家" if unlocked else "未解锁"
+	detail_type.text = "训练家" if unlocked else "未知"
+	detail_cooldown.text = "被动" if unlocked else "--"
+	detail_stats.text = "训练家能力" if unlocked else "尚未相遇"
+	detail_description.text = TRAINER_SKILLS[selected_trainer_index] if unlocked else "在新游戏中选择该训练家后解锁资料"
 	for frame_index in trainer_selection_frames.size():
 		trainer_selection_frames[frame_index].visible = frame_index == selected_trainer_index
 
@@ -334,17 +352,19 @@ func _select_item_entry(kind: String, index: int) -> void:
 	for frame_index in frames.size():
 		frames[frame_index].visible = frame_index == index
 	if not seen:
-		detail_sprite.texture = null
-		detail_unknown.visible = true
-		detail_name.text = "?"
+		detail_sprite.texture = load(String(entry["path"])) as Texture2D
+		_set_silhouette(detail_sprite, true)
+		detail_unknown.visible = false
+		detail_name.text = "未解锁"
 		detail_rarity.add_theme_color_override("font_color", Color.WHITE)
 		detail_rarity.text = "未发现"
 		detail_type.text = "饰品" if kind == "accessory" else "道具"
-		detail_cooldown.text = "?"
+		detail_cooldown.text = "--"
 		detail_stats.text = "未知"
 		detail_description.text = "获得后解锁详细信息"
 		return
 	detail_sprite.texture = load(String(entry["path"])) as Texture2D
+	_set_silhouette(detail_sprite, false)
 	detail_unknown.visible = false
 	detail_name.text = String(entry["name"])
 	var rarity := clampi(int(entry.get("rarity", 0)), 0, ITEM_CATALOG.RARITY_NAMES.size() - 1)
@@ -371,18 +391,20 @@ func _select_creature(index: int) -> void:
 	selected_index = index
 	detail_rarity.add_theme_color_override("font_color", Color.WHITE)
 	if not GameState.has_seen_creature(CREATURES[index]):
-		detail_sprite.texture = null
-		detail_unknown.visible = true
-		detail_name.text = "?"
+		detail_sprite.texture = load(CREATURES[index]) as Texture2D
+		_set_silhouette(detail_sprite, true)
+		detail_unknown.visible = false
+		detail_name.text = "未解锁"
 		detail_rarity.text = "未发现"
 		detail_type.text = "未知"
-		detail_cooldown.text = "?"
+		detail_cooldown.text = "--"
 		detail_stats.text = "未知"
 		detail_description.text = "尚未遇见该怪兽"
 		for frame_index in selection_frames.size():
 			selection_frames[frame_index].visible = frame_index == index
 		return
 	detail_sprite.texture = load(CREATURES[index]) as Texture2D
+	_set_silhouette(detail_sprite, false)
 	detail_unknown.visible = false
 	detail_name.text = NAMES[index]
 	var rarity := clampi(CATALOG.rarity_for_texture(CREATURES[index]), 0, CATALOG.RARITY_NAMES.size() - 1)
@@ -505,9 +527,10 @@ func refresh_data() -> void:
 	for index in CREATURES.size():
 		var seen := GameState.has_seen_creature(CREATURES[index])
 		var mask := GameState.creature_achievement_mask(CREATURES[index])
-		card_creature_sprites[index].visible = seen
-		card_unknown_labels[index].visible = not seen
-		card_name_labels[index].text = NAMES[index] if seen else "?"
+		card_creature_sprites[index].visible = true
+		_set_silhouette(card_creature_sprites[index], not seen)
+		card_unknown_labels[index].visible = false
+		card_name_labels[index].text = NAMES[index] if seen else "未解锁"
 		card_trophy_icons[index].texture = load(DEX + ("image-1785683743659-hcg3y7d2ca.png" if mask & GameState.ACHIEVEMENT_TROPHY else "image-1785683743659-hcg3y7d2ca2.png")) as Texture2D
 		card_medal_icons[index].texture = load(DEX + ("image-1785683749088-mt9x4axmxfo.png" if mask & GameState.ACHIEVEMENT_MEDAL else "image-1785683749088-mt9x4axmxfo2.png")) as Texture2D
 		card_star_icons[index].texture = load(DEX + ("image-1785683749811-6btmw25d8ow.png" if mask & GameState.ACHIEVEMENT_STAR else "image-1785683749811-6btmw25d8ow2.png")) as Texture2D
@@ -520,14 +543,22 @@ func refresh_data() -> void:
 		counter_labels[2].text = "%d/%d" % [star_count, CREATURES.size()]
 	for index in accessory_entries.size():
 		var seen_accessory := GameState.has_seen_item(accessory_entries[index], "accessory")
-		accessory_sprites[index].visible = seen_accessory
-		accessory_unknown_labels[index].visible = not seen_accessory
-		accessory_name_labels[index].text = String(accessory_entries[index]["name"]) if seen_accessory else "?"
+		accessory_sprites[index].visible = true
+		_set_silhouette(accessory_sprites[index], not seen_accessory)
+		accessory_unknown_labels[index].visible = false
+		accessory_name_labels[index].text = String(accessory_entries[index]["name"]) if seen_accessory else "未解锁"
+		accessory_rarity_labels[index].visible = seen_accessory
 	for index in item_entries.size():
 		var seen_item := GameState.has_seen_item(item_entries[index], "item")
-		item_sprites[index].visible = seen_item
-		item_unknown_labels[index].visible = not seen_item
-		item_name_labels[index].text = String(item_entries[index]["name"]) if seen_item else "?"
+		item_sprites[index].visible = true
+		_set_silhouette(item_sprites[index], not seen_item)
+		item_unknown_labels[index].visible = false
+		item_name_labels[index].text = String(item_entries[index]["name"]) if seen_item else "未解锁"
+		item_rarity_labels[index].visible = seen_item
+	for index in TRAINER_TEXTURES.size():
+		var unlocked := GameState.has_unlocked_trainer(TRAINER_IDS[index])
+		_set_silhouette(trainer_sprites[index], not unlocked)
+		trainer_name_labels[index].text = TRAINER_NAMES[index] if unlocked else "未解锁"
 	_update_counters()
 	_on_tab_pressed(current_tab)
 
@@ -564,6 +595,40 @@ func _catalog_entries(kind: String) -> Array[Dictionary]:
 	return result
 
 
+func _sorted_creatures_by_rarity() -> Array[String]:
+	var result: Array[String] = []
+	var catalog_paths: Array[String] = CATALOG.all_textures()
+	for rarity in range(CATALOG.RARITY_NAMES.size() - 1, -1, -1):
+		for texture_path in catalog_paths:
+			if CATALOG.rarity_for_texture(texture_path) == rarity:
+				result.append(texture_path)
+	return result
+
+
+func _catalog_entries_by_rarity(kind: String) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var entries := _catalog_entries(kind)
+	for rarity in range(ITEM_CATALOG.RARITY_NAMES.size() - 1, -1, -1):
+		for entry in entries:
+			if int(entry.get("rarity", 0)) == rarity:
+				result.append(entry)
+	return result
+
+
+func _first_seen_creature_index() -> int:
+	for index in CREATURES.size():
+		if GameState.has_seen_creature(CREATURES[index]):
+			return index
+	return 0
+
+
+func _first_seen_entry_index(entries: Array[Dictionary], kind: String) -> int:
+	for index in entries.size():
+		if GameState.has_seen_item(entries[index], kind):
+			return index
+	return 0
+
+
 func _collection_card_rect(index: int) -> Rect2:
 	var column := index % 4
 	var row := index / 4
@@ -582,6 +647,14 @@ func _item_rarity_color(rarity: int) -> Color:
 
 func _creature_rarity_color(rarity: int) -> Color:
 	return [Color("d7dce4"), Color("68cf72"), Color("55b7ed"), Color("d084ff"), Color("f1b640")][clampi(rarity, 0, 4)]
+
+
+func _set_silhouette(texture: TextureRect, locked: bool) -> void:
+	if texture == null:
+		return
+	# Multiplying RGB by zero preserves every source alpha pixel, producing an
+	# exact black silhouette instead of a rectangular black placeholder.
+	texture.self_modulate = Color(0, 0, 0, 1) if locked else Color.WHITE
 
 
 func _close() -> void:

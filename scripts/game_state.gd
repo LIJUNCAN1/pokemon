@@ -41,6 +41,7 @@ var seen_creatures: Dictionary = {}
 var seen_items: Dictionary = {}
 var seen_accessories: Dictionary = {}
 var creature_achievements: Dictionary = {}
+var unlocked_trainers: Dictionary = {}
 var map_initialized := false
 var map_intro_played := false
 var map_seed := 0
@@ -56,6 +57,8 @@ var next_battle_damage_bonus := 0.0
 var next_battle_charge_bonus := 0.0
 var battle_victories := 0
 var has_started_new_game := false
+var trainer_id := ""
+var tutorial_completed := false
 
 
 func reset_run() -> void:
@@ -85,6 +88,29 @@ func reset_run() -> void:
 	next_battle_damage_bonus = 0.0
 	next_battle_charge_bonus = 0.0
 	battle_victories = 0
+	trainer_id = ""
+
+
+func apply_trainer_choice(choice: String) -> void:
+	trainer_id = choice
+	unlocked_trainers[choice] = true
+	match trainer_id:
+		"researcher":
+			coins += 2
+		"vanguard":
+			run_damage_bonus += 0.06
+		"scout":
+			var starters := CREATURE_CATALOG.textures_for_rarity(0)
+			if not starters.is_empty():
+				var starter := starters[posmod(map_seed + 7, starters.size())]
+				player_bench = [starter]
+				player_bench_levels = [1]
+				take_creature_from_pool(starter)
+				mark_creature_seen(starter)
+
+
+func has_unlocked_trainer(choice: String) -> bool:
+	return bool(unlocked_trainers.get(choice, false))
 
 
 func set_player_team(team: Array[String], levels: Array[int] = []) -> void:
@@ -476,10 +502,13 @@ func save_run() -> void:
 	config.set_value("run", "next_damage_bonus", next_battle_damage_bonus)
 	config.set_value("run", "next_charge_bonus", next_battle_charge_bonus)
 	config.set_value("run", "battle_victories", battle_victories)
+	config.set_value("run", "trainer_id", trainer_id)
 	config.set_value("meta", "seen_creatures", seen_creatures)
 	config.set_value("meta", "seen_items", seen_items)
 	config.set_value("meta", "seen_accessories", seen_accessories)
 	config.set_value("meta", "creature_achievements", creature_achievements)
+	config.set_value("meta", "tutorial_completed", tutorial_completed)
+	config.set_value("meta", "unlocked_trainers", unlocked_trainers)
 	config.save(SAVE_PATH)
 
 
@@ -514,10 +543,15 @@ func load_run() -> bool:
 	next_battle_damage_bonus = float(config.get_value("run", "next_damage_bonus", 0.0))
 	next_battle_charge_bonus = float(config.get_value("run", "next_charge_bonus", 0.0))
 	battle_victories = int(config.get_value("run", "battle_victories", 0))
+	trainer_id = String(config.get_value("run", "trainer_id", ""))
 	seen_creatures = Dictionary(config.get_value("meta", "seen_creatures", {}))
 	seen_items = Dictionary(config.get_value("meta", "seen_items", {}))
 	seen_accessories = Dictionary(config.get_value("meta", "seen_accessories", {}))
 	creature_achievements = Dictionary(config.get_value("meta", "creature_achievements", {}))
+	tutorial_completed = bool(config.get_value("meta", "tutorial_completed", false))
+	unlocked_trainers = Dictionary(config.get_value("meta", "unlocked_trainers", {}))
+	if not trainer_id.is_empty():
+		unlocked_trainers[trainer_id] = true
 	has_started_new_game = true
 	return true
 

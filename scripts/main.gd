@@ -286,20 +286,8 @@ func _play_intro() -> void:
 
 
 func _start_menu_music() -> void:
-	if menu_music.playing:
-		return
-	if AudioServer.get_bus_index("Music") < 0:
-		AudioServer.add_bus()
-		AudioServer.set_bus_name(AudioServer.bus_count - 1, "Music")
-	menu_music.bus = "Music"
-	var mp3_stream := menu_music.stream as AudioStreamMP3
-	if mp3_stream:
-		mp3_stream.loop = true
-	menu_music.volume_db = -40.0
-	menu_music.play()
-	var music_fade := create_tween()
-	music_fade.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	music_fade.tween_property(menu_music, "volume_db", -12.0, 2.2)
+	menu_music.stop()
+	MusicManager.play_music("res://assets/audio/echoes_of_the_pixel_kingdom.mp3", 2.2)
 
 
 func _input(event: InputEvent) -> void:
@@ -380,12 +368,12 @@ func _on_start_pressed() -> void:
 	var transition := create_tween().set_parallel(true)
 	transition.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	transition.tween_property(fade, "color:a", 1.0, 0.45)
-	transition.tween_property(menu_music, "volume_db", -40.0, 0.4)
+	MusicManager.fade_out(0.4)
 	await transition.finished
 	GameState.has_started_new_game = true
 	GameState.reset_run()
 	GameState.save_run()
-	get_tree().change_scene_to_file("res://map.tscn")
+	get_tree().change_scene_to_file("res://trainer_select.tscn")
 
 
 func _on_continue_pressed() -> void:
@@ -394,7 +382,7 @@ func _on_continue_pressed() -> void:
 	var transition := create_tween().set_parallel(true)
 	transition.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	transition.tween_property(fade, "color:a", 1.0, 0.45)
-	transition.tween_property(menu_music, "volume_db", -40.0, 0.4)
+	MusicManager.fade_out(0.4)
 	await transition.finished
 	if not GameState.has_started_new_game and not GameState.load_run():
 		_show_status("没有可以继续的远征")
