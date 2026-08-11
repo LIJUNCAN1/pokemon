@@ -35,8 +35,8 @@ const ATTRIBUTE_COLORS: Array[Color] = [
 ]
 const LEVEL_COLORS: Array[Color] = [Color.WHITE, Color("58d66b"), Color("ef4b52")]
 var CREATURE_NAMES: Array[String] = CATALOG.all_names()
-const SHOP_RARITY_NAMES: Array[String] = ["普通", "稀有", "史诗"]
-const SHOP_RARITY_COLORS: Array[Color] = [Color("737983"), Color("3e95d8"), Color("c45ad9")]
+const SHOP_RARITY_NAMES: Array[String] = ["普通", "优秀", "稀有", "史诗", "传说"]
+const SHOP_RARITY_COLORS: Array[Color] = [Color("b8bdc5"), Color("58b85f"), Color("3e95d8"), Color("c45ad9"), Color("e3a62f")]
 const SHOP_CARD_COUNT := 5
 const SHOP_ITEM_CHANCE := 0.58
 const SHOP_ACCESSORY_CHANCE := 0.46
@@ -77,6 +77,10 @@ var creature_element_icons: Array[TextureRect] = []
 var creature_race_icons: Array[TextureRect] = []
 var creature_extra_trait_icons: Array[TextureRect] = []
 var creature_trait_backgrounds: Array[TextureRect] = []
+var creature_element_icon_backgrounds: Array[TextureRect] = []
+var creature_extra_icon_backgrounds: Array[TextureRect] = []
+var creature_race_icon_backgrounds: Array[TextureRect] = []
+var creature_rarity_frames: Array[Panel] = []
 var creature_masks: Array[ColorRect] = []
 var creature_selection_frames: Array[TextureRect] = []
 var creature_data: Array[String] = []
@@ -210,7 +214,6 @@ func _build_interface() -> void:
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
 	_build_top_bar()
-	_build_trainer_panel()
 	_build_bench()
 	_build_team()
 	_resolve_all_creature_merges()
@@ -260,13 +263,6 @@ func _play_life_loss_animation(index: int) -> void:
 	for frame_index in range(1, HEALTH_FRAMES.size()):
 		health_icons[index].texture = HEALTH_FRAMES[frame_index]
 		await get_tree().create_timer(0.09).timeout
-
-
-func _build_trainer_panel() -> void:
-	_add_texture(self, UI + "角色框.png", Rect2(6, 82, 240, 403), TextureRect.STRETCH_SCALE)
-	_add_label(self, "训练家 · 晴", Rect2(18, 89, 216, 28), 16, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-	_add_texture(self, "res://assets/ui/trainer_avatar_transparent.png", Rect2(18, 127, 216, 192))
-	_add_label(self, "+300 最大生命", Rect2(23, 334, 206, 138), 15, Color(0.22, 0.24, 0.3), HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _build_bench() -> void:
@@ -429,13 +425,18 @@ func _build_shop() -> void:
 	var header_center_y := 551.0
 	_add_label(self, "商店", Rect2(260, header_center_y - 15.0, 76, 30), 18, Color.WHITE)
 	var rarity_chances := _shop_rarity_chances()
-	var rarity_labels := [
-		_add_label(self, "普通 %d%%" % roundi(rarity_chances[0] * 100.0), Rect2(354, header_center_y - 12.0, 72, 24), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER),
-		_add_label(self, "稀有 %d%%" % roundi(rarity_chances[1] * 100.0), Rect2(430, header_center_y - 12.0, 72, 24), 10, SHOP_RARITY_COLORS[1], HORIZONTAL_ALIGNMENT_CENTER),
-		_add_label(self, "史诗 %d%%" % roundi(rarity_chances[2] * 100.0), Rect2(506, header_center_y - 12.0, 72, 24), 10, SHOP_RARITY_COLORS[2], HORIZONTAL_ALIGNMENT_CENTER),
-	]
-	rarity_labels[0].add_theme_color_override("font_color", Color.WHITE)
-	shop_data = _roll_shop_entries(false)
+	var rarity_labels: Array[Label] = []
+	for rarity_index in SHOP_RARITY_NAMES.size():
+		var label_color := Color.WHITE if rarity_index == 0 else SHOP_RARITY_COLORS[rarity_index]
+		rarity_labels.append(_add_label(
+			self,
+			"%s %d%%" % [SHOP_RARITY_NAMES[rarity_index], roundi(rarity_chances[rarity_index] * 100.0)],
+			Rect2(345 + rarity_index * 69, header_center_y - 12.0, 68, 24),
+			9,
+			label_color,
+			HORIZONTAL_ALIGNMENT_CENTER
+		))
+	shop_data = _roll_shop_entries(true)
 	for entry in shop_data:
 		_mark_shop_creature_seen(entry)
 	var card_width := 145.0
@@ -483,17 +484,15 @@ func _build_footer_actions() -> void:
 	_add_label(reroll, "刷新", Rect2(0, 23, 198, 36), 25, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_add_label(reroll, "$1", Rect2(0, 62, 198, 32), 21, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	var shop_node := GameState.map_initialized and GameState.current_map_node_type() == "shop"
-	var start_node := GameState.map_initialized and GameState.current_map_node_type() == "start"
-	var action_text := "离开商店" if shop_node else ("开始远征" if start_node else "进入战斗")
+	var mimic_node := GameState.map_initialized and GameState.current_map_node_type() == "chest" and bool(GameState.current_map_node_data().get("mimic", false))
+	var action_text := "离开商店" if shop_node else ("挑战宝箱怪" if mimic_node else "进入战斗")
 	var battle := _add_texture_button(UI + "血量.png", Rect2(1075, 598, 198, 118), action_text)
 	battle.focus_mode = Control.FOCUS_NONE
 	if shop_node:
 		battle.pressed.connect(_leave_shop)
-	elif start_node:
-		battle.pressed.connect(_leave_start)
 	else:
 		battle.pressed.connect(_on_battle_pressed)
-	_add_label(battle, "返回地图" if shop_node else ("开始远征" if start_node else "战斗！"), Rect2(0, 38, 198, 42), 27, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	_add_label(battle, "返回地图" if shop_node else ("挑战宝箱怪" if mimic_node else "战斗！"), Rect2(0, 38, 198, 42), 27, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String, saved_level: int = 1) -> void:
@@ -512,13 +511,23 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String,
 	trait_background.size = rect.size - Vector2(6, 6)
 	trait_background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	trait_background.stretch_mode = TextureRect.STRETCH_SCALE
+	trait_background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	trait_background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	trait_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	trait_background.modulate = Color(1, 1, 1, 0.72)
+	trait_background.modulate = Color.WHITE
 	trait_background.visible = false
 	button.add_child(trait_background)
+	var rarity_frame := Panel.new()
+	rarity_frame.position = Vector2.ZERO
+	rarity_frame.size = rect.size
+	rarity_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rarity_frame.add_theme_stylebox_override("panel", _shop_card_outline_style(Color("737983")))
+	rarity_frame.z_index = 35
+	rarity_frame.visible = false
+	button.add_child(rarity_frame)
 	var sprite := TextureRect.new()
-	sprite.position = Vector2(24, 10) if compact_card else Vector2(30, 18)
-	sprite.size = Vector2(rect.size.x - 48, rect.size.y - 36) if compact_card else Vector2(rect.size.x - 60, rect.size.y - 48)
+	sprite.position = Vector2(12, 7) if compact_card else Vector2(18, 9)
+	sprite.size = Vector2(rect.size.x - 24, rect.size.y - 18) if compact_card else Vector2(rect.size.x - 36, rect.size.y - 25)
 	sprite.pivot_offset = sprite.size * 0.5
 	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -539,10 +548,14 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String,
 	var special_label := _add_label(button, "", Rect2(badge_x + badge_width + badge_gap, badge_y + 1, badge_width, badge_height - 3), 9 if compact_card else 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_apply_stat_pixel_font(hp_label)
 	_apply_stat_pixel_font(special_label)
-	var trait_icon_size := 16.0 if compact_card else 18.0
-	var trait_icon_gap := 3.0
-	var trait_icon_x := 5.0 if compact_card else 6.0
+	var trait_icon_size := 17.0
+	var trait_icon_gap := 8.0
+	var trait_icon_x := 10.0
 	var trait_icon_y := rect.size.y - (21.0 if compact_card else 25.0)
+	var icon_box_size := 21.0
+	var element_background := _add_shop_icon_background(button, Rect2(trait_icon_x - 2, trait_icon_y - 2, icon_box_size, icon_box_size))
+	var extra_background := _add_shop_icon_background(button, Rect2(trait_icon_x + trait_icon_size + trait_icon_gap - 2, trait_icon_y - 2, icon_box_size, icon_box_size))
+	var race_background := _add_shop_icon_background(button, Rect2(trait_icon_x + (trait_icon_size + trait_icon_gap) * 2.0 - 2, trait_icon_y - 2, icon_box_size, icon_box_size))
 	var element_icon := _add_texture(button, TRAIT_ICON_PATHS["自然"], Rect2(trait_icon_x, trait_icon_y, trait_icon_size, trait_icon_size))
 	var extra_trait_icon := _add_texture(button, TRAIT_ICON_PATHS["雷"], Rect2(trait_icon_x + trait_icon_size + trait_icon_gap, trait_icon_y, trait_icon_size, trait_icon_size))
 	var race_icon := _add_texture(button, TRAIT_ICON_PATHS["机械"], Rect2(trait_icon_x + (trait_icon_size + trait_icon_gap) * 2.0, trait_icon_y, trait_icon_size, trait_icon_size))
@@ -571,6 +584,10 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String,
 	creature_race_icons.append(race_icon)
 	creature_extra_trait_icons.append(extra_trait_icon)
 	creature_trait_backgrounds.append(trait_background)
+	creature_element_icon_backgrounds.append(element_background)
+	creature_extra_icon_backgrounds.append(extra_background)
+	creature_race_icon_backgrounds.append(race_background)
+	creature_rarity_frames.append(rarity_frame)
 	creature_masks.append(replace_mask)
 	creature_selection_frames.append(selection_frame)
 	creature_data.append(texture_path)
@@ -606,6 +623,7 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	trait_background.size = Vector2(135, 96)
 	trait_background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	trait_background.stretch_mode = TextureRect.STRETCH_SCALE
+	trait_background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	trait_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	trait_background.modulate = Color.WHITE
 	trait_background.visible = false
@@ -649,8 +667,10 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	special_label.move_to_front()
 	_apply_stat_pixel_font(hp_label)
 	_apply_stat_pixel_font(special_label)
-	var name_label := _add_label(button, "", Rect2(8, top_height + 4, 127, 29), 11, Color("f4f5f6"))
+	var name_label := _add_label(button, "", Rect2(8, top_height + 4, 88, 29), 11, Color("f4f5f6"))
 	var price_label := _add_label(button, "", Rect2(rect.size.x - 50, top_height + 4, 43, 29), 12, Color("e4aa2f"), HORIZONTAL_ALIGNMENT_RIGHT)
+	name_label.z_index = 22
+	price_label.z_index = 22
 	var card_outline := Panel.new()
 	card_outline.position = Vector2.ZERO
 	card_outline.size = rect.size
@@ -673,7 +693,7 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	sold_shade.visible = false
 	sold_shade.z_index = 25
 	button.add_child(sold_shade)
-	sold_out.position = Vector2((rect.size.x - 80.0) * 0.5, (rect.size.y - 30.0) * 0.5)
+	sold_out.position = Vector2((rect.size.x - 80.0) * 0.5, (top_height - 30.0) * 0.5)
 	sold_out.size = Vector2(80, 30)
 	sold_out.pivot_offset = sold_out.size * 0.5
 	sold_out.rotation = deg_to_rad(-30.0)
@@ -764,9 +784,10 @@ func _build_card_tooltip() -> void:
 	card_tooltip_info_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card_tooltip_info_panel.add_theme_stylebox_override("panel", _slot_style(Color(0.99, 0.99, 1.0, 1.0), Color(0.68, 0.69, 0.74, 1.0), 3))
 	card_tooltip.add_child(card_tooltip_info_panel)
-	card_tooltip_cooldown = _add_label(card_tooltip_info_panel, "", Rect2(12, 7, 78, 53), 17, Color("252631"), HORIZONTAL_ALIGNMENT_CENTER)
-	card_tooltip_damage = _add_label(card_tooltip_info_panel, "", Rect2(93, 7, 153, 32), 15, Color("ef3f64"))
-	card_tooltip_extra = _add_label(card_tooltip_info_panel, "", Rect2(93, 36, 153, 72), 11, Color("5579b9"))
+	card_tooltip_cooldown = _add_label(card_tooltip_info_panel, "", Rect2(10, 8, 62, 98), 17, Color("252631"), HORIZONTAL_ALIGNMENT_CENTER)
+	card_tooltip_damage = _add_label(card_tooltip_info_panel, "", Rect2(76, 8, 170, 38), 12, Color("ef3f64"))
+	card_tooltip_damage.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	card_tooltip_extra = _add_label(card_tooltip_info_panel, "", Rect2(76, 45, 170, 63), 10, Color("5579b9"))
 	card_tooltip_extra.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 
@@ -836,18 +857,32 @@ func _show_item_card_tooltip(entry: Dictionary) -> void:
 	card_tooltip_element_panel.visible = false
 	card_tooltip_race_panel.visible = false
 	card_tooltip_name.text = _shop_entry_name(entry)
-	var rarity_index := clampi(int(entry["rarity"]), 0, SHOP_RARITY_NAMES.size() - 1)
-	card_tooltip_rarity.text = SHOP_RARITY_NAMES[rarity_index]
-	card_tooltip_rarity.add_theme_color_override("font_color", _rarity_text_color(rarity_index))
+	var item_rarity_index := clampi(int(entry["rarity"]), 0, ITEM_CATALOG.RARITY_NAMES.size() - 1)
+	var display_rarity_index := _item_display_rarity_index(item_rarity_index)
+	card_tooltip_rarity.text = ITEM_CATALOG.RARITY_NAMES[item_rarity_index]
+	card_tooltip_rarity.add_theme_color_override("font_color", _rarity_text_color(display_rarity_index))
 	card_tooltip_sprite.texture = load(entry["path"]) as Texture2D
 	card_tooltip_cooldown.text = "饰品" if entry["kind"] == "accessory" else "道具"
 	card_tooltip_damage.text = "售价 $%d" % int(entry["price"])
-	card_tooltip_extra.text = String(entry["effect"])
+	var rule_text := "唯一饰品" if not String(entry.get("exclusive_group", "")).is_empty() else "叠加上限 %d" % int(entry.get("stack_limit", 1))
+	card_tooltip_extra.text = "%s\n%s" % [String(entry["effect"]), rule_text]
 	_position_card_tooltip()
 
 
 func _rarity_text_color(rarity_index: int) -> Color:
 	return Color.WHITE if rarity_index <= 0 else SHOP_RARITY_COLORS[clampi(rarity_index, 0, SHOP_RARITY_COLORS.size() - 1)]
+
+
+func _item_display_rarity_index(item_rarity_index: int) -> int:
+	# Items keep their three gameplay tiers while sharing the five-tier card palette.
+	return [0, 2, 3][clampi(item_rarity_index, 0, ITEM_CATALOG.RARITY_NAMES.size() - 1)]
+
+
+func _shop_display_rarity_index(entry: Dictionary) -> int:
+	var rarity_index := int(entry.get("rarity", 0))
+	if String(entry.get("kind", "creature")) == "creature":
+		return clampi(rarity_index, 0, SHOP_RARITY_COLORS.size() - 1)
+	return _item_display_rarity_index(rarity_index)
 
 
 func _position_card_tooltip() -> void:
@@ -966,8 +1001,11 @@ func _drop_shop_sell_data(_at_position: Vector2, data: Variant) -> void:
 		return
 	var source_index := int(data.get("source_index", -1))
 	var sell_value := _creature_sell_value(source_index)
-	var sold_name := CATALOG.name_for_texture(creature_data[source_index])
+	var sold_path := creature_data[source_index]
+	var sold_level := creature_levels[source_index]
+	var sold_name := CATALOG.name_for_texture(sold_path)
 	_clear_creature_slot(source_index)
+	GameState.return_creature_to_pool(sold_path, GameState.CREATURE_STAR_COPIES[clampi(sold_level, 1, 3) - 1])
 	GameState.add_coins(sell_value)
 	_sync_coins()
 	_update_synergies()
@@ -1035,6 +1073,10 @@ func _on_shop_card_pressed(index: int) -> void:
 		_set_notice("金币不足")
 		return
 	if entry["kind"] == "item" or entry["kind"] == "accessory":
+		var can_accept := GameState.can_add_accessory(entry) if entry["kind"] == "accessory" else GameState.can_add_item(entry)
+		if not can_accept:
+			_set_notice("该物品已达到叠加上限或与现有饰品冲突")
+			return
 		if not _spend_shop_coins(price):
 			_set_notice("金币不足")
 			return
@@ -1051,6 +1093,9 @@ func _on_shop_card_pressed(index: int) -> void:
 	var texture_path := String(entry["path"])
 	if not _can_accept_creature_purchase(texture_path):
 		_set_notice("备战席已满，请先拖动角色到队伍")
+		return
+	if not GameState.take_creature_from_pool(texture_path):
+		_set_notice("该角色已从共享卡池中售罄")
 		return
 	var merge_level := _add_purchased_creature(texture_path)
 	shop_data[index] = {}
@@ -1168,48 +1213,75 @@ func _on_reroll_pressed() -> void:
 func _roll_shop_rarity() -> int:
 	var roll := rng.randf()
 	var chances := _shop_rarity_chances()
-	if roll < chances[0]:
-		return 0
-	if roll < chances[0] + chances[1]:
-		return 1
-	return 2
+	var cumulative := 0.0
+	for rarity_index in chances.size():
+		cumulative += chances[rarity_index]
+		if roll < cumulative:
+			return rarity_index
+	return chances.size() - 1
 
 
 func _shop_rarity_chances() -> PackedFloat32Array:
-	# The climb gradually exchanges common cards for rare and epic cards.
-	# Floor 1 = 60/30/10, floor 9 = 36/38/26.
+	# Floor 1 = 50/30/15/5/0; floor 9 = 25/28/25/15/7.
 	var progress := float(clampi(GameState.floor - 1, 0, GameState.MAX_FLOORS - 1)) / float(GameState.MAX_FLOORS - 1)
-	var epic := lerpf(0.10, 0.26, progress)
-	var rare := lerpf(0.30, 0.38, progress)
-	return PackedFloat32Array([1.0 - rare - epic, rare, epic])
+	return PackedFloat32Array([
+		lerpf(0.50, 0.25, progress),
+		lerpf(0.30, 0.28, progress),
+		lerpf(0.15, 0.25, progress),
+		lerpf(0.05, 0.15, progress),
+		lerpf(0.00, 0.07, progress),
+	])
 
 
-func _draw_creature_shop_entry() -> Dictionary:
+func _draw_creature_shop_entry(local_draw_counts: Dictionary = {}) -> Dictionary:
 	var rarity_index := _roll_shop_rarity()
-	var pool: Array[String] = CATALOG.textures_for_rarity(rarity_index)
+	var pool: Array[String] = []
+	for rarity_distance in SHOP_RARITY_NAMES.size():
+		var candidate_rarities := [rarity_index] if rarity_distance == 0 else [rarity_index - rarity_distance, rarity_index + rarity_distance]
+		for candidate_rarity in candidate_rarities:
+			if candidate_rarity < 0 or candidate_rarity >= SHOP_RARITY_NAMES.size():
+				continue
+			for texture_path in GameState.available_creatures_for_rarity(candidate_rarity):
+				if int(local_draw_counts.get(texture_path, 0)) < int(GameState.creature_shop_pool.get(texture_path, 0)):
+					pool.append(texture_path)
+			if not pool.is_empty():
+				rarity_index = candidate_rarity
+				break
+		if not pool.is_empty():
+			break
+	if pool.is_empty():
+		return {}
 	var texture_path := pool[rng.randi_range(0, pool.size() - 1)]
+	local_draw_counts[texture_path] = int(local_draw_counts.get(texture_path, 0)) + 1
 	return {
 		"kind": "creature",
 		"path": texture_path,
 		"rarity": rarity_index,
-		"price": GameState.CREATURE_BUY_PRICES[rarity_index],
+		"price": GameState.shop_price(GameState.CREATURE_BUY_PRICES[rarity_index]),
 	}
 
 
 func _roll_shop_entries(include_non_creature := true) -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
+	var local_draw_counts: Dictionary = {}
 	for index in SHOP_CARD_COUNT:
-		entries.append(_draw_creature_shop_entry())
+		entries.append(_draw_creature_shop_entry(local_draw_counts))
 	if not include_non_creature:
 		return entries
 	var available_slots: Array[int] = [0, 1, 2, 3, 4]
 	if rng.randf() < SHOP_ITEM_CHANCE:
 		var item_slot := int(available_slots.pop_at(rng.randi_range(0, available_slots.size() - 1)))
-		entries[item_slot] = ITEM_CATALOG.random_entry("item", rng, _roll_shop_rarity())
+		entries[item_slot] = _discount_shop_entry(ITEM_CATALOG.random_entry("item", rng, mini(_roll_shop_rarity(), 2), "shop"))
 	if rng.randf() < SHOP_ACCESSORY_CHANCE and not available_slots.is_empty():
 		var accessory_slot := int(available_slots.pop_at(rng.randi_range(0, available_slots.size() - 1)))
-		entries[accessory_slot] = ITEM_CATALOG.random_entry("accessory", rng, _roll_shop_rarity())
+		entries[accessory_slot] = _discount_shop_entry(ITEM_CATALOG.random_entry("accessory", rng, mini(_roll_shop_rarity(), 2), "shop"))
 	return entries
+
+
+func _discount_shop_entry(entry: Dictionary) -> Dictionary:
+	var discounted := entry.duplicate(true)
+	discounted["price"] = GameState.shop_price(int(entry.get("price", 1)))
+	return discounted
 
 
 func _mark_shop_creature_seen(entry: Dictionary) -> void:
@@ -1426,11 +1498,10 @@ func _set_star_level(row: Control, level: int) -> void:
 	level = clampi(level, 1, 3)
 	var star_size := float(row.get_meta("star_size", 15.0))
 	var gap := 1.0
-	var total_width := star_size * level + gap * (level - 1)
-	var start_x := floorf((row.size.x - total_width) * 0.5)
+	var start_x := 0.0
 	for index in row.get_child_count():
 		var star := row.get_child(index) as TextureRect
-		star.visible = index < level
+		star.visible = level >= 2 and index < level
 		star.position = Vector2(start_x + index * (star_size + gap), floorf((row.size.y - star_size) * 0.5))
 		star.size = Vector2(star_size, star_size)
 
@@ -1448,9 +1519,15 @@ func _render_creature_slot(index: int) -> void:
 		creature_extra_trait_icons[index].visible = false
 		creature_race_icons[index].visible = false
 		creature_trait_backgrounds[index].visible = false
+		creature_element_icon_backgrounds[index].visible = false
+		creature_extra_icon_backgrounds[index].visible = false
+		creature_race_icon_backgrounds[index].visible = false
+		creature_rarity_frames[index].visible = false
 		return
-	creature_hp_badges[index].visible = true
-	creature_special_badges[index].visible = true
+	creature_hp_badges[index].visible = false
+	creature_special_badges[index].visible = false
+	creature_hp_labels[index].visible = false
+	creature_special_labels[index].visible = false
 	creature_sprites[index].texture = load(creature_data[index]) as Texture2D
 	var level := clampi(creature_levels[index], 1, 3)
 	creature_star_rows[index].visible = true
@@ -1460,18 +1537,24 @@ func _render_creature_slot(index: int) -> void:
 	var special_value := roundi(CATALOG.damage_range_for_texture(creature_data[index]).y * rarity_multiplier) * level
 	creature_hp_labels[index].text = "%d" % hp_value
 	creature_special_labels[index].text = "%d" % special_value
-	_set_stat_badge_value(creature_hp_badges[index], hp_value, true)
-	_set_stat_badge_value(creature_special_badges[index], special_value, false)
 	var elements: PackedStringArray = CATALOG.elements_for_texture(creature_data[index])
 	var races: PackedStringArray = CATALOG.races_for_texture(creature_data[index])
+	var rarity_index := CATALOG.rarity_for_texture(creature_data[index])
+	creature_rarity_frames[index].add_theme_stylebox_override("panel", _shop_card_outline_style(SHOP_RARITY_COLORS[clampi(rarity_index, 0, SHOP_RARITY_COLORS.size() - 1)]))
+	creature_rarity_frames[index].visible = true
 	creature_element_icons[index].texture = load(TRAIT_ICON_PATHS[elements[0]]) as Texture2D
 	creature_race_icons[index].texture = load(TRAIT_ICON_PATHS[races[0]]) as Texture2D
-	creature_extra_trait_icons[index].visible = elements.size() > 1
-	if elements.size() > 1:
-		creature_extra_trait_icons[index].texture = load(TRAIT_ICON_PATHS[elements[1]]) as Texture2D
+	creature_element_icon_backgrounds[index].modulate = TRAIT_COLORS.get(elements[0], Color("737983"))
+	creature_element_icon_backgrounds[index].visible = true
+	creature_race_icon_backgrounds[index].visible = false
+	var secondary_trait := elements[1] if elements.size() > 1 else races[0]
+	creature_extra_trait_icons[index].texture = load(TRAIT_ICON_PATHS[secondary_trait]) as Texture2D
+	creature_extra_trait_icons[index].visible = true
+	creature_extra_icon_backgrounds[index].modulate = TRAIT_COLORS.get(secondary_trait, Color("737983"))
+	creature_extra_icon_backgrounds[index].visible = true
 	creature_element_icons[index].visible = true
-	creature_race_icons[index].visible = true
-	creature_trait_backgrounds[index].texture = _make_trait_background(elements)
+	creature_race_icons[index].visible = false
+	creature_trait_backgrounds[index].texture = _make_rarity_background(rarity_index)
 	creature_trait_backgrounds[index].visible = true
 
 
@@ -1488,8 +1571,8 @@ func _render_shop_card(index: int) -> void:
 		shop_lock_overlays[index].visible = shop_locked
 		shop_attribute_layers[index].visible = false
 		shop_creature_overlays[index].visible = false
-		shop_outer_layers[index].visible = false
-		shop_card_outlines[index].add_theme_stylebox_override("panel", _shop_card_outline_style(Color("737983")))
+		shop_outer_layers[index].visible = true
+		shop_card_outlines[index].visible = false
 		shop_element_icons[index].visible = false
 		shop_extra_trait_icons[index].visible = false
 		shop_race_icons[index].visible = false
@@ -1509,8 +1592,9 @@ func _render_shop_card(index: int) -> void:
 	var is_creature: bool = String(entry["kind"]) == "creature"
 	var texture_path: String = entry["path"]
 	var rarity_index := int(entry.get("rarity", CATALOG.rarity_for_texture(texture_path)))
-	shop_card_outlines[index].add_theme_stylebox_override("panel", _shop_card_outline_style(SHOP_RARITY_COLORS[clampi(rarity_index, 0, 2)]))
-	shop_trait_backgrounds[index].texture = _make_rarity_background(rarity_index)
+	var display_rarity_index := _shop_display_rarity_index(entry)
+	shop_card_outlines[index].visible = false
+	shop_trait_backgrounds[index].texture = _make_rarity_background(display_rarity_index)
 	shop_trait_backgrounds[index].visible = true
 	shop_sprites[index].texture = load(texture_path) as Texture2D
 	shop_sprites[index].visible = true
@@ -1520,7 +1604,7 @@ func _render_shop_card(index: int) -> void:
 	shop_attribute_layers[index].visible = true
 	shop_attribute_layers[index].texture = load(SHOP_CARD_TEMPLATE_ASSET) as Texture2D
 	shop_attribute_layers[index].modulate = Color.WHITE
-	shop_outer_layers[index].visible = false
+	shop_outer_layers[index].visible = true
 	shop_hp_badges[index].visible = false
 	shop_special_badges[index].visible = false
 	shop_level_labels[index].visible = false
@@ -1540,7 +1624,7 @@ func _render_shop_card(index: int) -> void:
 		shop_hp_labels[index].text = ""
 		shop_special_labels[index].text = ""
 		return
-	var rarity_multiplier := CATALOG.RARITY_STAT_MULTIPLIERS[clampi(rarity_index, 0, 2)]
+	var rarity_multiplier := CATALOG.RARITY_STAT_MULTIPLIERS[clampi(rarity_index, 0, CATALOG.RARITY_STAT_MULTIPLIERS.size() - 1)]
 	shop_attribute_layers[index].modulate = Color.WHITE
 	var hp_value := roundi(CATALOG.base_hp_for_texture(texture_path) * rarity_multiplier)
 	var special_value := roundi(CATALOG.damage_range_for_texture(texture_path).y * rarity_multiplier)
@@ -1649,8 +1733,8 @@ func _make_trait_background(traits: PackedStringArray) -> GradientTexture2D:
 	gradient.colors = colors
 	var texture := GradientTexture2D.new()
 	texture.gradient = gradient
-	texture.width = 128
-	texture.height = 128
+	texture.width = 16
+	texture.height = 16
 	texture.fill = GradientTexture2D.FILL_LINEAR
 	texture.fill_from = Vector2(0.0, 0.0)
 	texture.fill_to = Vector2(1.0, 1.0)
@@ -1661,11 +1745,11 @@ func _make_rarity_background(rarity_index: int) -> GradientTexture2D:
 	var base_color := SHOP_RARITY_COLORS[clampi(rarity_index, 0, SHOP_RARITY_COLORS.size() - 1)]
 	var gradient := Gradient.new()
 	gradient.offsets = PackedFloat32Array([0.0, 1.0])
-	gradient.colors = PackedColorArray([base_color.darkened(0.52), base_color.lightened(0.24)])
+	gradient.colors = PackedColorArray([base_color, base_color.lightened(0.28)])
 	var texture := GradientTexture2D.new()
 	texture.gradient = gradient
-	texture.width = 128
-	texture.height = 128
+	texture.width = 16
+	texture.height = 16
 	texture.fill = GradientTexture2D.FILL_LINEAR
 	texture.fill_from = Vector2.ZERO
 	texture.fill_to = Vector2.ONE

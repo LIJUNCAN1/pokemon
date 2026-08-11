@@ -2,6 +2,7 @@ extends Node
 
 const PREP_SCENE: PackedScene = preload("res://battle_prep.tscn")
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
+const CREATURE_CATALOG = preload("res://scripts/creature_catalog.gd")
 const CREATURES: Array[String] = [
 	"res://素材/图鉴/角色/1 (3).png",
 	"res://素材/图鉴/角色/1 (2).png",
@@ -24,7 +25,7 @@ func _ready() -> void:
 		_creature_entry(CREATURES[0], 0),
 		_creature_entry(CREATURES[1], 1),
 		_creature_entry(CREATURES[2], 2),
-		_creature_entry(CREATURES[3], 0),
+		_creature_entry(CREATURES[3], 4),
 		ITEM_CATALOG.entry_for_id("item", 109),
 	]
 	prep.shop_data = entries
@@ -49,7 +50,8 @@ func _ready() -> void:
 	prep._on_shop_card_gui_input(inspect_event, 2)
 	_assert(prep.card_tooltip.visible, "right-click detail panel must be visible")
 	_assert(CursorManager.inspecting_card, "right-click must switch to the detail cursor")
-	_assert(prep.card_tooltip_rarity.get_theme_color("font_color") == prep.SHOP_RARITY_COLORS[2], "detail rarity text must match the card rarity color")
+	var inspected_rarity := CREATURE_CATALOG.rarity_for_texture(CREATURES[2])
+	_assert(prep.card_tooltip_rarity.get_theme_color("font_color") == prep.SHOP_RARITY_COLORS[inspected_rarity], "detail rarity text must match the card rarity color")
 	await _capture("res://battle_prep_shop_detail.png")
 	inspect_event.pressed = false
 	prep._on_shop_card_gui_input(inspect_event, 2)
@@ -69,28 +71,34 @@ func _ready() -> void:
 	_assert(prep.shop_element_icon_backgrounds[0].texture != null, "attribute frame must come from the exported Aseprite asset")
 	_assert(prep.coin_label.text == "12G", "coin label must reflect GameState immediately")
 	_assert(prep.health_icons.size() == 3, "run health must contain three heart icons")
-	_assert(prep.shop_card_outlines[0].get_theme_stylebox("panel").border_color == prep.SHOP_RARITY_COLORS[0], "normal rarity border color")
-	_assert(prep.shop_card_outlines[1].get_theme_stylebox("panel").border_color == prep.SHOP_RARITY_COLORS[1], "rare rarity border color")
-	_assert(prep.shop_card_outlines[2].get_theme_stylebox("panel").border_color == prep.SHOP_RARITY_COLORS[2], "epic rarity border color")
-	_assert(prep.shop_card_outlines[0].get_theme_stylebox("panel").border_width_left == 4, "rarity border must extend one pixel farther inward")
-	_assert(prep.shop_card_outlines[0].get_theme_stylebox("panel").corner_radius_top_left == 0, "rarity border corners must not leak white pixels")
+	_assert(not prep.shop_card_outlines[0].visible, "shop cards must not draw a second outer outline")
+	_assert(prep.shop_outer_layers[0].visible, "shop cards must use the exported pixel frame")
 	_assert(prep.shop_trait_backgrounds[0].texture is GradientTexture2D, "creature cards must use a rarity gradient")
+	_assert((prep.shop_trait_backgrounds[0].texture as GradientTexture2D).width == 16, "rarity gradient must use pixel-sized color steps")
 	_assert(prep.shop_trait_backgrounds[4].texture is GradientTexture2D, "item cards must use a rarity gradient")
 	_assert(prep.shop_trait_backgrounds[4].visible, "item rarity background must remain visible")
+	_assert((prep.shop_trait_backgrounds[4].texture as GradientTexture2D).gradient.colors[0] == prep.SHOP_RARITY_COLORS[3], "epic items must use the purple global rarity color")
+	_assert(not prep.shop_name_labels[0].text.is_empty() and prep.shop_name_labels[0].z_index > prep.shop_attribute_layers[0].z_index, "shop names must stay visible above the card frame")
+	_assert(prep.shop_price_labels[0].text == "$1" and prep.shop_price_labels[0].z_index > prep.shop_attribute_layers[0].z_index, "shop prices must stay visible above the card frame")
 	_assert(not prep.shop_element_icon_backgrounds[4].visible and not prep.shop_extra_icon_backgrounds[4].visible and not prep.shop_race_icon_backgrounds[4].visible, "item cards must not show trait slots")
 	_assert(prep.lock_label.get_theme_font("font") == prep.source_han_font, "lock text must use the same UI font as the shop header")
 	_assert(is_equal_approx(prep.coin_label.position.y + prep.coin_label.size.y * 0.5, 551.0), "coin amount must align to the shop header center")
 	_assert(is_equal_approx(prep.shop_star_rows[0].position.x, 8.0), "shop stars must be placed at the top-left")
+	_assert(not prep.shop_star_rows[0].get_child(0).visible, "one-star cards must not display a star")
 	_assert(is_equal_approx(prep.creature_star_rows[0].position.x, 7.0), "bench stars must be placed at the top-left")
 	_assert(is_equal_approx(prep.creature_star_rows[4].position.x, 5.0), "team stars must be placed at the top-left")
-	_assert(prep.creature_element_icons[0].position.x < prep.creature_hp_badges[0].position.x, "bench traits must be left of the stat badges")
-	_assert(prep.creature_element_icons[4].position.x < prep.creature_hp_badges[4].position.x, "team traits must match the shop's left-to-right content order")
+	_assert(not prep.creature_hp_badges[0].visible and not prep.creature_special_badges[0].visible, "bench cards must remove red and blue stat boxes")
+	_assert(prep.creature_element_icon_backgrounds[0].visible, "bench traits must use colored icon frames")
+	_assert(prep.creature_rarity_frames[0].visible, "bench cards must show their rarity frame")
+	_assert(prep.creature_star_rows[0].get_child(0).visible and prep.creature_star_rows[0].get_child(1).visible, "two-star creatures must show exactly two stars")
+	_assert(not prep.creature_star_rows[0].get_child(2).visible, "two-star creatures must not show a third star")
 	prep.shop_data[0] = {}
 	prep._render_shop_card(0)
 	_assert(not prep.shop_attribute_layers[0].visible, "sold cards must hide the attribute layer")
 	_assert(prep.shop_sold_out_shades[0].visible, "sold cards must show a black shade")
 	_assert(prep.shop_sold_out_overlays[0].size == Vector2(80, 30), "sold-out stamp must be scaled down by 50 percent")
 	_assert(is_equal_approx(prep.shop_sold_out_overlays[0].rotation, deg_to_rad(-30.0)), "sold-out stamp must rotate 30 degrees to the left")
+	_assert(is_equal_approx(prep.shop_sold_out_overlays[0].position.y + prep.shop_sold_out_overlays[0].size.y * 0.5, 50.0), "sold-out stamp must be centered in the gray portrait area")
 	await _capture("res://battle_prep_shop_sold.png")
 
 	GameState.add_accessory(ITEM_CATALOG.entry_for_id("accessory", 2))
@@ -121,6 +129,8 @@ func _creature_entry(path: String, rarity: int) -> Dictionary:
 
 
 func _capture(path: String) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var error := get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path(path))

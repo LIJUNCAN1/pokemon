@@ -32,6 +32,7 @@ class Fighter:
 	var skill_id := "basic"
 	var skill_name := "基础攻击"
 	var locked_target: Fighter
+	var can_attack := true
 
 
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
@@ -42,6 +43,7 @@ const DESIGN_SIZE := Vector2(1280, 720)
 const FULL_HD_SCALE := Vector2(0.5, 0.5)
 const SCENE_ASSETS := "res://素材/场景/"
 const POKEMON := "res://素材/宝可梦图/"
+const MIMIC_TEXTURE := "res://素材/图鉴/角色/宝箱怪.png"
 const P7_PROJECTILE_SHEET: Texture2D = preload("res://素材/战斗场景/aseprite_export/P7kD08_sheet.png")
 const P7_PROJECTILE_FRAME_SIZE := Vector2i(95, 76)
 const P7_PROJECTILE_FRAME_COUNT := 22
@@ -147,6 +149,8 @@ func _process(delta: float) -> void:
 	for fighter in fighters:
 		if not fighter.alive:
 			continue
+		if not fighter.can_attack:
+			continue
 		var current_charge_rate := fighter.base_charge_rate
 		if fighter.player_side:
 			current_charge_rate *= 1.0 + team_speed_bonus
@@ -192,13 +196,18 @@ func _spawn_teams() -> void:
 			var player_level := GameState.player_team_levels[index] if index < GameState.player_team_levels.size() else 1
 			_create_fighter(player_team[index], Vector2(row_x_positions[column], ROW_POSITIONS[row]), true, index, player_level)
 		if index < enemy_count:
-			GameState.mark_creature_seen(ENEMY_TEAM[index])
-			_create_fighter(ENEMY_TEAM[index], Vector2(row_x_positions[column + 3], ROW_POSITIONS[row]), false, index)
+			if _is_mimic_battle():
+				_create_mimic_fighter(Vector2(row_x_positions[column + 3], ROW_POSITIONS[row]), index)
+			else:
+				GameState.mark_creature_seen(ENEMY_TEAM[index])
+				_create_fighter(ENEMY_TEAM[index], Vector2(row_x_positions[column + 3], ROW_POSITIONS[row]), false, index)
 
 
 func _enemy_count_for_current_node() -> int:
 	if not GameState.map_initialized:
 		return 6
+	if _is_mimic_battle():
+		return 1
 	var node_type := GameState.current_map_node_type()
 	if _is_first_battle_node():
 		return 1
@@ -214,7 +223,40 @@ func _enemy_count_for_current_node() -> int:
 func _is_first_battle_node() -> bool:
 	if not GameState.map_initialized or GameState.battle_victories != 0:
 		return false
-	return GameState.current_map_node_type() in ["battle", "elite", "boss"]
+	return bool(GameState.current_map_node_data().get("opening", false)) or GameState.current_map_node_type() in ["battle", "elite", "boss"]
+
+
+func _is_mimic_battle() -> bool:
+	return GameState.map_initialized and GameState.current_map_node_type() == "chest" and bool(GameState.current_map_node_data().get("mimic", false))
+
+
+func _create_mimic_fighter(center: Vector2, index: int) -> void:
+	# Reuse the battle presentation of a normal fighter, then replace its
+	# gameplay data. Mimics are reward encounters: they can be hit but never act.
+	_create_fighter(ENEMY_TEAM[0], center, false, index)
+	var mimic: Fighter = fighters.back()
+	mimic.texture_path = MIMIC_TEXTURE
+	mimic.sprite.texture = load(MIMIC_TEXTURE) as Texture2D
+	mimic.sprite.size = Vector2(112, 104)
+	mimic.sprite.position = center + Vector2(-56, -82)
+	mimic.sprite.pivot_offset = mimic.sprite.size * 0.5
+	mimic.sprite.scale = Vector2.ONE
+	mimic.base_scale = mimic.sprite.scale
+	mimic.home_position = mimic.sprite.position
+	mimic.can_attack = false
+	mimic.charge = 0.0
+	mimic.base_charge_rate = 0.0
+	mimic.charge_rate = 0.0
+	mimic.skill_name = "沉睡"
+	mimic.charge_frame.visible = false
+	mimic.charge_fill.visible = false
+	if bool(GameState.current_map_node_data().get("opening", false)):
+		mimic.max_hp = maxi(mimic.max_hp, 24)
+	else:
+		mimic.max_hp = maxi(roundi(mimic.max_hp * 1.30), 50)
+	mimic.hp = mimic.max_hp
+	mimic.hp_label.text = str(mimic.hp)
+	_update_charge_bar(mimic)
 
 
 func _create_fighter(texture_path: String, center: Vector2, player_side: bool, index: int, level: int = 1) -> void:
@@ -328,6 +370,7 @@ func _build_hud() -> void:
 			"battle": battle_title = "普 通 战"
 			"elite": battle_title = "精 英 战"
 			"boss": battle_title = "B O S S 战"
+			"chest": battle_title = "宝 箱 怪" if _is_mimic_battle() else battle_title
 	_add_label(battle_title, Rect2(430, 7, 420, 48), 30, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 45)
 	_add_label("我方", Rect2(14, 270, 120, 28), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 45)
 	_add_label("敌方", Rect2(1146, 270, 120, 28), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT, 45)
@@ -389,7 +432,7 @@ func _open_battle_settings() -> void:
 
 
 func _perform_skill(attacker: Fighter) -> void:
-	if battle_over or not attacker.alive:
+	if battle_over or not attacker.alive or not attacker.can_attack:
 		return
 	var targets := _living_fighters(not attacker.player_side)
 	if targets.is_empty():
@@ -924,6 +967,8 @@ func _finish_battle(player_won: bool) -> void:
 		victory_reward_text = "战斗金币：+%d（基础 %d" % [int(gold_reward["total"]), int(gold_reward["base"])]
 		if int(gold_reward["node_bonus"]) > 0:
 			victory_reward_text += "，节点 +%d" % int(gold_reward["node_bonus"])
+		if int(gold_reward["accessory_gold"]) > 0:
+			victory_reward_text += "，饰品 +%d" % int(gold_reward["accessory_gold"])
 		victory_reward_text += "，利息 +%d）" % int(gold_reward["interest"])
 		GameState.battle_victories += 1
 		if GameState.battle_victories % 3 == 0:
@@ -932,6 +977,8 @@ func _finish_battle(player_won: bool) -> void:
 			GameState.complete_current_map_node()
 			if first_battle_victory:
 				victory_reward_text += "\n" + _grant_first_battle_chest()
+			elif _is_mimic_battle():
+				victory_reward_text += "\n" + _grant_mimic_chest_reward()
 	else:
 		GameState.lose_run_life()
 		if GameState.run_lives > 0 and GameState.map_initialized:
@@ -972,11 +1019,11 @@ func _finish_battle(player_won: bool) -> void:
 func _grant_first_battle_chest() -> String:
 	var reward_rng := RandomNumberGenerator.new()
 	reward_rng.seed = GameState.map_seed + 17041
-	var first_entry := ITEM_CATALOG.random_entry("item", reward_rng)
-	var second_entry := ITEM_CATALOG.random_entry("item", reward_rng)
+	var first_entry := ITEM_CATALOG.random_entry("item", reward_rng, -1, "chest")
+	var second_entry := ITEM_CATALOG.random_entry("item", reward_rng, -1, "chest")
 	var reroll_attempts := 0
 	while int(second_entry.get("id", 0)) == int(first_entry.get("id", 0)) and reroll_attempts < 8:
-		second_entry = ITEM_CATALOG.random_entry("item", reward_rng)
+		second_entry = ITEM_CATALOG.random_entry("item", reward_rng, -1, "chest")
 		reroll_attempts += 1
 	GameState.add_item(first_entry)
 	GameState.add_item(second_entry)
@@ -985,12 +1032,53 @@ func _grant_first_battle_chest() -> String:
 	return "获得开局宝箱：%s、%s，金币 +%d" % [String(first_entry["name"]), String(second_entry["name"]), coin_reward]
 
 
+func _grant_mimic_chest_reward() -> String:
+	var reward_rng := RandomNumberGenerator.new()
+	reward_rng.seed = GameState.map_seed + GameState.current_map_node * 3571 + GameState.floor * 101
+	var chest_roll := reward_rng.randi_range(0, 9)
+	if chest_roll < 4:
+		var gold_range := GameState.chest_gold_range()
+		var gold := reward_rng.randi_range(gold_range.x, gold_range.y)
+		GameState.add_coins(gold)
+		return "宝箱奖励：金币 +%d" % gold
+	if chest_roll < 8:
+		var kind := "accessory" if reward_rng.randf() < 0.35 else "item"
+		var entry := ITEM_CATALOG.random_entry(kind, reward_rng, -1, "chest")
+		return "宝箱奖励：%s" % _store_item_reward(entry, kind)
+	var textures: Array[String] = []
+	for texture_path in CATALOG.all_textures():
+		if int(GameState.creature_shop_pool.get(texture_path, 0)) > 0:
+			textures.append(texture_path)
+	if textures.is_empty():
+		GameState.add_coins(5)
+		return "宝箱奖励：共享角色池已空，金币 +5"
+	var texture_path: String = textures[reward_rng.randi_range(0, textures.size() - 1)]
+	if GameState.add_creature_reward(texture_path):
+		GameState.take_creature_from_pool(texture_path)
+		GameState.mark_creature_seen(texture_path)
+		return "宝箱奖励：%s加入备战席" % CATALOG.name_for_texture(texture_path)
+	var rarity := CATALOG.rarity_for_texture(texture_path)
+	var sell_value := GameState.creature_sell_value(rarity, 1)
+	GameState.add_coins(sell_value)
+	return "宝箱奖励：队伍已满，角色转化为金币 +%d" % sell_value
+
+
 func _grant_battle_streak_item() -> String:
 	var reward_rng := RandomNumberGenerator.new()
 	reward_rng.seed = GameState.map_seed + GameState.battle_victories * 7919 + GameState.current_map_node * 101
-	var entry := ITEM_CATALOG.random_entry("item", reward_rng)
-	GameState.add_item(entry)
-	return String(entry["name"])
+	var node_type := GameState.current_map_node_type() if GameState.map_initialized else "battle"
+	var source := node_type if node_type in ["elite", "boss"] else "battle"
+	var entry := ITEM_CATALOG.random_entry("item", reward_rng, -1, source)
+	return _store_item_reward(entry, "item")
+
+
+func _store_item_reward(entry: Dictionary, kind: String) -> String:
+	var stored := GameState.add_accessory(entry) if kind == "accessory" else GameState.add_item(entry)
+	if not stored.is_empty():
+		return String(entry["name"])
+	var conversion := int(entry.get("sell_price", 1))
+	GameState.add_coins(conversion)
+	return "%s（达到上限，转化为 %d 金币）" % [String(entry["name"]), conversion]
 
 
 func _create_result_button(text: String, position: Vector2) -> Button:

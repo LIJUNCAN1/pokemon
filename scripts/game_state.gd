@@ -1,6 +1,7 @@
 extends Node
 
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
+const CREATURE_CATALOG = preload("res://scripts/creature_catalog.gd")
 const ACHIEVEMENT_TROPHY := 1
 const ACHIEVEMENT_MEDAL := 2
 const ACHIEVEMENT_STAR := 4
@@ -15,12 +16,14 @@ const EVENT_GOLD_LARGE := 5
 const CHEST_GOLD_MIN := 4
 const CHEST_GOLD_MAX := 6
 const FIRST_BATTLE_CHEST_GOLD := 3
-const CREATURE_BUY_PRICES: Array[int] = [1, 2, 3]
+const CREATURE_BUY_PRICES: Array[int] = [1, 2, 3, 4, 5]
 const CREATURE_STAR_COPIES: Array[int] = [1, 3, 9]
 const CREATURE_SELL_RATE := 0.70
 const SAVE_PATH := "user://run_save.cfg"
 const MAX_FLOORS := 9
 const FLOORS_PER_REGION := 3
+const MAX_RUN_LIVES := 3
+const CREATURE_POOL_COPIES: Array[int] = [10, 8, 6, 4, 2]
 
 var coins := STARTING_COINS
 var run_lives := 3
@@ -33,6 +36,7 @@ var player_team_levels: Array[int] = []
 var player_bench_levels: Array[int] = []
 var item_inventory: Array[Dictionary] = []
 var accessory_inventory: Array[Dictionary] = []
+var creature_shop_pool: Dictionary = {}
 var seen_creatures: Dictionary = {}
 var seen_items: Dictionary = {}
 var seen_accessories: Dictionary = {}
@@ -66,6 +70,7 @@ func reset_run() -> void:
 	player_bench_levels.clear()
 	item_inventory.clear()
 	accessory_inventory.clear()
+	_reset_creature_shop_pool()
 	map_initialized = false
 	map_intro_played = false
 	map_seed = 0
@@ -106,6 +111,8 @@ func _normalized_creature_levels(creatures: Array[String], levels: Array[int]) -
 
 func add_item(value: Variant) -> Dictionary:
 	var entry := ITEM_CATALOG.normalize_entry(value, "item")
+	if not can_add_item(entry):
+		return {}
 	item_inventory.append(entry)
 	mark_item_seen(entry)
 	save_run()
@@ -114,11 +121,37 @@ func add_item(value: Variant) -> Dictionary:
 
 func add_accessory(value: Variant) -> Dictionary:
 	var entry := ITEM_CATALOG.normalize_entry(value, "accessory")
+	if not can_add_accessory(entry):
+		return {}
 	accessory_inventory.append(entry)
 	mark_item_seen(entry)
-	add_event_attribute(String(entry["effect_type"]), float(entry["amount"]))
+	if String(entry["effect_type"]) in ["health", "damage", "charge"]:
+		add_event_attribute(String(entry["effect_type"]), float(entry["amount"]))
 	save_run()
 	return entry
+
+
+func can_add_item(value: Variant) -> bool:
+	var entry := ITEM_CATALOG.normalize_entry(value, "item")
+	return _inventory_entry_count(item_inventory, entry) < int(entry.get("stack_limit", 1))
+
+
+func can_add_accessory(value: Variant) -> bool:
+	var entry := ITEM_CATALOG.normalize_entry(value, "accessory")
+	var group := String(entry.get("exclusive_group", ""))
+	if not group.is_empty():
+		for owned in accessory_inventory:
+			if String(owned.get("exclusive_group", "")) == group:
+				return false
+	return _inventory_entry_count(accessory_inventory, entry) < int(entry.get("stack_limit", 1))
+
+
+func _inventory_entry_count(inventory: Array[Dictionary], entry: Dictionary) -> int:
+	var count := 0
+	for owned in inventory:
+		if int(owned.get("id", -1)) == int(entry.get("id", -2)):
+			count += 1
+	return count
 
 
 func use_item(index: int) -> String:
@@ -130,7 +163,18 @@ func use_item(index: int) -> String:
 		"next_health": next_battle_health_bonus += amount
 		"next_damage": next_battle_damage_bonus += amount
 		"next_charge": next_battle_charge_bonus += amount
+		"next_all":
+			next_battle_health_bonus += amount
+			next_battle_damage_bonus += amount
+			next_battle_charge_bonus += amount
+		"run_health": run_health_bonus += amount
+		"run_damage": run_damage_bonus += amount
 		"coins": add_coins(roundi(amount))
+		"restore_life":
+			if run_lives < MAX_RUN_LIVES:
+				restore_run_life(roundi(amount))
+			else:
+				add_coins(3)
 		_: return "该道具暂时无法使用"
 	item_inventory.remove_at(index)
 	save_run()
@@ -177,13 +221,29 @@ func battle_gold_breakdown(node_type: String) -> Dictionary:
 		"elite": node_bonus = ELITE_BATTLE_BONUS + floori(float(floor - 1) / FLOORS_PER_REGION)
 		"boss": node_bonus = BOSS_BATTLE_BONUS + maxi(region - 1, 0)
 	var scaled_base := BATTLE_BASE_GOLD + floori(float(floor - 1) / FLOORS_PER_REGION)
-	var interest := mini(coins / 10, MAX_INTEREST_GOLD)
+	var interest_cap := MAX_INTEREST_GOLD + roundi(accessory_effect_total("interest_cap"))
+	var interest := mini(coins / 10, interest_cap)
+	var accessory_gold := roundi(accessory_effect_total("battle_gold"))
 	return {
 		"base": scaled_base,
 		"node_bonus": node_bonus,
 		"interest": interest,
-		"total": scaled_base + node_bonus + interest,
+		"accessory_gold": accessory_gold,
+		"total": scaled_base + node_bonus + interest + accessory_gold,
 	}
+
+
+func accessory_effect_total(effect_type: String) -> float:
+	var total := 0.0
+	for entry in accessory_inventory:
+		if String(entry.get("effect_type", "")) == effect_type:
+			total += float(entry.get("amount", 0.0))
+	return total
+
+
+func shop_price(base_price: int) -> int:
+	var discount := roundi(accessory_effect_total("shop_discount"))
+	return maxi(1, base_price - discount)
 
 
 func floor_in_region() -> int:
@@ -216,6 +276,45 @@ func lose_run_life() -> int:
 		pending_life_loss_animation = true
 	save_run()
 	return run_lives
+
+
+func restore_run_life(amount := 1) -> int:
+	run_lives = mini(run_lives + maxi(amount, 0), MAX_RUN_LIVES)
+	save_run()
+	return run_lives
+
+
+func _reset_creature_shop_pool() -> void:
+	creature_shop_pool.clear()
+	for texture_path in CREATURE_CATALOG.all_textures():
+		var rarity := CREATURE_CATALOG.rarity_for_texture(texture_path)
+		creature_shop_pool[texture_path] = CREATURE_POOL_COPIES[rarity]
+
+
+func available_creatures_for_rarity(rarity: int) -> Array[String]:
+	var result: Array[String] = []
+	for texture_path in CREATURE_CATALOG.textures_for_rarity(rarity):
+		if int(creature_shop_pool.get(texture_path, 0)) > 0:
+			result.append(texture_path)
+	return result
+
+
+func take_creature_from_pool(texture_path: String, count := 1) -> bool:
+	var available := int(creature_shop_pool.get(texture_path, 0))
+	if count <= 0 or available < count:
+		return false
+	creature_shop_pool[texture_path] = available - count
+	save_run()
+	return true
+
+
+func return_creature_to_pool(texture_path: String, count := 1) -> void:
+	if texture_path.is_empty() or count <= 0:
+		return
+	var rarity := CREATURE_CATALOG.rarity_for_texture(texture_path)
+	var maximum := CREATURE_POOL_COPIES[rarity]
+	creature_shop_pool[texture_path] = mini(int(creature_shop_pool.get(texture_path, 0)) + count, maximum)
+	save_run()
 
 
 func add_creature_reward(texture_path: String) -> bool:
@@ -362,6 +461,7 @@ func save_run() -> void:
 	config.set_value("run", "bench_levels", player_bench_levels)
 	config.set_value("run", "items", item_inventory)
 	config.set_value("run", "accessories", accessory_inventory)
+	config.set_value("run", "creature_shop_pool", creature_shop_pool)
 	config.set_value("run", "map_initialized", map_initialized)
 	config.set_value("run", "map_intro_played", map_intro_played)
 	config.set_value("run", "map_seed", map_seed)
@@ -397,6 +497,9 @@ func load_run() -> bool:
 	player_bench_levels = _int_array(config.get_value("run", "bench_levels", []))
 	item_inventory = _dictionary_array(config.get_value("run", "items", []))
 	accessory_inventory = _dictionary_array(config.get_value("run", "accessories", []))
+	creature_shop_pool = Dictionary(config.get_value("run", "creature_shop_pool", {}))
+	if creature_shop_pool.is_empty():
+		_reset_creature_shop_pool()
 	map_initialized = bool(config.get_value("run", "map_initialized", false))
 	map_intro_played = bool(config.get_value("run", "map_intro_played", false))
 	map_seed = int(config.get_value("run", "map_seed", 0))

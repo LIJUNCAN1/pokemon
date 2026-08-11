@@ -53,7 +53,7 @@ func _test_catalog() -> void:
 	var repeated_counts := CATALOG.count_synergies([repeated_creature, repeated_creature])
 	for trait_name in repeated_traits:
 		_check(int(repeated_counts.get(trait_name, 0)) == 1, "相同角色上阵多只时羁绊只能计算一次：%s" % trait_name)
-	for rarity in 3:
+	for rarity in CATALOG.RARITY_NAMES.size():
 		_check(not CATALOG.textures_for_rarity(rarity).is_empty(), "品质 %d 的卡池为空" % rarity)
 
 
@@ -63,23 +63,44 @@ func _test_map_and_first_battle() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	_check(GameState.map_initialized and GameState.map_nodes.size() == 23, "地图必须生成 23 个节点")
-	_check(GameState.current_map_node_type() == "start", "新游戏必须停留在起点")
+	_check(GameState.current_map_node_type() == "chest", "新游戏必须停留在宝箱关")
+	_check(bool(GameState.current_map_node_data().get("mimic", false)), "首节点必须固定为宝箱怪战斗")
+	_check(bool(GameState.current_map_node_data().get("opening", false)), "首节点必须带有开局奖励标记")
+	_check(map._route_edges_are_ordered(GameState.map_edges), "相邻地图列之间的路线不能交叉打结")
+	for illustration_path in map.EVENT_STORY_ILLUSTRATIONS + [map.EVENT_CHEST_ILLUSTRATION]:
+		_check(ResourceLoader.exists(illustration_path), "事件占位插画无法加载：%s" % illustration_path)
+	map.chest_event = false
+	map.rest_event = false
+	map._prepare_event_rewards()
+	for story_id in map.EVENT_STORY_ILLUSTRATIONS.size():
+		map.event_story_id = story_id
+		map.event_stage_id = "root"
+		var story_data: Dictionary = map._event_stage_data()
+		_check(Array(story_data.get("options", [])).size() == 3, "每个随机事件根节点必须提供三个路线选择：%d" % story_id)
+	map.rest_event = true
+	map.event_stage_id = "root"
+	var rest_data: Dictionary = map._event_stage_data()
+	_check(Array(rest_data.get("options", [])).size() == 3, "休息节点必须提供恢复、训练和补给三种选择")
+	map.rest_event = false
+	for _iteration in 100:
+		_check(map._route_edges_are_ordered(map._generate_route_edges()), "随机路线模板不能生成交叉连线")
 	_check(String(GameState.map_nodes[22]["type"]) != "boss", "区域第 1 层不能生成区域 BOSS")
+	var generated_types: Dictionary = {}
+	for node in GameState.map_nodes:
+		generated_types[String(node["type"])] = true
+	for required_type in ["event", "chest", "shop", "rest", "battle"]:
+		_check(generated_types.has(required_type), "随机地图必须包含%s节点" % required_type)
 	floor_one_edges = GameState.map_edges.duplicate(true)
 	map.queue_free()
 	await get_tree().process_frame
 	var prep := PREP_SCENE.instantiate()
 	add_child(prep)
 	await get_tree().process_frame
-	_check(_tree_has_label(prep, "开始远征"), "起点备战按钮必须显示开始远征")
+	_check(_tree_has_label(prep, "挑战宝箱怪"), "开局备战按钮必须显示挑战宝箱怪")
 	_check(not _tree_has_label(prep, "第 1 天"), "备战界面不能保留旧天数文本")
-	prep.call("_leave_start")
-	_check(not GameState.is_map_node_completed(0), "空队伍不能离开起点")
 	prep.queue_free()
 	await get_tree().process_frame
 
-	GameState.complete_current_map_node()
-	GameState.set_current_map_node(1)
 	var test_creature := NEW_ROOT + "1 (3).png"
 	GameState.set_player_team([test_creature], [1])
 	var coins_before := GameState.coins
@@ -96,10 +117,14 @@ func _test_map_and_first_battle() -> void:
 		else:
 			enemy_count += 1
 	_check(player_count == 1, "战斗必须载入玩家队伍")
-	_check(enemy_count == 1, "首战必须只有 1 名敌人")
+	_check(enemy_count == 1, "宝箱怪战斗必须只有 1 名敌人")
+	for fighter in battle.fighters:
+		if not fighter.player_side:
+			_check(not fighter.can_attack, "宝箱怪不能获得充能或发动攻击")
+			_check(fighter.texture_path.ends_with("宝箱怪.png") and fighter.sprite.scale.x > 0.0, "宝箱怪应保持素材原始朝向，面向我方")
 	battle.call("_finish_battle", true)
 	_check(GameState.battle_victories == 1, "首战胜利次数没有记录")
-	_check(GameState.is_map_node_completed(1), "胜利后必须完成当前地图节点")
+	_check(GameState.is_map_node_completed(0), "胜利后必须完成开局宝箱节点")
 	_check(GameState.item_inventory.size() == 2, "首战宝箱必须发放 2 个不同道具")
 	_check(GameState.coins == coins_before + GameState.BATTLE_BASE_GOLD + GameState.FIRST_BATTLE_CHEST_GOLD, "首战金币奖励不正确")
 	battle.battle_music.stop()
@@ -135,12 +160,19 @@ func _test_map_and_first_battle() -> void:
 
 
 func _test_save_and_floor_advance() -> void:
+	var pool_creature: String = CATALOG.all_textures()[0]
+	var pool_stock_before := int(GameState.creature_shop_pool.get(pool_creature, 0))
+	_check(pool_stock_before > 0, "共享角色池测试角色必须有库存")
+	_check(GameState.take_creature_from_pool(pool_creature), "共享角色池无法扣除角色")
+	var saved_pool_stock := pool_stock_before - 1
 	GameState.save_run()
 	var saved_coins := GameState.coins
 	GameState.coins = 0
+	GameState.creature_shop_pool[pool_creature] = 0
 	_check(GameState.load_run(), "本地远征存档无法读取")
 	_check(GameState.coins == saved_coins, "继续游戏没有恢复金币")
 	_check(GameState.player_team.size() == 1, "继续游戏没有恢复队伍")
+	_check(int(GameState.creature_shop_pool.get(pool_creature, 0)) == saved_pool_stock, "继续游戏没有恢复共享角色池库存")
 	_check(GameState.advance_floor(), "完成首层后无法进入下一层")
 	_check(GameState.floor == 2 and GameState.region == 1, "第二层区域信息不正确")
 	_check(not GameState.map_initialized, "进入下一层时旧地图没有清空")

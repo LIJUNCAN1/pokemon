@@ -135,7 +135,10 @@ func _create_item_slot(entry: Dictionary, index: int) -> void:
 	var label := _add_label(slot, String(entry["name"]), Rect2(66, 3, 86, 38), 10, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var rarity_label := _add_label(slot, ITEM_CATALOG.RARITY_NAMES[rarity], Rect2(66, 40, 86, 23), 10, rarity_color.lightened(0.18), HORIZONTAL_ALIGNMENT_CENTER)
-	slot.tooltip_text = "%s\n%s" % [String(entry["name"]), String(entry["effect"])]
+	var owned_count := _owned_entry_count(entry)
+	var stack_limit := int(entry.get("stack_limit", 1))
+	var rule_text := "唯一饰品" if not String(entry.get("exclusive_group", "")).is_empty() else "持有 %d/%d" % [owned_count, stack_limit]
+	slot.tooltip_text = "%s\n%s\n%s" % [String(entry["name"]), String(entry["effect"]), rule_text]
 	if active_kind == "item":
 		var use_button := Button.new()
 		use_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -145,6 +148,15 @@ func _create_item_slot(entry: Dictionary, index: int) -> void:
 		use_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		use_button.pressed.connect(_use_item.bind(index))
 		slot.add_child(use_button)
+
+
+func _owned_entry_count(entry: Dictionary) -> int:
+	var inventory: Array = GameState.accessory_inventory if active_kind == "accessory" else GameState.item_inventory
+	var count := 0
+	for owned in inventory:
+		if int(owned.get("id", -1)) == int(entry.get("id", -2)):
+			count += 1
+	return count
 
 
 func _create_tab(parent: Control, text: String, position: Vector2, kind: String) -> Button:

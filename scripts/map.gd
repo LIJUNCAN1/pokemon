@@ -11,6 +11,16 @@ const EVENT := "res://素材/事件/"
 const EVENT_ILLUSTRATION_FRAME := EVENT + "aseprite_export/event_illustration_frame.png"
 const EVENT_OPTION_FRAME := EVENT + "aseprite_export/event_option.png"
 const EVENT_TEXT_BOX := EVENT + "aseprite_export/event_text_box.png"
+const EVENT_PLACEHOLDER_ROOT := "res://assets/event_placeholders/"
+const EVENT_STORY_ILLUSTRATIONS: Array[String] = [
+	EVENT_PLACEHOLDER_ROOT + "moonlit_ruins.jpg",
+	EVENT_PLACEHOLDER_ROOT + "storm_station.jpg",
+	EVENT_PLACEHOLDER_ROOT + "hatching_garden.jpg",
+	EVENT_PLACEHOLDER_ROOT + "lantern_market.jpg",
+	EVENT_PLACEHOLDER_ROOT + "snow_rescue.jpg",
+	EVENT_PLACEHOLDER_ROOT + "forgotten_chest.jpg",
+]
+const EVENT_CHEST_ILLUSTRATION := EVENT_PLACEHOLDER_ROOT + "forgotten_chest.jpg"
 const SCENE_ASSETS := "res://素材/场景/"
 const MAP_ASSETS := "res://素材/地图/"
 const POKEMON := "res://素材/宝可梦图/"
@@ -100,6 +110,7 @@ var event_creature_name := ""
 var event_result_text := ""
 var event_result_kind := "story"
 var chest_event := false
+var rest_event := false
 var chest_coin_amount := 0
 var node_info_detail: Label
 var node_info_hint: Label
@@ -121,7 +132,14 @@ func _ready() -> void:
 	source_han_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	source_han_font.oversampling = FULL_HD_SCALE.x
 	source_han_font.allow_system_fallback = false
-	if not GameState.map_initialized or GameState.map_nodes.size() != 23 or GameState.map_nodes[0].get("position") != Vector2(139, 450):
+	var opening_node_valid := (
+		GameState.map_initialized
+		and GameState.map_nodes.size() == 23
+		and String(GameState.map_nodes[0].get("type", "")) == "chest"
+		and bool(GameState.map_nodes[0].get("mimic", false))
+		and _route_edges_are_ordered(GameState.map_edges)
+	)
+	if not opening_node_valid:
 		_generate_map()
 	input_locked = not GameState.map_intro_played
 	_build_interface()
@@ -185,61 +203,108 @@ func _generate_map() -> void:
 	var seed_value := rng.randi() ^ (GameState.floor * 104729)
 	rng.seed = seed_value
 	var nodes: Array[Dictionary] = []
+	var middle_types := _shuffled_middle_types()
+	var mimic_columns: Dictionary = {}
 	for spec in _reference_node_specs():
 		var node_id := int(spec["id"])
-		var node_type := String(spec["type"])
+		var column := int(spec["column"])
+		var node_type := "chest" if node_id == 0 else String(spec["type"])
 		if node_id == 22:
 			node_type = "boss" if GameState.is_region_boss_floor() else "elite"
 		elif node_id > 0:
-			node_type = _random_node_type(int(spec["column"]), node_id)
-		nodes.append({
+			node_type = middle_types[node_id - 1]
+		var position: Vector2 = spec["center"]
+		if node_id > 0 and node_id < 22:
+			position += Vector2(rng.randi_range(-18, 18), rng.randi_range(-28, 28))
+			position.y = clampf(position.y, 280.0, 620.0)
+		var node := {
 			"id": node_id,
-			"column": spec["column"],
+			"column": column,
 			"type": node_type,
-			"position": spec["center"],
-		})
+			"position": position,
+		}
+		if node_id == 0:
+			node["mimic"] = true
+			node["opening"] = true
+		elif node_type == "chest" and not mimic_columns.has(column) and not mimic_columns.has(column - 1) and rng.randf() < 0.20:
+			node["mimic"] = true
+			mimic_columns[column] = true
+		nodes.append(node)
 	var edges := _generate_route_edges()
 	GameState.set_map_data(seed_value, nodes, edges)
 
 
-func _random_node_type(column: int, node_id: int) -> String:
-	# The first route always exposes a real combat so the opening encounter
-	# remains deterministic; later columns and floors are seeded per run.
-	if GameState.floor == 1 and node_id in [1, 3]:
-		return "battle"
-	var pool: Array[String] = ["battle", "battle", "event", "rest", "chest", "shop"]
-	if column >= 3:
-		pool.append("elite")
-	return pool[rng.randi_range(0, pool.size() - 1)]
+func _shuffled_middle_types() -> Array[String]:
+	# Each floor keeps a useful content mix, while the locations change with
+	# the saved map seed. This prevents all-combat or no-event floors.
+	var result: Array[String] = [
+		"battle", "battle", "battle", "battle", "battle", "battle", "battle", "battle", "battle",
+		"event", "event", "event",
+		"chest", "chest", "chest",
+		"shop", "shop",
+		"rest", "rest",
+		"elite", "elite",
+	]
+	for index in range(result.size() - 1, 0, -1):
+		var swap_index := rng.randi_range(0, index)
+		var value := result[index]
+		result[index] = result[swap_index]
+		result[swap_index] = value
+	return result
 
 
 func _generate_route_edges() -> Dictionary:
 	var edges: Dictionary = {0: [1, 2, 3], 22: []}
+	# Every template preserves vertical order. Routes may split or merge at a
+	# shared node, but an upper route can never cross beneath a lower route.
+	var route_patterns: Array = [
+		[[0], [1], [2]],
+		[[0, 1], [1], [2]],
+		[[0], [0, 1], [2]],
+		[[0], [1, 2], [2]],
+		[[0], [1], [1, 2]],
+		[[0, 1], [1, 2], [2]],
+		[[0], [0, 1], [1, 2]],
+		[[0], [0, 1, 2], [2]],
+	]
 	for column in range(1, 7):
 		var current_start := 1 + (column - 1) * 3
 		var next_start := current_start + 3
-		var incoming: Dictionary = {}
+		var pattern: Array = route_patterns[rng.randi_range(0, route_patterns.size() - 1)]
 		for row in 3:
 			var from_id := current_start + row
-			var targets: Array[int] = [next_start + row]
-			if rng.randf() < 0.58:
-				var adjacent_row := clampi(row + (-1 if rng.randf() < 0.5 else 1), 0, 2)
-				var adjacent_id := next_start + adjacent_row
-				if adjacent_id not in targets:
-					targets.append(adjacent_id)
+			var targets: Array[int] = []
+			for target_row in pattern[row]:
+				targets.append(next_start + int(target_row))
 			edges[from_id] = targets
-			for target_id in targets:
-				incoming[target_id] = true
-		for row in 3:
-			var required_id := next_start + row
-			if not incoming.has(required_id):
-				var source_id := current_start + row
-				var source_targets: Array = edges[source_id]
-				source_targets.append(required_id)
-				edges[source_id] = source_targets
 	for node_id in range(19, 22):
 		edges[node_id] = [22]
 	return edges
+
+
+func _route_edges_are_ordered(edges: Dictionary) -> bool:
+	if edges.is_empty():
+		return false
+	for column in range(1, 7):
+		var current_start := 1 + (column - 1) * 3
+		var next_start := current_start + 3
+		var previous_target_row := -1
+		for source_row in 3:
+			var source_id := current_start + source_row
+			var targets: Array = edges.get(source_id, [])
+			if targets.is_empty():
+				return false
+			var sorted_target_rows: Array[int] = []
+			for target_id in targets:
+				var target_row := int(target_id) - next_start
+				if target_row < 0 or target_row > 2:
+					return false
+				sorted_target_rows.append(target_row)
+			sorted_target_rows.sort()
+			if sorted_target_rows[0] < previous_target_row:
+				return false
+			previous_target_row = sorted_target_rows[sorted_target_rows.size() - 1]
+	return true
 
 
 func _reference_node_specs() -> Array[Dictionary]:
@@ -360,7 +425,7 @@ func _add_dashed_path(start: Vector2, finish: Vector2) -> void:
 
 func _build_nodes() -> void:
 	var selectable := _selectable_node_ids()
-	for spec in _reference_node_specs():
+	for spec in GameState.map_nodes:
 		var node_id := int(spec["id"])
 		var node_type := String(spec["type"])
 		var center := _node_position(node_id)
@@ -380,7 +445,7 @@ func _build_nodes() -> void:
 		button.z_index = 40
 		button.disabled = input_locked
 		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if node_id in selectable else Control.CURSOR_ARROW
-		button.tooltip_text = String(NODE_LABELS.get(spec["type"], "节点"))
+		button.tooltip_text = String(NODE_LABELS.get(node_type, "节点"))
 		button.pressed.connect(_on_node_pressed.bind(node_id))
 		button.mouse_entered.connect(_on_node_hovered.bind(node_id))
 		button.mouse_exited.connect(_on_node_unhovered.bind(node_id))
@@ -527,7 +592,7 @@ func _update_node_info(node_id: int) -> void:
 	if node_info_detail == null or node_id < 0 or node_id >= GameState.map_nodes.size():
 		return
 	var node_type := String(GameState.map_nodes[node_id].get("type", ""))
-	node_info_detail.text = _node_description(node_type)
+	node_info_detail.text = _node_description(node_type, node_id)
 	node_info_hint.text = "点击节点开始" if node_id in _selectable_node_ids() and not input_locked else ""
 
 
@@ -546,14 +611,14 @@ func _build_map_title() -> void:
 	world.add_child(title)
 
 
-func _node_description(node_type: String) -> String:
+func _node_description(node_type: String, node_id := -1) -> String:
 	match node_type:
 		"start": return "整备队伍并开始本次探索"
 		"battle": return "与野生宝可梦战斗，获得奖励"
 		"elite": return "挑战精英敌人，奖励更加丰厚"
 		"shop": return "购买道具并调整队伍状态"
 		"event": return "触发随机事件并作出选择"
-		"chest": return "打开宝箱，获得随机资源"
+		"chest": return "挑战宝箱怪，击败后获得宝箱奖励" if node_id >= 0 and bool(GameState.map_nodes[node_id].get("mimic", false)) else "打开宝箱，获得随机资源"
 		"rest": return "恢复状态，为下一段路程做准备"
 		"boss": return "最终首领战，完成本区域"
 		_: return "选择一个地图节点"
@@ -657,12 +722,16 @@ func _on_node_pressed(node_id: int) -> void:
 
 func _dispatch_current_node() -> void:
 	match GameState.current_map_node_type():
-		"start":
-			get_tree().change_scene_to_file("res://battle_prep.tscn")
 		"chest":
-			chest_event = true
+			if bool(GameState.current_map_node_data().get("mimic", false)):
+				get_tree().change_scene_to_file("res://battle_prep.tscn")
+			else:
+				chest_event = true
+				_show_event_popup()
+		"event":
 			_show_event_popup()
-		"event", "rest":
+		"rest":
+			rest_event = true
 			_show_event_popup()
 		"shop", "battle", "elite", "boss":
 			get_tree().change_scene_to_file("res://battle_prep.tscn")
@@ -696,16 +765,10 @@ func _show_event_popup() -> void:
 	illustration.add_child(illustration_content)
 	_add_event_texture(
 		illustration_content,
-		SCENE_ASSETS + "图层 2.png",
+		_event_illustration_path(),
 		Rect2(Vector2.ZERO, illustration_content.size),
 		TextureRect.STRETCH_KEEP_ASPECT_COVERED,
 	)
-	var light := ColorRect.new()
-	light.position = Vector2(157, 82)
-	light.size = Vector2(150, 102)
-	light.color = Color(0.36, 0.86, 0.60, 0.20)
-	light.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	illustration_content.add_child(light)
 	var story_creature := _add_event_texture(illustration_content, event_creature_path, Rect2(188, 68, 89, 106))
 	story_creature.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
@@ -739,20 +802,31 @@ func _show_event_popup() -> void:
 
 func _prepare_event_rewards() -> void:
 	rng.seed = GameState.map_seed + GameState.current_map_node * 997 + 41
-	event_story_id = rng.randi_range(0, 2)
+	event_story_id = rng.randi_range(0, EVENT_STORY_ILLUSTRATIONS.size() - 1)
 	var creature_index := rng.randi_range(0, EVENT_CREATURES.size() - 1)
 	event_creature_path = EVENT_CREATURES[creature_index]
 	event_creature_name = EVENT_CREATURE_NAMES[creature_index]
-	event_consumable = ITEM_CATALOG.random_entry("item", rng)
-	event_loot = ITEM_CATALOG.random_entry("accessory" if rng.randf() < 0.5 else "item", rng)
+	var reward_source := "chest" if chest_event else "event"
+	event_consumable = ITEM_CATALOG.random_entry("item", rng, -1, reward_source)
+	event_loot = ITEM_CATALOG.random_entry("accessory" if rng.randf() < 0.5 else "item", rng, -1, reward_source)
 	var chest_range := GameState.chest_gold_range()
 	chest_coin_amount = rng.randi_range(chest_range.x, chest_range.y)
 
 
+func _event_illustration_path() -> String:
+	if chest_event:
+		return EVENT_CHEST_ILLUSTRATION
+	if rest_event:
+		return EVENT_STORY_ILLUSTRATIONS[0]
+	return EVENT_STORY_ILLUSTRATIONS[clampi(event_story_id, 0, EVENT_STORY_ILLUSTRATIONS.size() - 1)]
+
+
 func _event_title() -> String:
+	if rest_event:
+		return "旅途营地"
 	if chest_event:
 		return "遗失的宝箱"
-	return ["月光遗迹", "暴雨中的旧驿站", "沉睡的孵化庭院"][event_story_id]
+	return ["月光遗迹", "暴雨中的旧驿站", "沉睡的孵化庭院", "灯火流动集市", "雪原救援", "回声化石洞穴"][event_story_id]
 
 
 func _loot_option(text: String, entry: Dictionary) -> Dictionary:
@@ -774,6 +848,15 @@ func _event_stage_data() -> Dictionary:
 		return {
 			"story": event_result_text,
 			"options": [{"text": "收好所得，继续远征", "tag": "", "kind": event_result_kind, "action": "finish", "detail": "本次事件已经结束。\n奖励已经加入本次远征。"}],
+		}
+	if rest_event:
+		return {
+			"story": "队伍找到了一处安全营地。篝火还留有余温，训练场和补给箱都可以使用，但天亮前只够完成一件事。",
+			"options": [
+				{"text": "围着篝火充分休息", "tag": "（恢复：远征生命 +1）", "kind": "recovery", "amount": 1, "detail": "恢复 1 点远征生命；生命已满时改为获得 3 金币。"},
+				{"text": "支付场地费进行训练", "tag": "（金币 -3，全队伤害 +5%）", "kind": "attribute", "attribute": "damage", "amount": 0.05, "cost": 3, "detail": "支付 3 金币，本轮远征全队伤害永久提高 5%。"},
+				_loot_option("整理营地留下的补给", event_consumable),
+			],
 		}
 	if chest_event:
 		var chest_roll := posmod(GameState.map_seed + GameState.current_map_node * 37, 10)
@@ -838,7 +921,7 @@ func _event_stage_data() -> Dictionary:
 						{"text": "搜索积满灰尘的值班室", "tag": "", "kind": "story", "next": "archive", "detail": "值班室里散落着日志和没有送出的包裹。"},
 						{"text": "回应地下室传来的信号", "tag": "", "kind": "story", "next": "signal", "detail": "信号很微弱，但每隔数秒都会准确重复。"},
 					]}
-		_:
+		2:
 			match event_stage_id:
 				"pool":
 					return {"story": "池水倒映出并不存在的星空。触碰水面时，你感受到两种不同的祝福。", "options": [
@@ -860,6 +943,60 @@ func _event_stage_data() -> Dictionary:
 						{"text": "靠近映着星空的水池", "tag": "", "kind": "story", "next": "pool", "detail": "水面没有波纹，却能听见类似心跳的回响。"},
 						{"text": "进入仍亮着灯的温室", "tag": "", "kind": "story", "next": "greenhouse", "detail": "玻璃之后有一株从未见过的透明植物。"},
 						{"text": "寻找摇篮室里的哭声", "tag": "", "kind": "story", "next": "cradle", "detail": "哭声很轻，而且在听见你的脚步后突然停止。"},
+					]}
+		3:
+			match event_stage_id:
+				"stalls":
+					return {"story": "摊主掀开防雨布，几件来自远方的货物泛着微光。他愿意按旅人价格出售其中一件。", "options": [
+						{"text": "购买摊主推荐的物品", "tag": "（金币 -2，%s：%s）" % ["饰品" if event_loot["kind"] == "accessory" else "道具", event_loot["name"]], "kind": event_loot["kind"], "entry": event_loot, "cost": 2, "detail": event_loot["effect"]},
+						{"text": "帮忙整理货箱换取报酬", "tag": "（金币：+%d）" % gold_small, "kind": "coins", "amount": gold_small, "detail": "帮商队完成工作并获得金币。"},
+					]}
+				"lost_partner":
+					return {"story": "商队正在寻找一只走失的驮兽。你在灯笼照不到的小巷里发现了它留下的脚印。", "options": [
+						{"text": "沿脚印找回走失伙伴", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；共享卡池售罄或队伍已满时转化为金币。"},
+						{"text": "标记路线后返回领取补给", "tag": "（道具：%s）" % event_consumable["name"], "kind": "item", "entry": event_consumable, "detail": event_consumable["effect"]},
+					]}
+				_:
+					return {"story": "夜色中，一支挂满灯笼的流动商队停在岔路口。摊主们交换物资，也在寻找走失的伙伴。", "options": [
+						{"text": "浏览临时摊位", "tag": "", "kind": "story", "next": "stalls", "detail": "查看商队从其他区域带来的货物。"},
+						{"text": "帮助商队寻找走失伙伴", "tag": "", "kind": "story", "next": "lost_partner", "detail": "协助商队可能获得角色卡或补给。"},
+						{"text": "向领队询问安全路线", "tag": "（属性：全队最大生命 +6%）", "kind": "attribute", "attribute": "health", "amount": 0.06, "detail": "商队提供的路线情报提高本轮远征的生存能力。"},
+					]}
+		4:
+			match event_stage_id:
+				"rescue":
+					return {"story": "呼救声来自被雪覆盖的岩缝。一只冻僵的生物正努力保护身旁的补给袋。", "options": [
+						{"text": "救出它并邀请同行", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；共享卡池售罄或队伍已满时转化为金币。"},
+						{"text": "留下食物并带走补给袋", "tag": "（道具：%s）" % event_consumable["name"], "kind": "item", "entry": event_consumable, "detail": event_consumable["effect"]},
+					]}
+				"shelter":
+					return {"story": "避风岩洞里有一堆尚未熄灭的炭火。墙上刻着前一支队伍留下的训练记录。", "options": [
+						{"text": "休息并恢复远征生命", "tag": "（恢复：远征生命 +1）", "kind": "recovery", "amount": 1, "detail": "恢复 1 点生命，生命已满则获得 3 金币。"},
+						{"text": "研读训练记录", "tag": "（属性：全队伤害 +6%）", "kind": "attribute", "attribute": "damage", "amount": 0.06, "detail": "本轮远征全队伤害永久提高。"},
+					]}
+				_:
+					return {"story": "暴雪遮住了道路。远处既有断续的呼救声，也能看见一处避风岩洞和闪烁的旧信标。", "options": [
+						{"text": "寻找暴雪中的呼救声", "tag": "", "kind": "story", "next": "rescue", "detail": "声音很微弱，继续搜索可能消耗更多时间。"},
+						{"text": "先进入避风岩洞", "tag": "", "kind": "story", "next": "shelter", "detail": "岩洞可以恢复状态，也保留着训练记录。"},
+						{"text": "拆下旧信标的充能核心", "tag": "（属性：全队充能速度 +7%）", "kind": "attribute", "attribute": "charge", "amount": 0.07, "detail": "将信标核心用于强化队伍充能。"},
+					]}
+		_:
+			match event_stage_id:
+				"fossil":
+					return {"story": "岩层中露出一块完整化石，旁边还有新鲜抓痕。沉睡的生物似乎仍在附近守护它。", "options": [
+						{"text": "修复化石并等待守护者", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；共享卡池售罄或队伍已满时转化为金币。"},
+						{"text": "带走化石出售", "tag": "（金币：+%d）" % gold_large, "kind": "coins", "amount": gold_large, "detail": "将完整化石换成金币。"},
+					]}
+				"crystal":
+					return {"story": "洞穴深处的晶簇会回应队伍的呼吸。敲下晶体会破坏共鸣，但能带走其中的力量。", "options": [
+						_loot_option("小心取下稳定晶体", event_loot),
+						{"text": "让队伍吸收晶簇共鸣", "tag": "（属性：全队最大生命 +8%）", "kind": "attribute", "attribute": "health", "amount": 0.08, "detail": "本轮远征全队最大生命永久提高。"},
+					]}
+				_:
+					return {"story": "洞口吹出带着矿石气味的暖风。深处传来规律回声，墙壁上同时露出化石与发光晶脉。", "options": [
+						{"text": "沿抓痕寻找完整化石", "tag": "", "kind": "story", "next": "fossil", "detail": "完整化石附近可能有守护它的生物。"},
+						{"text": "深入调查发光晶脉", "tag": "", "kind": "story", "next": "crystal", "detail": "晶脉可能提供饰品或永久属性。"},
+						{"text": "收集入口处的碎矿", "tag": "（金币：+%d）" % gold_medium, "kind": "coins", "amount": gold_medium, "detail": "出售容易取得的碎矿，安全获得金币。"},
 					]}
 
 
@@ -925,20 +1062,45 @@ func _choose_event_option(option: Dictionary) -> void:
 		get_tree().reload_current_scene()
 		return
 	var kind := String(option.get("kind", "story"))
+	var cost := int(option.get("cost", 0))
+	if cost > 0 and not GameState.try_spend_coins(cost):
+		event_description.text = "金币不足，无法选择这项行动。你仍可以选择其他安排。"
+		coin_label.text = "$%d" % GameState.coins
+		return
 	match kind:
 		"attribute":
 			GameState.add_event_attribute(String(option["attribute"]), float(option["amount"]))
 			event_result_text = "你接受了遗迹的力量。%s 已在本次远征中生效。" % String(option["tag"])
 		"item":
 			var item_entry: Dictionary = option.get("entry", event_consumable)
-			GameState.add_item(item_entry)
-			event_result_text = "你收好了%s。%s" % [String(item_entry["name"]), String(item_entry["effect"])]
+			if GameState.add_item(item_entry).is_empty():
+				var item_gold := int(item_entry.get("sell_price", 1))
+				GameState.add_coins(item_gold)
+				event_result_text = "%s 已达到叠加上限，转化为 %d 枚金币。" % [String(item_entry["name"]), item_gold]
+			else:
+				event_result_text = "你收好了%s。%s" % [String(item_entry["name"]), String(item_entry["effect"])]
 		"accessory":
 			var accessory_entry: Dictionary = option.get("entry", event_loot)
-			GameState.add_accessory(accessory_entry)
-			event_result_text = "你佩戴了%s。%s" % [String(accessory_entry["name"]), String(accessory_entry["effect"])]
+			if GameState.add_accessory(accessory_entry).is_empty():
+				var accessory_gold := int(accessory_entry.get("sell_price", 1))
+				GameState.add_coins(accessory_gold)
+				event_result_text = "%s 与现有饰品冲突，转化为 %d 枚金币。" % [String(accessory_entry["name"]), accessory_gold]
+			else:
+				event_result_text = "你佩戴了%s。%s" % [String(accessory_entry["name"]), String(accessory_entry["effect"])]
+		"recovery":
+			if GameState.run_lives < GameState.MAX_RUN_LIVES:
+				GameState.restore_run_life(int(option.get("amount", 1)))
+				event_result_text = "队伍得到充分休息，恢复了 1 点远征生命。"
+			else:
+				GameState.add_coins(3)
+				event_result_text = "队伍状态良好，将剩余补给换成了 3 枚金币。"
 		"creature":
-			if GameState.add_creature_reward(event_creature_path):
+			if int(GameState.creature_shop_pool.get(event_creature_path, 0)) <= 0:
+				var exhausted_value := GameState.creature_sell_value(CREATURE_CATALOG.rarity_for_texture(event_creature_path), 1)
+				GameState.add_coins(exhausted_value)
+				event_result_text = "%s 已从共享卡池中售罄，奖励转化为了 %d 枚金币。" % [event_creature_name, exhausted_value]
+			elif GameState.add_creature_reward(event_creature_path):
+				GameState.take_creature_from_pool(event_creature_path)
 				GameState.mark_creature_seen(event_creature_path)
 				event_result_text = "%s 决定加入你的远征。%s" % [event_creature_name, String(option["tag"])]
 			else:
