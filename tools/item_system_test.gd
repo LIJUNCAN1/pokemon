@@ -1,6 +1,7 @@
 extends Node
 
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
+const CREATURE_CATALOG = preload("res://scripts/creature_catalog.gd")
 
 var failures: Array[String] = []
 
@@ -31,8 +32,8 @@ func _test_economy_rules() -> void:
 	_check(int(boss["total"]) == 12, "Boss battle gold must include the node bonus")
 	GameState.coins = 100
 	_check(int(GameState.battle_gold_breakdown("battle")["interest"]) == 5, "Interest must be capped at 5")
-	var expected_sell_values := [[1, 2, 6], [1, 4, 12], [2, 6, 18]]
-	for rarity in 3:
+	var expected_sell_values := [[1, 2, 6], [1, 4, 12], [2, 6, 18], [2, 8, 25], [3, 10, 31]]
+	for rarity in expected_sell_values.size():
 		for level in 3:
 			_check(GameState.creature_sell_value(rarity, level + 1) == expected_sell_values[rarity][level], "Unexpected sell value for rarity %d level %d" % [rarity, level + 1])
 	GameState.coins = GameState.STARTING_COINS
@@ -41,11 +42,24 @@ func _test_economy_rules() -> void:
 func _test_catalog_assets() -> void:
 	for kind in ["item", "accessory"]:
 		var ids: Array[int] = ITEM_CATALOG.CONSUMABLE_IDS if kind == "item" else ITEM_CATALOG.ACCESSORY_IDS
+		var names: Dictionary = {}
 		for id in ids:
 			var entry := ITEM_CATALOG.entry_for_id(kind, id)
 			_check(ResourceLoader.exists(String(entry["path"])), "Missing normalized icon: %s" % entry["path"])
 			_check(not String(entry["name"]).is_empty(), "Generated name is empty: %s/%d" % [kind, id])
 			_check(not String(entry["effect"]).is_empty(), "Generated effect is empty: %s/%d" % [kind, id])
+			_check(not names.has(entry["name"]), "Formal item names must be unique: %s" % entry["name"])
+			names[entry["name"]] = true
+			_check(int(entry.get("stack_limit", 0)) > 0, "Item stack rule is missing: %s/%d" % [kind, id])
+			_check(not Array(entry.get("sources", [])).is_empty(), "Item drop sources are missing: %s/%d" % [kind, id])
+	var migrated := ITEM_CATALOG.normalize_entry({"id": ITEM_CATALOG.CONSUMABLE_IDS[0], "kind": "item", "name": "旧名称"})
+	_check(String(migrated["name"]) == String(ITEM_CATALOG.entry_for_id("item", ITEM_CATALOG.CONSUMABLE_IDS[0])["name"]), "Old saves must migrate to the formal catalog name")
+	var source_rng := RandomNumberGenerator.new()
+	source_rng.seed = 20260811
+	for source in ["battle", "elite", "boss"]:
+		for _iteration in 40:
+			var reward := ITEM_CATALOG.random_entry("item", source_rng, -1, source)
+			_check(source in Array(reward.get("sources", [])), "Random rewards must respect their drop source: %s" % source)
 
 
 func _test_inventory_effects() -> void:
@@ -57,7 +71,7 @@ func _test_inventory_effects() -> void:
 	_check(GameState.has_seen_item(accessory, "accessory"), "Accessory was not unlocked in the dex")
 	_check(is_equal_approx(_run_bonus(effect_type), before + float(accessory["amount"])), "Accessory buff was not applied")
 
-	var consumable := ITEM_CATALOG.entry_for_id("item", 204)
+	var consumable := ITEM_CATALOG.entry_for_id("item", 1)
 	GameState.add_item(consumable)
 	_check(GameState.item_inventory.size() == 1, "Consumable was not stored")
 	_check(GameState.has_seen_item(consumable, "item"), "Consumable was not unlocked in the dex")
@@ -70,26 +84,73 @@ func _test_inventory_effects() -> void:
 	var consumed := GameState.take_next_battle_bonuses()
 	_check(is_zero_approx(float(consumed["health"])), "Next-battle consumable buff was applied more than once")
 
+	for _copy in 3:
+		GameState.add_item(consumable)
+	_check(not GameState.can_add_item(consumable), "Consumable stack limit must reject a fourth common copy")
+	_check(GameState.add_item(consumable).is_empty(), "Rejected consumable must not enter the inventory")
+
+	var discount_accessory := ITEM_CATALOG.entry_for_id("accessory", 10)
+	_check(not GameState.add_accessory(discount_accessory).is_empty(), "Economy accessory was not accepted")
+	_check(GameState.shop_price(5) == 4, "Shop discount accessory must reduce prices above one")
+	_check(not GameState.can_add_accessory(discount_accessory), "Economy accessories in the same group must be unique")
+	var battle_gold_accessory := ITEM_CATALOG.entry_for_id("accessory", 6)
+	GameState.add_accessory(battle_gold_accessory)
+	GameState.coins = 0
+	_check(int(GameState.battle_gold_breakdown("battle")["total"]) == GameState.BATTLE_BASE_GOLD + 1, "Battle-gold accessory must add one victory coin")
+	var interest_accessory := ITEM_CATALOG.entry_for_id("accessory", 9)
+	GameState.add_accessory(interest_accessory)
+	GameState.coins = 100
+	_check(int(GameState.battle_gold_breakdown("battle")["interest"]) == GameState.MAX_INTEREST_GOLD + 1, "Interest accessory must raise the interest cap")
+
+	var pool_path: String = CREATURE_CATALOG.all_textures()[0]
+	var pool_before := int(GameState.creature_shop_pool[pool_path])
+	_check(GameState.take_creature_from_pool(pool_path), "Shared creature pool must allow taking an available copy")
+	_check(int(GameState.creature_shop_pool[pool_path]) == pool_before - 1, "Shared creature pool did not decrement")
+	GameState.return_creature_to_pool(pool_path)
+	_check(int(GameState.creature_shop_pool[pool_path]) == pool_before, "Selling must return copies to the shared creature pool")
+
 
 func _test_shop_rolls() -> void:
 	var prep := preload("res://battle_prep.tscn").instantiate()
 	add_child(prep)
 	await get_tree().process_frame
+	GameState.floor = 1
+	var early_chances: PackedFloat32Array = prep._shop_rarity_chances()
+	GameState.floor = GameState.MAX_FLOORS
+	var late_chances: PackedFloat32Array = prep._shop_rarity_chances()
+	_check(is_equal_approx(Array(early_chances).reduce(func(total, value): return total + value, 0.0), 1.0), "Early shop rarity chances must sum to one")
+	_check(is_equal_approx(Array(late_chances).reduce(func(total, value): return total + value, 0.0), 1.0), "Late shop rarity chances must sum to one")
+	_check(late_chances[4] > early_chances[4], "Legendary shop chance must increase with floor")
+	GameState.floor = 1
 	for iteration in 500:
 		var entries: Array = prep.call("_roll_shop_entries")
 		var item_count := 0
 		var accessory_count := 0
+		var creature_count := 0
+		var local_creature_counts: Dictionary = {}
 		for entry_value in entries:
 			var entry: Dictionary = entry_value
 			item_count += 1 if entry["kind"] == "item" else 0
 			accessory_count += 1 if entry["kind"] == "accessory" else 0
+			if entry["kind"] == "creature":
+				creature_count += 1
+				var texture_path := String(entry["path"])
+				local_creature_counts[texture_path] = int(local_creature_counts.get(texture_path, 0)) + 1
 		_check(item_count <= 1, "Shop refresh generated more than one consumable")
 		_check(accessory_count <= 1, "Shop refresh generated more than one accessory")
+		_check(creature_count >= 3, "Shop refresh must preserve at least three creature slots")
+		for texture_path in local_creature_counts:
+			_check(int(local_creature_counts[texture_path]) <= int(GameState.creature_shop_pool.get(texture_path, 0)), "A shop refresh cannot draw more copies than the shared pool contains")
 	var sell_path: String = prep.CREATURE_TEXTURES[0]
-	prep.creature_data[0] = sell_path
-	prep.creature_levels[0] = 1
-	prep._render_creature_slot(0)
-	var sell_value := GameState.creature_sell_value(0, 1)
+	var sell_rarity := CREATURE_CATALOG.rarity_for_texture(sell_path)
+	var pool_before_purchase := int(GameState.creature_shop_pool[sell_path])
+	GameState.coins = 20
+	prep.shop_data[0] = {"kind": "creature", "path": sell_path, "rarity": sell_rarity, "price": GameState.shop_price(GameState.CREATURE_BUY_PRICES[sell_rarity])}
+	prep._render_shop_card(0)
+	prep._on_shop_card_pressed(0)
+	_check(prep.creature_data[0] == sell_path, "Purchased creature must enter the bench")
+	_check(int(GameState.creature_shop_pool[sell_path]) == pool_before_purchase - 1, "Purchasing must remove one shared-pool copy")
+	var sell_value := GameState.creature_sell_value(sell_rarity, 1)
 	var coins_before_sale := GameState.coins
 	prep._show_shop_sell_target(0)
 	_check(prep.shop_sell_overlay.visible, "Dragging a creature must reveal the shop sell target")
@@ -97,6 +158,7 @@ func _test_shop_rolls() -> void:
 	prep._drop_shop_sell_data(Vector2.ZERO, {"kind": "creature_slot", "source_index": 0})
 	_check(prep.creature_data[0].is_empty(), "Sold creature was not removed from its slot")
 	_check(GameState.coins == coins_before_sale + sell_value, "Selling a creature granted the wrong amount of gold")
+	_check(int(GameState.creature_shop_pool[sell_path]) == pool_before_purchase, "Selling must return the creature to the shared pool")
 	_check(not prep.shop_sell_overlay.visible, "Sell target remained visible after the sale")
 	prep.queue_free()
 

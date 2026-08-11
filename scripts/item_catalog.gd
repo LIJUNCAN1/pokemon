@@ -16,20 +16,28 @@ const ACCESSORY_IDS: Array[int] = [
 	69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
 	85, 86, 91, 92, 95, 97, 98, 99, 100, 101, 102, 103,
 ]
-const NAME_PREFIXES: Array[String] = [
-	"苔纹", "晨露", "赤铜", "月辉", "霜蓝", "琥珀",
-	"星砂", "幽紫", "翠晶", "烈阳", "古银", "虹光",
+const ITEM_DISPLAY_NAMES: Array[String] = [
+	"旅行药壶", "冲锋手套", "风行羽", "未知糖果", "彩虹果实", "晶蓝药剂", "石臼药粉", "炽热浓汤",
+	"幽光药粉", "森林药粉", "胜者奖杯", "火种辣椒", "赤铜短杖", "营地烛火", "旧驿烛火", "潮汐短杖",
+	"旅行木杖", "硬壳果", "岩盐块", "赤晶矿", "远征卷轴", "火纹卷轴", "岩纹卷轴", "雷纹卷轴",
+	"自然卷轴", "虫群卷轴", "龙纹卷轴", "古银代币", "翠晶代币", "破口钱袋", "韧皮护片", "轻灵羽",
+	"烈焰羽", "浓缩药剂", "遗迹钥匙", "琥珀化石", "淬毒短刃", "火花短弓", "月光树果", "旅行肉派",
+	"旧式提灯", "粉帽蘑菇", "星辉魔杖", "花蕾魔杖", "怪力树果", "赤晶方糖", "瓶装火种", "猎人短刀",
 ]
-const ITEM_NAMES: Array = [
-	["活力药剂", "守护口粮", "岩肤药水"],
-	["力量药剂", "锋刃油", "狂战果实"],
-	["迅捷药剂", "清醒茶", "充能粉末"],
-	["旅行钱袋", "旧代代币", "商会票据"],
+const ACCESSORY_DISPLAY_NAMES: Array[String] = [
+	"钢铁面甲", "尖晶护符", "月白宝珠", "贤者宝珠", "旅行宝箱", "彩礼宝箱", "绿叶手册", "赤焰手册",
+	"冠军徽杯", "赤铜宝箱", "幽紫宝箱", "岩甲胸铠", "迅行皮靴", "攀岩战靴", "轻羽便鞋", "守卫头盔",
+	"古堡模型", "尖塔模型", "蓝顶巫帽", "翠风吊坠", "花冠吊坠", "碧叶圣杯", "森绿圣杯", "烈焰圣杯",
+	"火纹圣杯", "潮汐圣杯", "古银钥匙", "石门钥匙", "塔楼钥匙", "遗迹钥匙", "赤铜钥匙", "熔岩钥匙",
+	"龙骨钥匙", "火羽钥匙", "幽影钥匙", "机械钥匙", "雷光提灯", "琥珀提灯", "幽紫提灯", "翠光提灯",
+	"王冠残片", "赤晶核心", "炎纹核心", "紫晶核心", "星火核心", "潮汐核心", "龙焰核心", "森绿核心",
 ]
-const ACCESSORY_NAMES: Array = [
-	["生命护符", "守御徽章", "古木指环"],
-	["力量吊坠", "锋芒戒指", "赤晶勋章"],
-	["迅捷核心", "充能耳饰", "风语挂坠"],
+const ITEM_EFFECT_TYPES: Array[String] = [
+	"next_health", "next_damage", "next_charge", "next_all",
+	"run_health", "run_damage", "coins", "restore_life",
+]
+const ACCESSORY_EFFECT_TYPES: Array[String] = [
+	"health", "damage", "charge", "battle_gold", "interest_cap", "shop_discount",
 ]
 
 
@@ -42,14 +50,20 @@ static func entry_for_id(kind: String, id: int) -> Dictionary:
 	return _make_accessory(id) if kind == "accessory" else _make_consumable(id)
 
 
-static func random_entry(kind: String, rng: RandomNumberGenerator, rarity := -1) -> Dictionary:
-	var source: Array[int] = ACCESSORY_IDS if kind == "accessory" else CONSUMABLE_IDS
+static func random_entry(kind: String, rng: RandomNumberGenerator, rarity := -1, source := "any") -> Dictionary:
+	var source_ids: Array[int] = ACCESSORY_IDS if kind == "accessory" else CONSUMABLE_IDS
 	var candidates: Array[int] = []
-	for id in source:
-		if rarity < 0 or rarity_for_id(id) == rarity:
+	for id in source_ids:
+		var entry := entry_for_id(kind, id)
+		var source_matches := source == "any" or String(source) in Array(entry.get("sources", []))
+		if (rarity < 0 or rarity_for_id(id) == rarity) and source_matches:
 			candidates.append(id)
 	if candidates.is_empty():
-		candidates = source.duplicate()
+		for id in source_ids:
+			if rarity < 0 or rarity_for_id(id) == rarity:
+				candidates.append(id)
+	if candidates.is_empty():
+		candidates = source_ids.duplicate()
 	return entry_for_id(kind, candidates[rng.randi_range(0, candidates.size() - 1)])
 
 
@@ -62,36 +76,48 @@ static func entry_from_path(path: String, kind_hint := "item") -> Dictionary:
 
 static func normalize_entry(value: Variant, kind_hint := "item") -> Dictionary:
 	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
+		var stored: Dictionary = value
+		var stored_kind := String(stored.get("kind", kind_hint))
+		var stored_id := int(stored.get("id", 0))
+		if stored_id > 0:
+			return entry_for_id(stored_kind, stored_id)
+		return stored.duplicate(true)
 	return entry_from_path(String(value), kind_hint)
 
 
 static func _make_consumable(id: int) -> Dictionary:
 	var rarity := rarity_for_id(id)
-	var effect_index := posmod(id, 4)
-	var name_options: Array = ITEM_NAMES[effect_index]
-	var prefix := NAME_PREFIXES[posmod(floori(float(id) / 4.0), NAME_PREFIXES.size())]
-	var name := "%s%s" % [prefix, name_options[posmod(floori(float(id) / 7.0), name_options.size())]]
+	var catalog_index := maxi(CONSUMABLE_IDS.find(id), 0)
+	var effect_index := posmod(catalog_index, ITEM_EFFECT_TYPES.size())
+	var name := ITEM_DISPLAY_NAMES[catalog_index]
 	var amount := 0.0
-	var effect_type := ""
+	var effect_type := ITEM_EFFECT_TYPES[effect_index]
 	var effect_text := ""
-	match effect_index:
-		0:
+	match effect_type:
+		"next_health":
 			amount = [0.20, 0.28, 0.36][rarity]
-			effect_type = "next_health"
 			effect_text = "使用后，下场战斗全队最大生命 +%d%%" % roundi(amount * 100.0)
-		1:
+		"next_damage":
 			amount = [0.15, 0.22, 0.30][rarity]
-			effect_type = "next_damage"
 			effect_text = "使用后，下场战斗全队伤害 +%d%%" % roundi(amount * 100.0)
-		2:
+		"next_charge":
 			amount = [0.15, 0.22, 0.30][rarity]
-			effect_type = "next_charge"
 			effect_text = "使用后，下场战斗全队充能速度 +%d%%" % roundi(amount * 100.0)
-		_:
-			amount = [2.0, 3.0, 5.0][rarity]
-			effect_type = "coins"
+		"next_all":
+			amount = [0.08, 0.12, 0.16][rarity]
+			effect_text = "使用后，下场战斗全队生命、伤害和充能速度 +%d%%" % roundi(amount * 100.0)
+		"run_health":
+			amount = [0.04, 0.06, 0.08][rarity]
+			effect_text = "使用后，本轮远征全队最大生命永久 +%d%%" % roundi(amount * 100.0)
+		"run_damage":
+			amount = [0.03, 0.045, 0.06][rarity]
+			effect_text = "使用后，本轮远征全队伤害永久 +%d%%" % roundi(amount * 100.0)
+		"coins":
+			amount = [3.0, 5.0, 8.0][rarity]
 			effect_text = "使用后，立即获得 %d 金币" % roundi(amount)
+		"restore_life":
+			amount = 1.0
+			effect_text = "使用后，恢复 1 点远征生命；生命已满时转化为 3 金币"
 	return {
 		"id": id,
 		"kind": "item",
@@ -101,28 +127,50 @@ static func _make_consumable(id: int) -> Dictionary:
 		"amount": amount,
 		"effect": effect_text,
 		"rarity": rarity,
-		"price": [1, 2, 3][rarity],
+		"price": [2, 3, 5][rarity],
+		"sell_price": [1, 1, 2][rarity],
+		"stack_limit": [3, 2, 1][rarity],
+		"exclusive_group": "",
+		"sources": _drop_sources(rarity),
 	}
 
 
 static func _make_accessory(id: int) -> Dictionary:
 	var rarity := rarity_for_id(id)
-	var effect_index := posmod(id, 3)
-	var name_options: Array = ACCESSORY_NAMES[effect_index]
-	var prefix := NAME_PREFIXES[posmod(floori(float(id) / 3.0), NAME_PREFIXES.size())]
-	var name := "%s%s" % [prefix, name_options[posmod(floori(float(id) / 5.0), name_options.size())]]
+	var catalog_index := maxi(ACCESSORY_IDS.find(id), 0)
+	var effect_index := posmod(catalog_index, ACCESSORY_EFFECT_TYPES.size())
+	var name := ACCESSORY_DISPLAY_NAMES[catalog_index]
 	var amounts := [0.04, 0.07, 0.10]
-	var amount: float = amounts[rarity]
-	var attributes := ["health", "damage", "charge"]
-	var labels := ["最大生命", "伤害", "充能速度"]
+	var effect_type := ACCESSORY_EFFECT_TYPES[effect_index]
+	var amount: float = amounts[rarity] if effect_index < 3 else 1.0
+	var effect_text := ""
+	match effect_type:
+		"health": effect_text = "持有时，本轮远征全队最大生命 +%d%%" % roundi(amount * 100.0)
+		"damage": effect_text = "持有时，本轮远征全队伤害 +%d%%" % roundi(amount * 100.0)
+		"charge": effect_text = "持有时，本轮远征全队充能速度 +%d%%" % roundi(amount * 100.0)
+		"battle_gold": effect_text = "每次战斗胜利额外获得 1 金币"
+		"interest_cap": effect_text = "金币利息上限提高 1"
+		"shop_discount": effect_text = "商店中价格高于 1 的商品便宜 1 金币"
+	var exclusive_group := "" if effect_index < 3 else "economy_%s" % effect_type
 	return {
 		"id": id,
 		"kind": "accessory",
 		"path": ACCESSORY_ROOT + "accessory_%04d.png" % id,
 		"name": name,
-		"effect_type": attributes[effect_index],
+		"effect_type": effect_type,
 		"amount": amount,
-		"effect": "持有时，本轮远征全队%s +%d%%" % [labels[effect_index], roundi(amount * 100.0)],
+		"effect": effect_text,
 		"rarity": rarity,
-		"price": [2, 3, 5][rarity],
+		"price": [3, 5, 7][rarity],
+		"sell_price": [1, 2, 3][rarity],
+		"stack_limit": 1 if not exclusive_group.is_empty() else [3, 2, 1][rarity],
+		"exclusive_group": exclusive_group,
+		"sources": _drop_sources(rarity),
 	}
+
+
+static func _drop_sources(rarity: int) -> Array[String]:
+	match clampi(rarity, 0, 2):
+		0: return ["shop", "event", "chest", "battle"]
+		1: return ["shop", "event", "chest", "elite"]
+		_: return ["shop", "chest", "elite", "boss"]

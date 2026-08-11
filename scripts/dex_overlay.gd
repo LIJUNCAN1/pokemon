@@ -385,9 +385,9 @@ func _select_creature(index: int) -> void:
 	detail_sprite.texture = load(CREATURES[index]) as Texture2D
 	detail_unknown.visible = false
 	detail_name.text = NAMES[index]
-	var rarity := clampi(CATALOG.rarity_for_texture(CREATURES[index]), 0, ITEM_CATALOG.RARITY_NAMES.size() - 1)
-	detail_rarity.text = ITEM_CATALOG.RARITY_NAMES[rarity]
-	detail_rarity.add_theme_color_override("font_color", _item_rarity_color(rarity))
+	var rarity := clampi(CATALOG.rarity_for_texture(CREATURES[index]), 0, CATALOG.RARITY_NAMES.size() - 1)
+	detail_rarity.text = CATALOG.RARITY_NAMES[rarity]
+	detail_rarity.add_theme_color_override("font_color", _creature_rarity_color(rarity))
 	var elements: PackedStringArray = CATALOG.elements_for_texture(CREATURES[index])
 	var races: PackedStringArray = CATALOG.races_for_texture(CREATURES[index])
 	var element_text := "/".join(elements)
@@ -578,6 +578,10 @@ func _set_collection_page_height(entry_count: int) -> void:
 
 func _item_rarity_color(rarity: int) -> Color:
 	return [Color("d7dce4"), Color("55c6e8"), Color("d084ff")][clampi(rarity, 0, 2)]
+
+
+func _creature_rarity_color(rarity: int) -> Color:
+	return [Color("d7dce4"), Color("68cf72"), Color("55b7ed"), Color("d084ff"), Color("f1b640")][clampi(rarity, 0, 4)]
 
 
 func _close() -> void:
