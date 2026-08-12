@@ -112,11 +112,21 @@ func refresh_items() -> void:
 		item_info_panel.visible = false
 	for child in item_grid.get_children():
 		child.queue_free()
-	var items: Array = GameState.accessory_inventory if active_kind == "accessory" else GameState.item_inventory
+	var source_items: Array = GameState.accessory_inventory if active_kind == "accessory" else GameState.item_inventory
+	var items: Array = []
+	for source_entry in source_items:
+		items.append(ITEM_CATALOG.normalize_entry(source_entry, active_kind))
+	items.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var rarity_a := int(a.get("rarity", 0))
+		var rarity_b := int(b.get("rarity", 0))
+		if rarity_a != rarity_b:
+			return rarity_a > rarity_b
+		return String(a.get("name", "")) < String(b.get("name", ""))
+	)
 	var slot_count := maxi(VISIBLE_SLOT_COUNT, items.size())
 	count_label.text = "%s %d 件" % ["饰品" if active_kind == "accessory" else "道具", items.size()]
 	for index in slot_count:
-		_create_item_slot(ITEM_CATALOG.normalize_entry(items[index], active_kind) if index < items.size() else {}, index)
+		_create_item_slot(items[index] if index < items.size() else {}, index)
 	_update_tabs()
 
 
@@ -155,7 +165,7 @@ func _create_item_slot(entry: Dictionary, index: int) -> void:
 		use_button.focus_mode = Control.FOCUS_NONE
 		use_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		use_button.gui_input.connect(_on_item_slot_gui_input.bind(entry, rule_text))
-		use_button.pressed.connect(_use_item.bind(index))
+		use_button.pressed.connect(_use_item_entry.bind(entry))
 		slot.add_child(use_button)
 
 
@@ -166,6 +176,7 @@ func _build_item_info_panel(parent: Control) -> void:
 	item_info_panel.z_index = 20
 	item_info_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	item_info_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.075, 0.085, 0.12, 0.985), Color("4e4a86"), 3))
+	item_info_panel.gui_input.connect(_on_item_info_background_input)
 	item_info_panel.visible = false
 	parent.add_child(item_info_panel)
 
@@ -178,7 +189,7 @@ func _build_item_info_panel(parent: Control) -> void:
 	item_info_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	item_info_panel.add_child(item_info_icon)
 	item_info_name = _add_label(item_info_panel, "", Rect2(126, 12, 260, 34), 18, Color.WHITE)
-	item_info_rarity = _add_label(item_info_panel, "", Rect2(386, 12, 70, 34), 12, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	item_info_rarity = _add_label(item_info_panel, "", Rect2(392, 42, 82, 28), 12, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	item_info_effect = _add_label(item_info_panel, "", Rect2(126, 47, 352, 66), 13, Color.WHITE)
 	item_info_effect.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	item_info_rule = _add_label(item_info_panel, "", Rect2(16, 122, 462, 32), 12, Color("bfc5d4"))
@@ -220,6 +231,11 @@ func _show_item_info(entry: Dictionary, rule_text: String) -> void:
 
 func _hide_item_info() -> void:
 	item_info_panel.visible = false
+
+
+func _on_item_info_background_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_hide_item_info()
 
 
 func _owned_entry_count(entry: Dictionary) -> int:
@@ -270,6 +286,17 @@ func _use_item(index: int) -> void:
 		parent_control.call("_sync_coins")
 	if parent_control and parent_control.has_method("_set_notice"):
 		parent_control.call("_set_notice", result)
+
+
+func _use_item_entry(entry: Dictionary) -> void:
+	var inventory_index := -1
+	for index in GameState.item_inventory.size():
+		var owned := ITEM_CATALOG.normalize_entry(GameState.item_inventory[index], "item")
+		if int(owned.get("id", -1)) == int(entry.get("id", -2)):
+			inventory_index = index
+			break
+	if inventory_index >= 0:
+		_use_item(inventory_index)
 
 
 func _add_label(parent: Control, text: String, rect: Rect2, font_size: int, color: Color, alignment := HORIZONTAL_ALIGNMENT_LEFT) -> Label:
