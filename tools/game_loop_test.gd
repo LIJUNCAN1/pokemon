@@ -142,11 +142,29 @@ func _test_map_and_first_battle() -> void:
 	_check(battle.fighter_info_panel.visible, "战斗角色必须支持右键固定详情面板")
 	_check(battle.fighter_info_name.text == "宝箱怪", "战斗详情面板必须显示当前角色资料")
 	battle.call("_hide_fighter_info")
+	battle.call("_show_status_info", "减速 0.3s")
+	_check(is_instance_valid(battle.status_info_panel), "右键状态图标必须打开固定详情面板")
+	battle.call("_hide_status_info")
+	_check(not is_instance_valid(battle.status_info_panel), "状态详情必须可以通过空白区域关闭")
 	battle.call("_finish_battle", true)
 	_check(GameState.battle_victories == 1, "首战胜利次数没有记录")
 	_check(GameState.is_map_node_completed(0), "胜利后必须完成开局宝箱节点")
 	_check(GameState.item_inventory.size() == 2, "首战宝箱必须发放 2 个不同道具")
 	_check(GameState.coins == coins_before + GameState.BATTLE_BASE_GOLD + GameState.FIRST_BATTLE_CHEST_GOLD, "首战金币奖励不正确")
+	var result_coin := battle.get_node_or_null("ResultCoinIcon") as TextureRect
+	_check(result_coin != null and result_coin.texture == battle.RESULT_COIN_ICON, "战斗结算金币必须使用素材 icon")
+	var gold_text := battle.get_node_or_null("ResultGoldText") as Label
+	_check(gold_text != null and not gold_text.text.contains("战斗金币") and not gold_text.text.contains("金币"), "金币明细不能重复写金币文字")
+	var reward_sources := battle.get_node_or_null("ResultRewardSources") as Label
+	_check(reward_sources != null and reward_sources.text == "宝箱奖励", "宝箱奖励标题必须和其他奖励来源使用同一行")
+	var reward_cards: Array[Control] = []
+	for child in battle.get_children():
+		if child is Control and String(child.name).begins_with("ResultItemCard"):
+			reward_cards.append(child)
+	_check(reward_cards.size() == 2, "首战宝箱必须显示两张道具奖励卡")
+	if reward_cards.size() == 2:
+		var cards_center := (reward_cards[0].position.x + reward_cards[1].position.x + reward_cards[1].size.x) * 0.5
+		_check(is_equal_approx(cards_center, battle.DESIGN_SIZE.x * 0.5), "道具奖励卡组必须作为整体水平居中")
 	battle.battle_music.stop()
 	battle.battle_music.stream = null
 	await get_tree().process_frame

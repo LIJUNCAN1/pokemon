@@ -135,8 +135,18 @@ var tutorial_overlay: Control
 var tutorial_shade_layer: Control
 var tutorial_dialogue: Label
 var tutorial_hint_root: Control
+var tutorial_professor_frame: Panel
+var tutorial_dialogue_panel: Panel
+var tutorial_next_button: Button
+var tutorial_layout_tween: Tween
 var tutorial_uses_gamepad := false
 var tutorial_step := 0
+const TUTORIAL_PORTRAIT_SIZE := Vector2(250, 166)
+const TUTORIAL_DIALOGUE_SIZE := Vector2(1000, 166)
+const TUTORIAL_PORTRAIT_X := 26.0
+const TUTORIAL_DIALOGUE_X := 250.0
+const TUTORIAL_TOP_Y := 18.0
+const TUTORIAL_BOTTOM_Y := 536.0
 const TUTORIAL_STEPS: Array[Dictionary] = [
 	{"focus": Rect2(40, 20, 370, 80), "text": "欢迎来到怪兽远征。我是森野博士。这里会显示当前区域与层数，击败区域尽头的首领才能继续前进。"},
 	{"focus": Rect2(70, 185, 1110, 360), "text": "地图由多条路线组成。只能前往与当前节点相连的下一站；战斗、事件、营地和宝箱会带来不同风险与奖励。"},
@@ -702,29 +712,36 @@ func _show_tutorial() -> void:
 	tutorial_shade_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	tutorial_shade_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tutorial_overlay.add_child(tutorial_shade_layer)
-	var professor_frame := Panel.new()
-	professor_frame.position = Vector2(26, 342)
-	professor_frame.size = Vector2(250, 358)
-	professor_frame.clip_contents = true
-	professor_frame.add_theme_stylebox_override("panel", _panel_style(Color("f6f3ea"), Color("48515d"), 4))
-	tutorial_overlay.add_child(professor_frame)
+	tutorial_professor_frame = Panel.new()
+	tutorial_professor_frame.position = Vector2(TUTORIAL_PORTRAIT_X, TUTORIAL_BOTTOM_Y)
+	tutorial_professor_frame.size = TUTORIAL_PORTRAIT_SIZE
+	tutorial_professor_frame.clip_contents = true
+	tutorial_professor_frame.add_theme_stylebox_override("panel", _panel_style(Color("f6f3ea"), Color.TRANSPARENT, 0))
+	tutorial_overlay.add_child(tutorial_professor_frame)
 	var professor := TextureRect.new()
-	professor.position = Vector2(-30, -10)
-	professor.size = Vector2(310, 500)
+	professor.position = Vector2(-17, -14)
+	professor.size = Vector2(284, 444)
 	professor.texture = load("res://assets/tutorial/professor.png") as Texture2D
 	professor.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	professor.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	professor.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	professor.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	professor_frame.add_child(professor)
-	var dialogue_panel := Panel.new()
-	dialogue_panel.position = Vector2(250, 490)
-	dialogue_panel.size = Vector2(1000, 200)
-	dialogue_panel.add_theme_stylebox_override("panel", _panel_style(Color("f7f7f3"), Color("4e5662"), 5))
-	tutorial_overlay.add_child(dialogue_panel)
+	tutorial_professor_frame.add_child(professor)
+	# Draw the authored frame last so the portrait can never cover its border.
+	var professor_border := Panel.new()
+	professor_border.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	professor_border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	professor_border.add_theme_stylebox_override("panel", _panel_style(Color.TRANSPARENT, Color("48515d"), 4))
+	tutorial_professor_frame.add_child(professor_border)
+	professor_border.move_to_front()
+	tutorial_dialogue_panel = Panel.new()
+	tutorial_dialogue_panel.position = Vector2(TUTORIAL_DIALOGUE_X, TUTORIAL_BOTTOM_Y)
+	tutorial_dialogue_panel.size = TUTORIAL_DIALOGUE_SIZE
+	tutorial_dialogue_panel.add_theme_stylebox_override("panel", _panel_style(Color("f7f7f3"), Color("4e5662"), 5))
+	tutorial_overlay.add_child(tutorial_dialogue_panel)
 	tutorial_dialogue = Label.new()
-	tutorial_dialogue.position = Vector2(35, 18)
-	tutorial_dialogue.size = Vector2(930, 92)
+	tutorial_dialogue.position = Vector2(35, 16)
+	tutorial_dialogue.size = Vector2(930, 82)
 	tutorial_dialogue.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tutorial_dialogue.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	tutorial_dialogue.add_theme_font_override("font", source_han_font)
@@ -733,26 +750,26 @@ func _show_tutorial() -> void:
 	tutorial_dialogue.add_theme_color_override("font_shadow_color", Color("c9cbd0"))
 	tutorial_dialogue.add_theme_constant_override("shadow_offset_x", 1)
 	tutorial_dialogue.add_theme_constant_override("shadow_offset_y", 1)
-	dialogue_panel.add_child(tutorial_dialogue)
+	tutorial_dialogue_panel.add_child(tutorial_dialogue)
 	tutorial_hint_root = Control.new()
 	tutorial_hint_root.position = Vector2(0, 0)
-	dialogue_panel.add_child(tutorial_hint_root)
+	tutorial_dialogue_panel.add_child(tutorial_hint_root)
 	tutorial_uses_gamepad = not Input.get_connected_joypads().is_empty()
 	_rebuild_tutorial_hints()
-	var next_button := Button.new()
-	next_button.position = Vector2(770, 145)
-	next_button.size = Vector2(190, 42)
-	next_button.text = "下一步"
-	next_button.add_theme_font_override("font", source_han_font)
-	next_button.add_theme_font_size_override("font_size", 18)
-	next_button.add_theme_color_override("font_color", Color.WHITE)
-	next_button.add_theme_color_override("font_outline_color", Color.BLACK)
-	next_button.add_theme_constant_override("outline_size", 1)
-	next_button.add_theme_stylebox_override("normal", _panel_style(Color("ef466f"), Color("3b3f48"), 3))
-	next_button.add_theme_stylebox_override("hover", _panel_style(Color("f35b7f"), Color.WHITE, 3))
-	next_button.pressed.connect(_advance_tutorial.bind(next_button))
-	dialogue_panel.add_child(next_button)
-	_render_tutorial_step(next_button)
+	tutorial_next_button = Button.new()
+	tutorial_next_button.position = Vector2(770, 112)
+	tutorial_next_button.size = Vector2(190, 42)
+	tutorial_next_button.text = "下一步"
+	tutorial_next_button.add_theme_font_override("font", source_han_font)
+	tutorial_next_button.add_theme_font_size_override("font_size", 18)
+	tutorial_next_button.add_theme_color_override("font_color", Color.WHITE)
+	tutorial_next_button.add_theme_color_override("font_outline_color", Color.BLACK)
+	tutorial_next_button.add_theme_constant_override("outline_size", 1)
+	tutorial_next_button.add_theme_stylebox_override("normal", _panel_style(Color("ef466f"), Color("3b3f48"), 3))
+	tutorial_next_button.add_theme_stylebox_override("hover", _panel_style(Color("f35b7f"), Color.WHITE, 3))
+	tutorial_next_button.pressed.connect(_advance_tutorial.bind(tutorial_next_button))
+	tutorial_dialogue_panel.add_child(tutorial_next_button)
+	_render_tutorial_step(tutorial_next_button, true)
 
 
 func _set_tutorial_input_device(uses_gamepad: bool) -> void:
@@ -774,7 +791,7 @@ func _rebuild_tutorial_hints() -> void:
 	] if tutorial_uses_gamepad else ["res://assets/ui/input/key_escape.png"]
 	for icon_index in hint_icons.size():
 		var hint_icon := TextureRect.new()
-		hint_icon.position = Vector2(38 + icon_index * 28, 151)
+		hint_icon.position = Vector2(38 + icon_index * 28, 120)
 		hint_icon.size = Vector2(22, 22)
 		hint_icon.texture = load(String(hint_icons[icon_index])) as Texture2D
 		hint_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -783,7 +800,7 @@ func _rebuild_tutorial_hints() -> void:
 		hint_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		tutorial_hint_root.add_child(hint_icon)
 	var hint_text := Label.new()
-	hint_text.position = Vector2(42 + hint_icons.size() * 28, 147)
+	hint_text.position = Vector2(42 + hint_icons.size() * 28, 116)
 	hint_text.size = Vector2(410, 30)
 	hint_text.text = "移动 / 确认 / 返回" if tutorial_uses_gamepad else "打开设置或返回"
 	hint_text.add_theme_font_override("font", source_han_font)
@@ -792,13 +809,14 @@ func _rebuild_tutorial_hints() -> void:
 	tutorial_hint_root.add_child(hint_text)
 
 
-func _render_tutorial_step(next_button: Button) -> void:
+func _render_tutorial_step(next_button: Button, immediate := false) -> void:
 	var data := TUTORIAL_STEPS[tutorial_step]
 	tutorial_dialogue.text = String(data["text"])
 	next_button.text = "开始远征" if tutorial_step == TUTORIAL_STEPS.size() - 1 else "下一步"
+	var focus: Rect2 = data["focus"]
+	_move_tutorial_layout(focus, immediate)
 	for child in tutorial_shade_layer.get_children():
 		child.queue_free()
-	var focus: Rect2 = data["focus"]
 	var shade_color := Color(0.01, 0.015, 0.025, 0.78)
 	var shade_rects := [
 		Rect2(0, 0, DESIGN_SIZE.x, focus.position.y),
@@ -821,6 +839,35 @@ func _render_tutorial_step(next_button: Button) -> void:
 	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	border.add_theme_stylebox_override("panel", _panel_style(Color(0, 0, 0, 0), Color("ffd44a"), 3))
 	tutorial_shade_layer.add_child(border)
+
+
+func _move_tutorial_layout(focus: Rect2, immediate := false) -> void:
+	if not is_instance_valid(tutorial_professor_frame) or not is_instance_valid(tutorial_dialogue_panel):
+		return
+	var top_dialogue := Rect2(TUTORIAL_DIALOGUE_X, TUTORIAL_TOP_Y, TUTORIAL_DIALOGUE_SIZE.x, TUTORIAL_DIALOGUE_SIZE.y)
+	var top_portrait := Rect2(TUTORIAL_PORTRAIT_X, TUTORIAL_TOP_Y, TUTORIAL_PORTRAIT_SIZE.x, TUTORIAL_PORTRAIT_SIZE.y)
+	var bottom_dialogue := Rect2(TUTORIAL_DIALOGUE_X, TUTORIAL_BOTTOM_Y, TUTORIAL_DIALOGUE_SIZE.x, TUTORIAL_DIALOGUE_SIZE.y)
+	var bottom_portrait := Rect2(TUTORIAL_PORTRAIT_X, TUTORIAL_BOTTOM_Y, TUTORIAL_PORTRAIT_SIZE.x, TUTORIAL_PORTRAIT_SIZE.y)
+	var top_overlap := _rect_overlap_area(focus, top_dialogue) + _rect_overlap_area(focus, top_portrait)
+	var bottom_overlap := _rect_overlap_area(focus, bottom_dialogue) + _rect_overlap_area(focus, bottom_portrait)
+	var use_top := top_overlap < bottom_overlap
+	var dialogue_target := Vector2(TUTORIAL_DIALOGUE_X, TUTORIAL_TOP_Y if use_top else TUTORIAL_BOTTOM_Y)
+	var portrait_target := Vector2(TUTORIAL_PORTRAIT_X, TUTORIAL_TOP_Y if use_top else TUTORIAL_BOTTOM_Y)
+	if is_instance_valid(tutorial_layout_tween):
+		tutorial_layout_tween.kill()
+	if immediate:
+		tutorial_dialogue_panel.position = dialogue_target
+		tutorial_professor_frame.position = portrait_target
+		return
+	tutorial_layout_tween = create_tween().set_parallel(true)
+	tutorial_layout_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	tutorial_layout_tween.tween_property(tutorial_dialogue_panel, "position", dialogue_target, 0.32)
+	tutorial_layout_tween.tween_property(tutorial_professor_frame, "position", portrait_target, 0.32)
+
+
+func _rect_overlap_area(a: Rect2, b: Rect2) -> float:
+	var overlap := a.intersection(b)
+	return overlap.size.x * overlap.size.y if overlap.has_area() else 0.0
 
 
 func _advance_tutorial(next_button: Button) -> void:
@@ -904,7 +951,7 @@ func _dispatch_current_node() -> void:
 	match GameState.current_map_node_type():
 		"chest":
 			if bool(GameState.current_map_node_data().get("mimic", false)):
-				get_tree().change_scene_to_file("res://battle_prep.tscn")
+				SceneManager.change_scene("res://battle_prep.tscn")
 			else:
 				chest_event = true
 				_show_event_popup()
@@ -914,10 +961,10 @@ func _dispatch_current_node() -> void:
 			rest_event = true
 			_show_event_popup()
 		"shop", "battle", "elite", "boss":
-			get_tree().change_scene_to_file("res://battle_prep.tscn")
+			SceneManager.change_scene("res://battle_prep.tscn")
 		_:
 			GameState.complete_current_map_node()
-			get_tree().reload_current_scene()
+			SceneManager.reload_scene()
 
 
 func _show_event_popup(story_override := -1) -> void:
@@ -1341,7 +1388,7 @@ func _choose_event_option(option: Dictionary) -> void:
 		return
 	if String(option.get("action", "")) == "finish":
 		GameState.complete_current_map_node()
-		get_tree().reload_current_scene()
+		SceneManager.reload_scene()
 		return
 	var kind := String(option.get("kind", "story"))
 	var cost := int(option.get("cost", 0))
@@ -1554,12 +1601,12 @@ func _focus_offset(node_id: int) -> Vector2:
 func _return_to_main() -> void:
 	GameState.has_started_new_game = false
 	GameState.clear_run_save()
-	get_tree().change_scene_to_file("res://main.tscn")
+	SceneManager.change_scene("res://main.tscn")
 
 
 func _advance_to_next_floor() -> void:
 	if GameState.advance_floor():
-		get_tree().reload_current_scene()
+		SceneManager.reload_scene()
 
 
 func _style_button(button: Button, fill: Color, border: Color, font_size: int) -> void:
