@@ -39,7 +39,7 @@ func _ready() -> void:
 		0.5 / maxf(inherited_scale.x, 0.001),
 		0.5 / maxf(inherited_scale.y, 0.001)
 	)
-	z_index = 180
+	z_index = 500
 	source_han_font = SOURCE_HAN_FONT.duplicate() as FontFile
 	source_han_font.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
 	source_han_font.multichannel_signed_distance_field = true

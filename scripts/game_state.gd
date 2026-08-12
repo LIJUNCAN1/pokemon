@@ -41,6 +41,7 @@ var seen_creatures: Dictionary = {}
 var seen_items: Dictionary = {}
 var seen_accessories: Dictionary = {}
 var creature_achievements: Dictionary = {}
+var creature_progress: Dictionary = {}
 var unlocked_trainers: Dictionary = {}
 var map_initialized := false
 var map_intro_played := false
@@ -116,12 +117,18 @@ func has_unlocked_trainer(choice: String) -> bool:
 func set_player_team(team: Array[String], levels: Array[int] = []) -> void:
 	player_team = team.duplicate()
 	player_team_levels = _normalized_creature_levels(player_team, levels)
+	for index in player_team.size():
+		if not player_team[index].is_empty():
+			mark_creature_owned(player_team[index], player_team_levels[index])
 	save_run()
 
 
 func set_player_bench(bench: Array[String], levels: Array[int] = []) -> void:
 	player_bench = bench.duplicate()
 	player_bench_levels = _normalized_creature_levels(player_bench, levels)
+	for index in player_bench.size():
+		if not player_bench[index].is_empty():
+			mark_creature_owned(player_bench[index], player_bench_levels[index])
 	save_run()
 
 
@@ -344,6 +351,7 @@ func return_creature_to_pool(texture_path: String, count := 1) -> void:
 
 
 func add_creature_reward(texture_path: String) -> bool:
+	mark_creature_owned(texture_path, 1)
 	if player_bench.size() < 4:
 		player_bench.append(texture_path)
 		player_bench_levels.append(1)
@@ -425,6 +433,8 @@ func mark_creature_seen(texture_path: String) -> void:
 	if texture_path.is_empty():
 		return
 	seen_creatures[creature_key(texture_path)] = true
+	var progress := _creature_progress(texture_path)
+	progress["seen"] = true
 	save_run()
 
 
@@ -438,7 +448,63 @@ func unlock_creature_achievement(texture_path: String, achievement: int) -> void
 	mark_creature_seen(texture_path)
 	var key := creature_key(texture_path)
 	creature_achievements[key] = int(creature_achievements.get(key, 0)) | achievement
+	var progress := _creature_progress(texture_path)
+	if achievement == ACHIEVEMENT_STAR:
+		progress["build_clear"] = true
 	save_run()
+
+
+func _creature_progress(texture_path: String) -> Dictionary:
+	var key := creature_key(texture_path)
+	if not creature_progress.has(key):
+		creature_progress[key] = {"seen": false, "defeated": 0, "owned": false, "max_star": 0, "wins": 0, "build_clear": false}
+	return creature_progress[key]
+
+
+func mark_creature_owned(texture_path: String, level := 1) -> void:
+	if texture_path.is_empty():
+		return
+	mark_creature_seen(texture_path)
+	var progress := _creature_progress(texture_path)
+	progress["owned"] = true
+	progress["max_star"] = maxi(int(progress.get("max_star", 0)), clampi(level, 1, 3))
+	if int(progress["max_star"]) >= 3:
+		creature_achievements[creature_key(texture_path)] = int(creature_achievements.get(creature_key(texture_path), 0)) | ACHIEVEMENT_MEDAL
+	save_run()
+
+
+func mark_creature_defeated(texture_path: String) -> void:
+	if texture_path.is_empty():
+		return
+	mark_creature_seen(texture_path)
+	var progress := _creature_progress(texture_path)
+	progress["defeated"] = int(progress.get("defeated", 0)) + 1
+	progress["wins"] = int(progress.get("wins", 0))
+	save_run()
+
+
+func mark_creature_win(texture_path: String) -> void:
+	if texture_path.is_empty():
+		return
+	mark_creature_owned(texture_path, 1)
+	var progress := _creature_progress(texture_path)
+	progress["wins"] = int(progress.get("wins", 0)) + 1
+	creature_achievements[creature_key(texture_path)] = int(creature_achievements.get(creature_key(texture_path), 0)) | ACHIEVEMENT_TROPHY
+	save_run()
+
+
+func mark_current_team_build_clear() -> void:
+	for texture_path in player_team:
+		if texture_path.is_empty():
+			continue
+		var progress := _creature_progress(texture_path)
+		progress["build_clear"] = true
+		creature_achievements[creature_key(texture_path)] = int(creature_achievements.get(creature_key(texture_path), 0)) | ACHIEVEMENT_STAR
+	save_run()
+
+
+func creature_progress_for(texture_path: String) -> Dictionary:
+	return _creature_progress(texture_path).duplicate(true)
 
 
 func creature_achievement_mask(texture_path: String) -> int:
@@ -507,6 +573,7 @@ func save_run() -> void:
 	config.set_value("meta", "seen_items", seen_items)
 	config.set_value("meta", "seen_accessories", seen_accessories)
 	config.set_value("meta", "creature_achievements", creature_achievements)
+	config.set_value("meta", "creature_progress", creature_progress)
 	config.set_value("meta", "tutorial_completed", tutorial_completed)
 	config.set_value("meta", "unlocked_trainers", unlocked_trainers)
 	config.save(SAVE_PATH)
@@ -548,6 +615,14 @@ func load_run() -> bool:
 	seen_items = Dictionary(config.get_value("meta", "seen_items", {}))
 	seen_accessories = Dictionary(config.get_value("meta", "seen_accessories", {}))
 	creature_achievements = Dictionary(config.get_value("meta", "creature_achievements", {}))
+	creature_progress = Dictionary(config.get_value("meta", "creature_progress", {}))
+	for key in seen_creatures:
+		var progress := _creature_progress(String(key))
+		progress["seen"] = bool(seen_creatures[key])
+		var mask := int(creature_achievements.get(key, 0))
+		progress["owned"] = bool(mask & ACHIEVEMENT_TROPHY) or bool(progress.get("owned", false))
+		progress["max_star"] = maxi(int(progress.get("max_star", 0)), 3 if mask & ACHIEVEMENT_STAR else (1 if mask & ACHIEVEMENT_TROPHY else 0))
+		progress["build_clear"] = bool(mask & ACHIEVEMENT_STAR) or bool(progress.get("build_clear", false))
 	tutorial_completed = bool(config.get_value("meta", "tutorial_completed", false))
 	unlocked_trainers = Dictionary(config.get_value("meta", "unlocked_trainers", {}))
 	if not trainer_id.is_empty():

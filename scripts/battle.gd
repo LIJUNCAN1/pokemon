@@ -23,12 +23,21 @@ class Fighter:
 	var heal_on_cast := 0.0
 	var shield := 0
 	var burn_stacks := 0
+	var burn_remaining := 0.0
+	var stun_remaining := 0.0
+	var slow_remaining := 0.0
+	var crit_chance := 0.05
+	var dodge_chance := 0.0
+	var control_resistance := 0.0
+	var status_immune := false
 	var revived_as_seedling := false
 	var revived_as_spirit := false
 	var mechanical_shock_ready := false
 	var rock_armor_stacks := 0
 	var formation_index := 0
 	var attack_range := "melee"
+	var target_rule := "front_row"
+	var trigger_rule := "on_full_charge"
 	var damage_range := Vector2i(9, 17)
 	var skill_id := "basic"
 	var skill_name := "基础攻击"
@@ -36,6 +45,7 @@ class Fighter:
 	var can_attack := true
 	var attacking := false
 	var boss_phase_triggered := false
+	var boss_attack_count := 0
 
 
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
@@ -55,6 +65,8 @@ const P7_PROJECTILE_FPS := 12.5
 const P7_PROJECTILE_TRAVEL_FRAMES := 16
 const STATUS_ICON_SHEET: Texture2D = preload("res://assets/ui/status/status_icons.png")
 const STATUS_ICON_SIZE := Vector2i(16, 16)
+const MENU_BUTTON_NORMAL: Texture2D = preload("res://assets/ui/pixel_menu/controls/button-normal.png")
+const MENU_BUTTON_PRESSED: Texture2D = preload("res://assets/ui/pixel_menu/controls/button-pressed.png")
 const STONE_GOLEM_SHEET: Texture2D = preload("res://assets/boss/stone_golem/character_sheet.png")
 const STONE_GOLEM_FRAME_SIZE := Vector2i(100, 100)
 const ELEMENT_VFX: Dictionary = {
@@ -74,6 +86,12 @@ const ELEMENT_VFX: Dictionary = {
 		"basic": ["res://assets/battle/vfx/rock_basic.png", Vector2i(32, 32), 36],
 		"advanced": ["res://assets/battle/vfx/rock_advanced.png", Vector2i(32, 32), 36],
 	},
+}
+const TRAIT_VFX_COLORS: Dictionary = {
+	"自然": Color("a8a8a8"), "火": Color("fc9833"), "水": Color("4f9be6"), "雷": Color("f7d542"),
+	"冰": Color("76d4c9"), "岩": Color("d77e47"), "月影": Color("70717e"), "星辉": Color("eb7ada"),
+	"格斗": Color("dc3d4b"), "飞行": Color("91aee6"), "亡灵": Color("b65cce"), "风": Color("fd7c7a"),
+	"晶石": Color("ceb984"),
 }
 const FALLBACK_TEAM: Array[String] = [
 	POKEMON + "1 (5).png", POKEMON + "1 (6).png", POKEMON + "1 (7).png",
@@ -109,8 +127,11 @@ var fighter_info_stats: Label
 var fighter_info_skill: Label
 var fighter_info_description: Label
 var victory_reward_text := ""
+var result_item_rewards: Array[Dictionary] = []
+var result_gold_reward := 0
 var consumable_bonuses: Dictionary = {"health": 0.0, "damage": 0.0, "charge": 0.0}
 var p7_projectile_frames: SpriteFrames
+var status_info_panel: Panel
 
 # Kept as a silent compatibility node for existing scene tests and older saves;
 # actual playback is owned by the global crossfade manager.
@@ -165,7 +186,15 @@ func _process(delta: float) -> void:
 			continue
 		if fighter.attacking:
 			continue
+		if fighter.stun_remaining > 0.0:
+			fighter.stun_remaining = maxf(fighter.stun_remaining - delta, 0.0)
+			_update_status_icons(fighter)
+			continue
+		if fighter.slow_remaining > 0.0:
+			fighter.slow_remaining = maxf(fighter.slow_remaining - delta, 0.0)
 		var current_charge_rate := fighter.base_charge_rate
+		if fighter.slow_remaining > 0.0:
+			current_charge_rate *= 0.65
 		if fighter.player_side:
 			current_charge_rate *= 1.0 + team_speed_bonus
 		fighter.charge = minf(fighter.charge + delta * current_charge_rate, 1.0)
@@ -345,6 +374,7 @@ func _create_stone_golem_boss(center: Vector2) -> void:
 	boss.traits = PackedStringArray(["岩", "机械"])
 	boss.attack_range = "ranged"
 	boss.skill_id = "boss_quake"
+	boss.status_immune = true
 	boss.skill_name = "地核震荡"
 	boss.damage_range = Vector2i(24, 36)
 	boss.max_hp = maxi(roundi(boss.max_hp * 2.4), 520)
@@ -402,6 +432,8 @@ func _create_fighter(texture_path: String, center: Vector2, player_side: bool, i
 	fighter.player_side = player_side
 	fighter.formation_index = index
 	fighter.attack_range = CATALOG.attack_range_for_texture(texture_path)
+	fighter.target_rule = CATALOG.target_rule_for_texture(texture_path)
+	fighter.trigger_rule = CATALOG.trigger_rule_for_texture(texture_path)
 	fighter.traits = CATALOG.traits_for_texture(texture_path)
 	var base_hp := CATALOG.base_hp_for_texture(texture_path)
 	var rarity_stat_multiplier := CATALOG.rarity_stat_multiplier(texture_path)
@@ -411,8 +443,9 @@ func _create_fighter(texture_path: String, center: Vector2, player_side: bool, i
 	fighter.skill_id = CATALOG.skill_id_for_texture(texture_path)
 	fighter.skill_name = CATALOG.skill_name_for_texture(texture_path)
 	if player_side:
-		base_hp *= fighter.level
-		fighter.damage_multiplier *= fighter.level
+		var growth := CATALOG.star_growth_for_texture(texture_path, fighter.level)
+		base_hp = roundi(base_hp * float(growth.get("hp", 1.0)))
+		fighter.damage_multiplier *= float(growth.get("damage", 1.0))
 		base_hp = roundi(base_hp * (1.0 + GameState.run_health_bonus + float(consumable_bonuses["health"])))
 		fighter.damage_multiplier *= 1.0 + GameState.run_damage_bonus + float(consumable_bonuses["damage"])
 	if not player_side and GameState.map_initialized:
@@ -435,7 +468,11 @@ func _create_fighter(texture_path: String, center: Vector2, player_side: bool, i
 	fighter.base_charge_rate = 1.0 / maxf(CATALOG.cooldown_for_texture(texture_path), 0.5)
 	fighter.base_charge_rate *= CATALOG.rarity_charge_multiplier(texture_path)
 	if player_side:
+		fighter.base_charge_rate *= float(CATALOG.star_growth_for_texture(texture_path, fighter.level).get("charge", 1.0))
 		fighter.base_charge_rate *= 1.0 + GameState.run_charge_bonus + float(consumable_bonuses["charge"])
+		fighter.crit_chance += GameState.accessory_effect_total("crit")
+		fighter.dodge_chance += GameState.accessory_effect_total("dodge")
+		fighter.control_resistance += GameState.accessory_effect_total("control_resist")
 	if not player_side and GameState.map_initialized:
 		var encounter_column := int(GameState.current_map_node_data().get("column", 0))
 		fighter.base_charge_rate *= 1.0 + encounter_column * 0.035 + maxf(float(GameState.floor - 1), 0.0) * 0.025
@@ -452,13 +489,33 @@ func _create_fighter(texture_path: String, center: Vector2, player_side: bool, i
 		fighter.base_charge_rate *= 1.0 + CATALOG.effect_value("虫群", int(player_synergies.get("虫群", 0)))
 	if player_side and fighter.traits.has("龙族"):
 		fighter.damage_multiplier *= 1.0 + CATALOG.effect_value("龙族", int(player_synergies.get("龙族", 0)))
-	if player_side and fighter.traits.has("亡灵"):
-		fighter.heal_on_cast = CATALOG.effect_value("亡灵", int(player_synergies.get("亡灵", 0)))
+	if player_side and fighter.traits.has("灵体"):
+		fighter.heal_on_cast = CATALOG.effect_value("灵体", int(player_synergies.get("灵体", 0)))
 	if player_side and fighter.traits.has("机械"):
 		var mechanical_tier := CATALOG.active_tier("机械", int(player_synergies.get("机械", 0)))
 		if mechanical_tier >= 0:
 			fighter.shield = roundi(fighter.max_hp * 0.20)
 			fighter.mechanical_shock_ready = mechanical_tier >= 1
+	if player_side and fighter.traits.has("月影") and CATALOG.active_tier("月影", int(player_synergies.get("月影", 0))) >= 0:
+		fighter.dodge_chance += CATALOG.effect_value("月影", int(player_synergies.get("月影", 0)))
+	if player_side and fighter.traits.has("星辉") and CATALOG.active_tier("星辉", int(player_synergies.get("星辉", 0))) >= 0:
+		fighter.base_charge_rate *= 1.0 + CATALOG.effect_value("星辉", int(player_synergies.get("星辉", 0)))
+	if player_side and fighter.traits.has("格斗") and CATALOG.active_tier("格斗", int(player_synergies.get("格斗", 0))) >= 0:
+		var fighter_bonus := CATALOG.effect_value("格斗", int(player_synergies.get("格斗", 0)))
+		fighter.max_hp = roundi(fighter.max_hp * (1.0 + fighter_bonus))
+		fighter.hp = fighter.max_hp
+		fighter.damage_multiplier *= 1.0 + fighter_bonus
+	if player_side and fighter.traits.has("飞行") and CATALOG.active_tier("飞行", int(player_synergies.get("飞行", 0))) >= 0:
+		fighter.dodge_chance += CATALOG.effect_value("飞行", int(player_synergies.get("飞行", 0)))
+		fighter.target_rule = "rear_chance"
+	if player_side and fighter.traits.has("亡灵") and CATALOG.active_tier("亡灵", int(player_synergies.get("亡灵", 0))) >= 0:
+		fighter.heal_on_cast = maxf(fighter.heal_on_cast, CATALOG.effect_value("亡灵", int(player_synergies.get("亡灵", 0))))
+	if player_side and fighter.traits.has("风") and CATALOG.active_tier("风", int(player_synergies.get("风", 0))) >= 0:
+		fighter.base_charge_rate *= 1.0 + CATALOG.effect_value("风", int(player_synergies.get("风", 0)))
+	if player_side and fighter.traits.has("晶石") and CATALOG.active_tier("晶石", int(player_synergies.get("晶石", 0))) >= 0:
+		fighter.shield = maxi(fighter.shield, roundi(fighter.max_hp * CATALOG.effect_value("晶石", int(player_synergies.get("晶石", 0)))))
+		fighter.damage_reduction = maxf(fighter.damage_reduction, 0.08)
+	fighter.charge_rate = fighter.base_charge_rate
 
 	var sprite := TextureRect.new()
 	sprite.position = center + Vector2(-38, -66)
@@ -661,10 +718,17 @@ func _perform_skill(attacker: Fighter) -> void:
 	var target := _select_attack_target(attacker, targets)
 	if target == null:
 		return
+	if target.dodge_chance > 0.0 and rng.randf() < target.dodge_chance:
+		_show_effect_label("闪避", target, Color(0.65, 0.9, 1.0))
+		status_label.text = "%s闪避了攻击" % ("我方" if target.player_side else "敌方")
+		return
 	var attack_multiplier := attacker.damage_multiplier
 	if attacker.player_side and attacker.traits.has("龙族") and attacker.hp * 2 < attacker.max_hp and CATALOG.active_tier("龙族", int(player_synergies.get("龙族", 0))) >= 2:
 		attack_multiplier *= 1.35
 	var damage := roundi(rng.randi_range(attacker.damage_range.x, attacker.damage_range.y) * attack_multiplier * (1.0 - target.damage_reduction))
+	var critical := rng.randf() < attacker.crit_chance
+	if critical:
+		damage = roundi(damage * 1.5)
 	damage = maxi(damage, 1)
 	attacker.attacking = true
 	await _play_attack_animation(attacker, target)
@@ -673,7 +737,7 @@ func _perform_skill(attacker: Fighter) -> void:
 		return
 	_play_element_contact_vfx(attacker, target)
 	var dealt := _apply_damage(target, damage)
-	status_label.text = "%s%s，造成 %d 点伤害" % ["我方释放" if attacker.player_side else "敌方释放", attacker.skill_name, dealt]
+	status_label.text = "%s%s，%s造成 %d 点伤害" % ["我方释放" if attacker.player_side else "敌方释放", attacker.skill_name, "暴击！" if critical else "", dealt]
 	_play_hit_feedback(target, dealt)
 	_apply_unique_skill(attacker, target, dealt)
 	_apply_fire_attack(attacker, target)
@@ -700,7 +764,8 @@ func _apply_unique_skill(attacker: Fighter, primary_target: Fighter, base_damage
 				if enemy.hp <= 0:
 					_defeat_fighter(enemy)
 		"shield_self":
-			var shield_gain := maxi(roundi(attacker.max_hp * 0.18), 1)
+			var shield_bonus := GameState.accessory_effect_total("shield_power") if attacker.player_side else 0.0
+			var shield_gain := maxi(roundi(attacker.max_hp * 0.18 * (1.0 + shield_bonus)), 1)
 			attacker.shield += shield_gain
 			_show_effect_label("护盾 +%d" % shield_gain, attacker, Color(0.62, 0.82, 1.0))
 		"heal_ally":
@@ -721,7 +786,8 @@ func _apply_unique_skill(attacker: Fighter, primary_target: Fighter, base_damage
 			primary_target.burn_stacks += 2
 			_show_effect_label("燃烧 +2", primary_target, Color(1.0, 0.38, 0.10))
 		"slow":
-			primary_target.charge = maxf(primary_target.charge - 0.35, 0.0)
+			_apply_control(primary_target, "slow", 3.0)
+			primary_target.charge = maxf(primary_target.charge - 0.20, 0.0)
 			_update_charge_bar(primary_target)
 			_show_effect_label("充能降低", primary_target, Color(0.50, 0.78, 1.0))
 		"double_hit":
@@ -751,10 +817,17 @@ func _select_attack_target(attacker: Fighter, targets: Array[Fighter]) -> Fighte
 	if attacker.locked_target != null and attacker.locked_target.alive and attacker.locked_target in targets:
 		return attacker.locked_target
 	var candidates: Array[Fighter] = []
-	if attacker.attack_range == "ranged" and rng.randf() < 0.35:
+	if attacker.target_rule == "lowest_hp":
+		var lowest: Fighter = targets[0]
+		for candidate in targets:
+			if candidate.hp < lowest.hp:
+				lowest = candidate
+		attacker.locked_target = lowest
+		return lowest
+	if attacker.target_rule == "rear_chance" and rng.randf() < 0.35:
 		candidates = _backline_targets(targets)
 	if candidates.is_empty():
-		if attacker.attack_range == "melee":
+		if attacker.target_rule == "front_row":
 			candidates = _melee_lane_targets(attacker, targets)
 		else:
 			candidates = _frontline_targets(targets)
@@ -806,8 +879,14 @@ func _backline_targets(targets: Array[Fighter]) -> Array[Fighter]:
 
 func _play_attack_animation(attacker: Fighter, target: Fighter) -> void:
 	if attacker.skill_id == "boss_quake":
+		attacker.boss_attack_count += 1
 		await _play_stone_golem_sequence(attacker, 50, 56, 0.075)
-		await _play_p7_projectile(attacker, target)
+		if attacker.boss_attack_count % 3 == 0:
+			await _play_stone_golem_laser(attacker, target)
+		elif attacker.boss_attack_count % 3 == 2:
+			await _play_stone_golem_melee(attacker, target)
+		else:
+			await _play_stone_golem_projectile(attacker, target)
 		_set_stone_golem_frame(attacker, 0)
 		return
 	var playback_scale := maxf(battle_speed, 0.01)
@@ -816,6 +895,58 @@ func _play_attack_animation(attacker: Fighter, target: Fighter) -> void:
 	attack_tween.tween_property(attacker.sprite, "scale", attacker.base_scale * 1.28, 0.12 / playback_scale)
 	attack_tween.tween_property(attacker.sprite, "scale", attacker.base_scale, 0.16 / playback_scale)
 	await _play_p7_projectile(attacker, target)
+
+
+func _play_stone_golem_projectile(attacker: Fighter, target: Fighter) -> void:
+	var projectile := TextureRect.new()
+	projectile.texture = load("res://assets/boss/stone_golem/arm_projectile.png") as Texture2D
+	projectile.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	projectile.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	projectile.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	projectile.size = Vector2(58, 58)
+	projectile.position = _fighter_attack_origin(attacker) - projectile.size * 0.5
+	projectile.z_index = 18
+	add_child(projectile)
+	var tween := create_tween()
+	tween.tween_property(projectile, "position", _fighter_visual_center(target) - projectile.size * 0.5, 0.34 / maxf(battle_speed, 0.01))
+	await tween.finished
+	projectile.queue_free()
+
+
+func _play_stone_golem_laser(attacker: Fighter, target: Fighter) -> void:
+	var laser := TextureRect.new()
+	laser.texture = load("res://assets/boss/stone_golem/laser_sheet.png") as Texture2D
+	laser.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	laser.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	laser.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var start := _fighter_attack_origin(attacker)
+	var target_pos := _fighter_visual_center(target)
+	var distance := maxf(absf(target_pos.x - start.x), 120.0)
+	laser.size = Vector2(distance, 86)
+	laser.position = Vector2(start.x, start.y - 43.0)
+	laser.scale.x = -1.0 if target_pos.x < start.x else 1.0
+	laser.modulate = Color(0.72, 0.9, 1.0, 0.9)
+	laser.z_index = 18
+	add_child(laser)
+	var tween := create_tween().set_parallel(true)
+	tween.tween_property(laser, "size:x", distance, 0.20 / maxf(battle_speed, 0.01))
+	tween.tween_property(laser, "modulate:a", 0.15, 0.46 / maxf(battle_speed, 0.01))
+	await tween.finished
+	laser.queue_free()
+
+
+func _play_stone_golem_melee(attacker: Fighter, target: Fighter) -> void:
+	var start := attacker.sprite.position
+	var direction := 1.0 if attacker.player_side else -1.0
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(attacker.sprite, "position:x", start.x + direction * 38.0, 0.12 / maxf(battle_speed, 0.01))
+	tween.tween_property(attacker.sprite, "position:x", start.x, 0.18 / maxf(battle_speed, 0.01))
+	await tween.finished
+	var flash := _add_label("冲击", Rect2(_fighter_visual_center(target) - Vector2(42, 18), Vector2(84, 28)), 16, Color(0.85, 0.9, 1.0), HORIZONTAL_ALIGNMENT_CENTER, 24)
+	var fade := create_tween()
+	fade.tween_property(flash, "modulate:a", 0.0, 0.16 / maxf(battle_speed, 0.01))
+	fade.tween_callback(flash.queue_free)
 
 
 func _play_stone_golem_sequence(fighter: Fighter, first_frame: int, last_frame: int, delay: float) -> void:
@@ -833,10 +964,25 @@ func _play_hit_feedback(target: Fighter, damage: int) -> void:
 	hit_tween.tween_property(target.sprite, "modulate", Color(1.0, 0.25, 0.25), 0.08)
 	hit_tween.tween_property(target.sprite, "modulate", Color.WHITE, 0.18)
 
-	var damage_label := _add_label("-%d" % damage, Rect2(target.sprite.position.x, target.sprite.position.y - 10, 76, 28), 18, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 30)
+	var damage_label := _add_label(str(damage), Rect2(target.sprite.position.x - 8, target.sprite.position.y - 18, 92, 42), 27, Color("ffd83d"), HORIZONTAL_ALIGNMENT_CENTER, 30)
+	damage_label.add_theme_color_override("font_color", Color("ffd83d"))
+	damage_label.add_theme_color_override("font_outline_color", Color("111111"))
+	damage_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.0))
+	damage_label.add_theme_constant_override("outline_size", 4)
+	damage_label.pivot_offset = damage_label.size * 0.5
+	damage_label.scale = Vector2(0.72, 0.72)
+	var playback_scale := maxf(battle_speed, 0.01)
+	var pop_tween := create_tween()
+	pop_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	pop_tween.tween_property(damage_label, "scale", Vector2(1.12, 1.12), 0.08 / playback_scale)
+	pop_tween.tween_property(damage_label, "scale", Vector2.ONE, 0.04 / playback_scale)
+	await pop_tween.finished
+	if not is_instance_valid(damage_label):
+		return
 	var float_tween := create_tween().set_parallel(true)
-	float_tween.tween_property(damage_label, "position:y", damage_label.position.y - 28, 0.55)
-	float_tween.tween_property(damage_label, "modulate:a", 0.0, 0.55)
+	float_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	float_tween.tween_property(damage_label, "position:y", damage_label.position.y - 34, 0.52 / playback_scale)
+	float_tween.tween_property(damage_label, "modulate:a", 0.0, 0.52 / playback_scale).set_delay(0.10 / playback_scale)
 	float_tween.chain().tween_callback(damage_label.queue_free)
 
 func _play_p7_projectile(attacker: Fighter, target: Fighter) -> void:
@@ -895,20 +1041,17 @@ func _fighter_attack_origin(fighter: Fighter) -> Vector2:
 
 func _play_element_contact_vfx(attacker: Fighter, target: Fighter) -> void:
 	var element := ""
-	for candidate in ["火", "雷", "自然", "岩"]:
+	for candidate in CATALOG.ELEMENTS:
 		if attacker.traits.has(candidate):
 			element = candidate
 			break
-	if element.is_empty():
-		_play_vfx_config(["res://assets/battle/vfx/hit_basic.png", Vector2i(48, 48), 7], target, false)
-		return
 	var rarity := CATALOG.rarity_for_texture(attacker.texture_path) if CATALOG.data_for_texture(attacker.texture_path) else 4
 	var advanced := attacker.level >= 2 or rarity >= 3 or attacker.skill_id == "boss_quake"
-	var config: Array = ELEMENT_VFX[element]["advanced" if advanced else "basic"]
-	_play_vfx_config(config, target, advanced)
+	var config: Array = ELEMENT_VFX.get(element, {}).get("advanced" if advanced else "basic", ["res://assets/battle/vfx/hit_advanced.png" if advanced else "res://assets/battle/vfx/hit_basic.png", Vector2i(48, 48), 7])
+	_play_vfx_config(config, target, advanced, TRAIT_VFX_COLORS.get(element, Color.WHITE))
 
 
-func _play_vfx_config(config: Array, target: Fighter, advanced: bool) -> void:
+func _play_vfx_config(config: Array, target: Fighter, advanced: bool, tint := Color.WHITE) -> void:
 	var sheet := load(String(config[0])) as Texture2D
 	var frame_size: Vector2i = config[1]
 	var frame_count := int(config[2])
@@ -930,6 +1073,7 @@ func _play_vfx_config(config: Array, target: Fighter, advanced: bool) -> void:
 	effect.animation = &"effect"
 	effect.position = _fighter_visual_center(target)
 	effect.scale = Vector2.ONE * (2.2 if advanced else 1.55)
+	effect.modulate = tint
 	effect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	effect.z_index = 22
 	effect.animation_finished.connect(effect.queue_free)
@@ -970,8 +1114,11 @@ func _process_synergy_timers(delta: float) -> void:
 func _apply_damage(target: Fighter, damage: int) -> int:
 	var remaining := maxi(damage, 0)
 	var shield_before := target.shield
+	var hp_before := target.hp
+	var absorbed_total := 0
 	if target.shield > 0:
 		var absorbed := mini(target.shield, remaining)
+		absorbed_total = absorbed
 		target.shield -= absorbed
 		remaining -= absorbed
 	if remaining > 0:
@@ -982,6 +1129,9 @@ func _apply_damage(target: Fighter, damage: int) -> int:
 		target.base_charge_rate *= 1.28
 		target.charge_rate = target.base_charge_rate
 		_show_effect_label("晶核护盾", target, Color(0.55, 0.92, 1.0))
+		var phase_flash := create_tween()
+		phase_flash.tween_property(target.sprite, "modulate", Color(0.8, 0.95, 1.0), 0.08)
+		phase_flash.tween_property(target.sprite, "modulate", Color.WHITE, 0.18)
 		_play_stone_golem_sequence(target, 60, 69, 0.07)
 	_update_hp_label(target)
 	if shield_before > 0 and target.shield <= 0 and target.mechanical_shock_ready:
@@ -998,7 +1148,19 @@ func _apply_damage(target: Fighter, damage: int) -> int:
 			target.shield += armor_piece
 			_show_effect_label("岩甲 ×%d" % target.rock_armor_stacks, target, Color(0.76, 0.78, 0.82))
 			_update_hp_label(target)
-	return damage
+	return absorbed_total + (hp_before - target.hp)
+
+
+func _apply_control(target: Fighter, kind: String, duration: float) -> void:
+	if target.status_immune:
+		_show_effect_label("免疫", target, Color(0.8, 0.8, 0.8))
+		return
+	var actual_duration := duration * (1.0 - clampf(target.control_resistance, 0.0, 0.9))
+	if kind == "stun":
+		target.stun_remaining = maxf(target.stun_remaining, actual_duration)
+	else:
+		target.slow_remaining = maxf(target.slow_remaining, actual_duration)
+	_update_status_icons(target)
 
 
 func _heal_fighter(fighter: Fighter, amount: int) -> void:
@@ -1046,8 +1208,12 @@ func _tick_burning() -> void:
 	for fighter in fighters.duplicate():
 		if not fighter.alive or fighter.burn_stacks <= 0:
 			continue
-		var damage: int = int(fighter.burn_stacks) * 3
+		var burn_bonus := GameState.accessory_effect_total("burn_damage") if not fighter.player_side else 0.0
+		var damage: int = roundi(int(fighter.burn_stacks) * 3 * (1.0 + burn_bonus))
 		_apply_damage(fighter, damage)
+		fighter.burn_remaining = maxf(fighter.burn_remaining - 1.5, 0.0)
+		if fighter.burn_remaining <= 0.0:
+			fighter.burn_stacks = 0
 		_show_effect_label("燃烧 -%d" % damage, fighter, Color(1.0, 0.42, 0.12))
 		if fighter.hp <= 0:
 			_defeat_fighter(fighter)
@@ -1062,6 +1228,7 @@ func _apply_fire_attack(attacker: Fighter, target: Fighter) -> void:
 		return
 	var max_stacks := 3 if tier >= 1 else 1
 	target.burn_stacks = mini(target.burn_stacks + 1, max_stacks)
+	target.burn_remaining = 4.5
 	_show_effect_label("点燃 ×%d" % target.burn_stacks, target, Color(1.0, 0.48, 0.12))
 
 
@@ -1151,7 +1318,7 @@ func _slow_enemies_from_rock_break(source: Fighter) -> void:
 
 func _heal_other_undead(source: Fighter) -> void:
 	for ally in _living_fighters(true):
-		if ally != source and ally.traits.has("亡灵"):
+		if ally != source and ally.traits.has("灵体"):
 			_heal_fighter(ally, maxi(roundi(ally.max_hp * 0.14), 1))
 
 
@@ -1200,13 +1367,21 @@ func _update_status_icons(fighter: Fighter) -> void:
 		fighter.status_row.add_child(_status_icon(0, "护盾 %d" % fighter.shield))
 	if fighter.burn_stacks > 0:
 		fighter.status_row.add_child(_status_icon(9, "燃烧 %d" % fighter.burn_stacks))
-	if fighter.charge_rate < fighter.base_charge_rate * 0.95:
-		fighter.status_row.add_child(_status_icon(18, "减速"))
+	if fighter.slow_remaining > 0.0:
+		fighter.status_row.add_child(_status_icon(18, "减速 %.1fs" % fighter.slow_remaining))
+	if fighter.stun_remaining > 0.0:
+		fighter.status_row.add_child(_status_icon(19, "眩晕 %.1fs" % fighter.stun_remaining))
+	if fighter.crit_chance > 0.05:
+		fighter.status_row.add_child(_status_icon(20, "暴击率 %d%%" % roundi(fighter.crit_chance * 100.0)))
+	if fighter.dodge_chance > 0.0:
+		fighter.status_row.add_child(_status_icon(21, "闪避率 %d%%" % roundi(fighter.dodge_chance * 100.0)))
+	if fighter.control_resistance > 0.0:
+		fighter.status_row.add_child(_status_icon(22, "控制抗性 %d%%" % roundi(fighter.control_resistance * 100.0)))
 	if fighter.revived_as_seedling or fighter.revived_as_spirit:
 		fighter.status_row.add_child(_status_icon(26, "复活状态"))
 
 
-func _status_icon(index: int, description: String) -> TextureRect:
+func _status_icon(index: int, description: String) -> Control:
 	var atlas := AtlasTexture.new()
 	atlas.atlas = STATUS_ICON_SHEET
 	atlas.region = Rect2i(
@@ -1215,37 +1390,104 @@ func _status_icon(index: int, description: String) -> TextureRect:
 		STATUS_ICON_SIZE.x,
 		STATUS_ICON_SIZE.y,
 	)
+	var root := Control.new()
+	root.custom_minimum_size = Vector2(18, 18)
+	root.tooltip_text = "右键查看：%s" % description
+	root.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	root.gui_input.connect(_on_status_icon_input.bind(description))
 	var icon := TextureRect.new()
+	root.add_child(icon)
+	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	icon.custom_minimum_size = Vector2(16, 16)
 	icon.texture = atlas
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon.tooltip_text = description
-	return icon
+	var value_text := description.get_slice(" ", 1)
+	if not value_text.is_empty():
+		var amount := Label.new()
+		amount.position = Vector2(8, 7)
+		amount.size = Vector2(12, 11)
+		amount.text = value_text.trim_suffix("s")
+		amount.add_theme_font_override("font", source_han_font)
+		amount.add_theme_font_size_override("font_size", 8)
+		amount.add_theme_color_override("font_color", Color.WHITE)
+		amount.add_theme_color_override("font_outline_color", Color.BLACK)
+		amount.add_theme_constant_override("outline_size", 2)
+		amount.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(amount)
+	return root
+
+
+func _on_status_icon_input(event: InputEvent, description: String) -> void:
+	if not event is InputEventMouseButton:
+		return
+	var mouse_event := event as InputEventMouseButton
+	if mouse_event.button_index != MOUSE_BUTTON_RIGHT or not mouse_event.pressed:
+		return
+	get_viewport().set_input_as_handled()
+	_show_status_info(description)
+
+
+func _show_status_info(description: String) -> void:
+	if is_instance_valid(status_info_panel):
+		status_info_panel.queue_free()
+	status_info_panel = Panel.new()
+	status_info_panel.size = Vector2(330, 112)
+	var local_mouse := get_global_transform_with_canvas().affine_inverse() * get_viewport().get_mouse_position()
+	status_info_panel.position = Vector2(clampf(local_mouse.x - 165.0, 10.0, DESIGN_SIZE.x - 340.0), clampf(local_mouse.y + 12.0, 10.0, DESIGN_SIZE.y - 122.0))
+	status_info_panel.z_index = 180
+	status_info_panel.add_theme_stylebox_override("panel", _panel_style(Color("171925"), Color("ffd267"), 3))
+	add_child(status_info_panel)
+	var title := description.get_slice(" ", 0)
+	var detail := _status_detail_text(description)
+	_add_info_label(status_info_panel, title, Rect2(16, 8, 298, 28), 17, Color("ffd267"))
+	var body := _add_info_label(status_info_panel, detail, Rect2(16, 36, 298, 66), 12, Color.WHITE)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+
+func _status_detail_text(description: String) -> String:
+	if description.begins_with("护盾"):
+		return "优先吸收即将受到的伤害；右侧数值为当前剩余护盾。"
+	if description.begins_with("燃烧"):
+		return "持续造成伤害，可叠加；数值表示当前层数。"
+	if description.begins_with("减速"):
+		return "降低技能充能速度；数值表示剩余持续时间。"
+	if description.begins_with("眩晕"):
+		return "期间无法攻击或释放技能；数值表示剩余持续时间。"
+	if description.begins_with("暴击率"):
+		return "攻击触发暴击时造成更高伤害；数值为当前概率。"
+	if description.begins_with("闪避率"):
+		return "有概率完全避开一次攻击；数值为当前概率。"
+	if description.begins_with("控制抗性"):
+		return "缩短减速、眩晕等硬控的持续时间。"
+	return "该单位已经触发一次复活效果，本场战斗不能再次触发。"
 
 
 func _defeat_fighter(fighter: Fighter) -> void:
 	if not fighter.alive:
 		return
-	if fighter.player_side and fighter.traits.has("亡灵"):
-		var undead_tier := CATALOG.active_tier("亡灵", int(player_synergies.get("亡灵", 0)))
+	if fighter.player_side and fighter.traits.has("灵体"):
+		var undead_tier := CATALOG.active_tier("灵体", int(player_synergies.get("灵体", 0)))
 		if undead_tier >= 1:
 			_heal_other_undead(fighter)
 		if undead_tier >= 2 and not fighter.revived_as_spirit:
 			fighter.revived_as_spirit = true
-			fighter.hp = maxi(roundi(fighter.max_hp * 0.30), 1)
+			var revive_bonus := GameState.accessory_effect_total("revive_power")
+			fighter.hp = maxi(roundi(fighter.max_hp * (0.30 + revive_bonus)), 1)
 			fighter.charge = 0.35
 			fighter.damage_multiplier *= 0.82
 			fighter.sprite.modulate = Color(0.68, 0.62, 0.92, 0.88)
 			_update_hp_label(fighter)
 			_update_charge_bar(fighter)
-			status_label.text = "亡灵羁绊触发：单位以灵魂形态复活"
+			status_label.text = "灵体羁绊触发：单位以灵魂形态复活"
 			return
 	if fighter.player_side and fighter.traits.has("植物") and not fighter.revived_as_seedling and CATALOG.active_tier("植物", int(player_synergies.get("植物", 0))) >= 2:
 		fighter.revived_as_seedling = true
-		fighter.hp = maxi(roundi(fighter.max_hp * 0.35), 1)
+		var seedling_bonus := GameState.accessory_effect_total("revive_power")
+		fighter.hp = maxi(roundi(fighter.max_hp * (0.35 + seedling_bonus)), 1)
 		fighter.charge = 0.0
 		fighter.damage_multiplier *= 0.72
 		fighter.sprite.modulate = Color(0.58, 1.0, 0.48, 1.0)
@@ -1310,18 +1552,19 @@ func _finish_battle(player_won: bool) -> void:
 	battle_over = true
 	if player_won:
 		var first_battle_victory := _is_first_battle_node()
+		for defeated in fighters:
+			if not defeated.player_side and defeated.texture_path != MIMIC_TEXTURE:
+				GameState.mark_creature_defeated(defeated.texture_path)
 		for team_index in GameState.player_team.size():
 			var texture_path := GameState.player_team[team_index]
 			if not texture_path.is_empty():
-				# Collection progression is intentionally earned in layers:
-				# obtain -> win while fielded -> reach 3 stars or defeat a boss.
-				GameState.unlock_creature_achievement(texture_path, GameState.ACHIEVEMENT_MEDAL)
 				var level := GameState.player_team_levels[team_index] if team_index < GameState.player_team_levels.size() else 1
-				if level >= 3 or GameState.current_map_node_type() == "boss":
-					GameState.unlock_creature_achievement(texture_path, GameState.ACHIEVEMENT_STAR)
+				GameState.mark_creature_owned(texture_path, level)
+				GameState.mark_creature_win(texture_path)
 		var node_type := GameState.current_map_node_type() if GameState.map_initialized else "battle"
 		var gold_reward := GameState.battle_gold_breakdown(node_type)
 		GameState.add_coins(int(gold_reward["total"]))
+		result_gold_reward = int(gold_reward["total"])
 		victory_reward_text = "战斗金币：+%d（基础 %d" % [int(gold_reward["total"]), int(gold_reward["base"])]
 		if int(gold_reward["node_bonus"]) > 0:
 			victory_reward_text += "，节点 +%d" % int(gold_reward["node_bonus"])
@@ -1356,8 +1599,13 @@ func _finish_battle(player_won: bool) -> void:
 	add_child(shade)
 	_add_label("胜 利" if player_won else "战斗失败", Rect2(390, 245, 500, 80), 38, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 110)
 	if not victory_reward_text.is_empty():
-		_add_label(victory_reward_text, Rect2(300, 315, 680, 58), 15, Color("ffd159"), HORIZONTAL_ALIGNMENT_CENTER, 110)
-	var result_button_y := 390.0 if not victory_reward_text.is_empty() else 350.0
+		var reward_label_x := 325.0 if result_gold_reward > 0 else 300.0
+		if result_gold_reward > 0:
+			_create_result_coin_icon(Vector2(298, 320))
+		_add_label(victory_reward_text, Rect2(reward_label_x, 315, 655, 58), 15, Color("ffd159"), HORIZONTAL_ALIGNMENT_CENTER, 110)
+	for reward_index in result_item_rewards.size():
+		_create_result_item_card(result_item_rewards[reward_index], Vector2(485 + reward_index * 155, 378))
+	var result_button_y := 510.0 if not result_item_rewards.is_empty() else (390.0 if not victory_reward_text.is_empty() else 350.0)
 	if player_won and not GameState.map_initialized:
 		var retry := _create_result_button("重新战斗", Vector2(435, result_button_y))
 		retry.pressed.connect(_restart_battle)
@@ -1385,6 +1633,8 @@ func _grant_first_battle_chest() -> String:
 		reroll_attempts += 1
 	GameState.add_item(first_entry)
 	GameState.add_item(second_entry)
+	result_item_rewards.append(first_entry)
+	result_item_rewards.append(second_entry)
 	var coin_reward := GameState.FIRST_BATTLE_CHEST_GOLD
 	GameState.add_coins(coin_reward)
 	return "获得开局宝箱：%s、%s，金币 +%d" % [String(first_entry["name"]), String(second_entry["name"]), coin_reward]
@@ -1433,10 +1683,56 @@ func _grant_battle_streak_item() -> String:
 func _store_item_reward(entry: Dictionary, kind: String) -> String:
 	var stored := GameState.add_accessory(entry) if kind == "accessory" else GameState.add_item(entry)
 	if not stored.is_empty():
+		result_item_rewards.append(entry)
 		return String(entry["name"])
 	var conversion := int(entry.get("sell_price", 1))
 	GameState.add_coins(conversion)
 	return "%s（达到上限，转化为 %d 金币）" % [String(entry["name"]), conversion]
+
+
+func _create_result_item_card(entry: Dictionary, position: Vector2) -> void:
+	var rarity := clampi(int(entry.get("rarity", 0)), 0, 2)
+	var rarity_colors := [Color("b8bdc5"), Color("3e95d8"), Color("c45ad9")]
+	var card := Panel.new()
+	card.position = position
+	card.size = Vector2(140, 118)
+	card.z_index = 112
+	card.add_theme_stylebox_override("panel", _panel_style(Color("171925"), rarity_colors[rarity], 3))
+	add_child(card)
+	var icon := TextureRect.new()
+	icon.position = Vector2(34, 8)
+	icon.size = Vector2(72, 72)
+	icon.texture = load(String(entry.get("path", ""))) as Texture2D
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(icon)
+	var name_label := _add_info_label(card, String(entry.get("name", "未知道具")), Rect2(8, 82, 124, 28), 12, rarity_colors[rarity], HORIZONTAL_ALIGNMENT_CENTER)
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+
+func _create_result_coin_icon(position: Vector2) -> void:
+	var coin := Panel.new()
+	coin.position = position
+	coin.size = Vector2(24, 24)
+	coin.z_index = 112
+	coin.tooltip_text = "金币奖励"
+	coin.mouse_filter = Control.MOUSE_FILTER_PASS
+	coin.add_theme_stylebox_override("panel", _panel_style(Color("f5b82e"), Color("6e3e12"), 3))
+	add_child(coin)
+	var shine := ColorRect.new()
+	shine.position = Vector2(6, 5)
+	shine.size = Vector2(5, 5)
+	shine.color = Color("fff09a")
+	shine.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	coin.add_child(shine)
+	var center := ColorRect.new()
+	center.position = Vector2(9, 10)
+	center.size = Vector2(8, 8)
+	center.color = Color("d77d18")
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	coin.add_child(center)
 
 
 func _create_result_button(text: String, position: Vector2) -> Button:
@@ -1449,7 +1745,13 @@ func _create_result_button(text: String, position: Vector2) -> Button:
 	button.add_theme_color_override("font_color", Color.WHITE)
 	button.add_theme_color_override("font_outline_color", Color.BLACK)
 	button.add_theme_constant_override("outline_size", 1)
-	button.add_theme_stylebox_override("normal", _panel_style(Color(0.05, 0.35, 0.45, 1.0), Color.WHITE, 2))
+	var normal := StyleBoxTexture.new()
+	normal.texture = MENU_BUTTON_NORMAL
+	var pressed := StyleBoxTexture.new()
+	pressed.texture = MENU_BUTTON_PRESSED
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", normal)
+	button.add_theme_stylebox_override("pressed", pressed)
 	button.z_index = 110
 	add_child(button)
 	return button

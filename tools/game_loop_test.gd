@@ -33,7 +33,7 @@ func _ready() -> void:
 
 func _test_catalog() -> void:
 	var textures := CATALOG.all_textures()
-	_check(textures.size() == 34, "图鉴和卡池应包含 15 个原角色与 19 个新增角色")
+	_check(textures.size() == 41, "图鉴和卡池应包含 15 个原角色与 26 个新增角色")
 	var unique_paths: Dictionary = {}
 	var new_count := 0
 	for texture_path in textures:
@@ -55,6 +55,10 @@ func _test_catalog() -> void:
 		_check(int(repeated_counts.get(trait_name, 0)) == 1, "相同角色上阵多只时羁绊只能计算一次：%s" % trait_name)
 	for rarity in CATALOG.RARITY_NAMES.size():
 		_check(not CATALOG.textures_for_rarity(rarity).is_empty(), "品质 %d 的卡池为空" % rarity)
+	var growth_one := CATALOG.star_growth(1)
+	var growth_three := CATALOG.star_growth(3)
+	_check(float(growth_three["hp"]) > float(growth_one["hp"]), "三星生命成长必须高于一星")
+	_check(float(growth_three["damage"]) > float(growth_one["damage"]), "三星伤害成长必须高于一星")
 
 
 func _test_map_and_first_battle() -> void:
@@ -82,6 +86,15 @@ func _test_map_and_first_battle() -> void:
 	var rest_data: Dictionary = map._event_stage_data()
 	_check(Array(rest_data.get("options", [])).size() == 3, "休息节点必须提供恢复、训练和补给三种选择")
 	map.rest_event = false
+	GameState.coins = 10
+	map.event_story_id = 6
+	map.event_stage_id = "root"
+	var conditional_event: Dictionary = map._event_stage_data()
+	_check(Array(conditional_event.get("options", [])).size() == 3, "条件事件必须保留三个选择")
+	map.event_stage_id = "crystal_depth"
+	var risk_event: Dictionary = map._event_stage_data()
+	_check(Array(risk_event.get("options", [])).any(func(option): return String(option.get("kind", "")) == "risk_loot"), "连续事件必须包含风险回报")
+	GameState.coins = GameState.STARTING_COINS
 	for _iteration in 100:
 		_check(map._route_edges_are_ordered(map._generate_route_edges()), "随机路线模板不能生成交叉连线")
 	_check(String(GameState.map_nodes[22]["type"]) != "boss", "区域第 1 层不能生成区域 BOSS")

@@ -49,6 +49,40 @@ const ITEM_EFFECT_TYPES: Array[String] = [
 const ACCESSORY_EFFECT_TYPES: Array[String] = [
 	"health", "damage", "charge", "battle_gold", "interest_cap", "shop_discount",
 ]
+const SHIPIN_DATA: Array[Dictionary] = [
+	{"effect_type":"health", "amount":[0.05,0.08,0.12], "group":"vitality", "sources":["shop","event","chest"]},
+	{"effect_type":"damage", "amount":[0.05,0.08,0.12], "group":"offense", "sources":["shop","battle","elite"]},
+	{"effect_type":"charge", "amount":[0.05,0.08,0.12], "group":"tempo", "sources":["shop","event","chest"]},
+	{"effect_type":"crit", "amount":[0.06,0.09,0.13], "group":"precision", "sources":["shop","elite","boss"]},
+	{"effect_type":"dodge", "amount":[0.04,0.07,0.10], "group":"evasion", "sources":["shop","event","chest"]},
+	{"effect_type":"shield_power", "amount":[0.08,0.12,0.18], "group":"barrier", "sources":["shop","elite","boss"]},
+	{"effect_type":"battle_gold", "amount":[1,1,2], "group":"economy_gold", "sources":["battle","elite"]},
+	{"effect_type":"interest_cap", "amount":[1,1,2], "group":"economy_interest", "sources":["shop","event"]},
+	{"effect_type":"shop_discount", "amount":[1,1,2], "group":"economy_shop", "sources":["shop","chest"]},
+	{"effect_type":"burn_damage", "amount":[0.10,0.16,0.24], "group":"status_burn", "sources":["shop","elite"]},
+	{"effect_type":"control_resist", "amount":[0.15,0.25,0.35], "group":"status_resist", "sources":["shop","event","boss"]},
+	{"effect_type":"revive_power", "amount":[0.10,0.18,0.28], "group":"revive", "sources":["chest","elite","boss"]},
+	{"effect_type":"health", "amount":[0.04,0.07,0.10], "group":"vitality", "sources":["event","chest"]},
+	{"effect_type":"damage", "amount":[0.04,0.07,0.10], "group":"offense", "sources":["battle","elite"]},
+	{"effect_type":"crit", "amount":[0.05,0.08,0.12], "group":"precision", "sources":["shop","event"]},
+	{"effect_type":"dodge", "amount":[0.03,0.06,0.09], "group":"evasion", "sources":["shop","chest"]},
+	{"effect_type":"shield_power", "amount":[0.07,0.11,0.16], "group":"barrier", "sources":["event","elite"]},
+	{"effect_type":"control_resist", "amount":[0.12,0.22,0.32], "group":"status_resist", "sources":["shop","chest"]},
+	{"effect_type":"burn_damage", "amount":[0.08,0.14,0.22], "group":"status_burn", "sources":["battle","elite"]},
+	{"effect_type":"revive_power", "amount":[0.08,0.16,0.25], "group":"revive", "sources":["event","boss"]},
+	{"effect_type":"health", "amount":[0.06,0.09,0.13], "group":"vitality", "sources":["shop","chest"]},
+	{"effect_type":"damage", "amount":[0.06,0.09,0.13], "group":"offense", "sources":["shop","elite"]},
+	{"effect_type":"charge", "amount":[0.06,0.09,0.13], "group":"tempo", "sources":["event","chest"]},
+	{"effect_type":"crit", "amount":[0.07,0.10,0.15], "group":"precision", "sources":["elite","boss"]},
+	{"effect_type":"dodge", "amount":[0.05,0.08,0.11], "group":"evasion", "sources":["event","chest"]},
+	{"effect_type":"shield_power", "amount":[0.09,0.14,0.20], "group":"barrier", "sources":["shop","boss"]},
+	{"effect_type":"battle_gold", "amount":[1,2,2], "group":"economy_gold", "sources":["battle","elite"]},
+	{"effect_type":"interest_cap", "amount":[1,2,2], "group":"economy_interest", "sources":["event","chest"]},
+	{"effect_type":"shop_discount", "amount":[1,1,2], "group":"economy_shop", "sources":["shop","elite"]},
+	{"effect_type":"burn_damage", "amount":[0.12,0.18,0.26], "group":"status_burn", "sources":["shop","boss"]},
+	{"effect_type":"control_resist", "amount":[0.18,0.28,0.38], "group":"status_resist", "sources":["elite","boss"]},
+	{"effect_type":"revive_power", "amount":[0.12,0.20,0.30], "group":"revive", "sources":["chest","boss"]},
+]
 
 
 static func rarity_for_id(id: int) -> int:
@@ -185,19 +219,25 @@ static func _make_accessory(id: int) -> Dictionary:
 
 static func _make_shipin_accessory(id: int) -> Dictionary:
 	var index := id - 9001
+	var config: Dictionary = SHIPIN_DATA[clampi(index, 0, SHIPIN_DATA.size() - 1)]
 	var rarity := clampi(floori(float(index) / 11.0), 0, 2)
-	var effect_index := posmod(index, ACCESSORY_EFFECT_TYPES.size())
-	var effect_type := ACCESSORY_EFFECT_TYPES[effect_index]
-	var amount: float = float([0.05, 0.08, 0.12][rarity]) if effect_index < 3 else 1.0
+	var effect_type := String(config["effect_type"])
+	var amount: float = float(Array(config["amount"])[rarity])
 	var effect_text := ""
 	match effect_type:
 		"health": effect_text = "持有时，本轮远征全队最大生命 +%d%%" % roundi(amount * 100.0)
 		"damage": effect_text = "持有时，本轮远征全队伤害 +%d%%" % roundi(amount * 100.0)
 		"charge": effect_text = "持有时，本轮远征全队充能速度 +%d%%" % roundi(amount * 100.0)
+		"crit": effect_text = "全队暴击率 +%d%%" % roundi(amount * 100.0)
+		"dodge": effect_text = "全队闪避率 +%d%%" % roundi(amount * 100.0)
+		"shield_power": effect_text = "获得护盾效果 +%d%%" % roundi(amount * 100.0)
+		"burn_damage": effect_text = "燃烧伤害 +%d%%" % roundi(amount * 100.0)
+		"control_resist": effect_text = "控制持续时间缩短 %d%%" % roundi(amount * 100.0)
+		"revive_power": effect_text = "复活时额外恢复 %d%% 生命" % roundi(amount * 100.0)
 		"battle_gold": effect_text = "每次战斗胜利额外获得 1 金币"
 		"interest_cap": effect_text = "金币利息上限提高 1"
 		"shop_discount": effect_text = "商店中价格高于 1 的商品便宜 1 金币"
-	var exclusive_group := "" if effect_index < 3 else "shipin_%s" % effect_type
+	var exclusive_group := String(config["group"])
 	return {
 		"id": id,
 		"kind": "accessory",
@@ -211,7 +251,7 @@ static func _make_shipin_accessory(id: int) -> Dictionary:
 		"sell_price": [1, 2, 3][rarity],
 		"stack_limit": 1 if not exclusive_group.is_empty() else [3, 2, 1][rarity],
 		"exclusive_group": exclusive_group,
-		"sources": _drop_sources(rarity),
+		"sources": Array(config["sources"]),
 	}
 
 

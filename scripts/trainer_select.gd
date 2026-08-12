@@ -90,15 +90,28 @@ func _build_trainer_card(index: int) -> void:
 	art.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait_frame.add_child(art)
+	var portrait_border := Panel.new()
+	portrait_border.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	portrait_border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait_border.z_index = 3
+	portrait_border.add_theme_stylebox_override("panel", _panel_style(Color.TRANSPARENT, data["color"], 4))
+	portrait_frame.add_child(portrait_border)
 	var name_label := _label(String(data["name"]), Rect2(18, 330, 304, 38), 24, Color("252a32"))
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.reparent(card)
+	name_label.reparent(card, false)
 	var title_label := _label(String(data["title"]), Rect2(18, 368, 304, 28), 16, data["color"])
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_label.reparent(card)
+	title_label.reparent(card, false)
 	var passive := _label(String(data["passive"]), Rect2(22, 402, 296, 35), 15, Color("3f4650"))
 	passive.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	passive.reparent(card)
+	passive.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	passive.reparent(card, false)
+	var card_border := Panel.new()
+	card_border.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	card_border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card_border.z_index = 5
+	card_border.add_theme_stylebox_override("panel", _panel_style(Color.TRANSPARENT, data["color"], 5))
+	card.add_child(card_border)
 	var hit := Button.new()
 	hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hit.flat = true

@@ -42,26 +42,48 @@ const SHOP_CARD_COUNT := 5
 const SHOP_ITEM_CHANCE := 0.58
 const SHOP_ACCESSORY_CHANCE := 0.46
 const TRAIT_ICON_PATHS: Dictionary = {
-	"自然": "res://assets/ui/trait_icons/nature.png",
-	"火": "res://assets/ui/trait_icons/fire.png",
-	"雷": "res://assets/ui/trait_icons/lightning.png",
-	"岩": "res://assets/ui/trait_icons/rock.png",
-	"植物": "res://assets/ui/trait_icons/plant.png",
-	"虫群": "res://assets/ui/trait_icons/insect.png",
-	"龙族": "res://assets/ui/trait_icons/dragon.png",
-	"机械": "res://assets/ui/trait_icons/mechanical.png",
-	"亡灵": "res://assets/ui/trait_icons/undead.png",
+	"自然": "res://assets/ui/trait_icons/new_set/nature.png",
+	"火": "res://assets/ui/trait_icons/new_set/fire.png",
+	"雷": "res://assets/ui/trait_icons/new_set/lightning.png",
+	"岩": "res://assets/ui/trait_icons/new_set/rock.png",
+	"水": "res://assets/ui/trait_icons/new_set/water.png",
+	"冰": "res://assets/ui/trait_icons/new_set/ice.png",
+	"植物": "res://assets/ui/trait_icons/new_set/plant.png",
+	"虫群": "res://assets/ui/trait_icons/new_set/insect.png",
+	"龙族": "res://assets/ui/trait_icons/new_set/dragon.png",
+	"机械": "res://assets/ui/trait_icons/new_set/mechanical.png",
+	"灵体": "res://assets/ui/trait_icons/new_set/spirit.png",
+	"守护": "res://assets/ui/trait_icons/guardian.png",
+	"野兽": "res://assets/ui/trait_icons/beast.png",
+	"月影": "res://assets/ui/trait_icons/new_set/moon.png",
+	"星辉": "res://assets/ui/trait_icons/new_set/starlight.png",
+	"格斗": "res://assets/ui/trait_icons/new_set/fighter.png",
+	"飞行": "res://assets/ui/trait_icons/new_set/flying.png",
+	"亡灵": "res://assets/ui/trait_icons/new_set/undead.png",
+	"风": "res://assets/ui/trait_icons/new_set/wind.png",
+	"晶石": "res://assets/ui/trait_icons/new_set/crystal.png",
 }
 const TRAIT_COLORS: Dictionary = {
-	"自然": Color("a8c957"),
-	"火": Color("ef6a3a"),
-	"雷": Color("4fa6dc"),
-	"岩": Color("aab0b8"),
-	"植物": Color("5fae55"),
-	"虫群": Color("91b83e"),
-	"龙族": Color("7954aa"),
-	"机械": Color("768392"),
-	"亡灵": Color("474357"),
+	"自然": Color("a8a8a8"),
+	"火": Color("fc9833"),
+	"雷": Color("f7d542"),
+	"岩": Color("d77e47"),
+	"水": Color("4f9be6"),
+	"冰": Color("76d4c9"),
+	"植物": Color("57c061"),
+	"虫群": Color("96c025"),
+	"龙族": Color("137ed3"),
+	"机械": Color("5195a1"),
+	"灵体": Color("646dc2"),
+	"守护": Color("d09a3d"),
+	"野兽": Color("697078"),
+	"月影": Color("70717e"),
+	"星辉": Color("eb7ada"),
+	"格斗": Color("dc3d4b"),
+	"飞行": Color("91aee6"),
+	"亡灵": Color("b65cce"),
+	"风": Color("fd7c7a"),
+	"晶石": Color("ceb984"),
 }
 
 var source_han_font: FontFile
@@ -263,10 +285,10 @@ func _build_health_display() -> void:
 
 func _play_life_loss_animation(index: int) -> void:
 	GameState.pending_life_loss_animation = false
-	await get_tree().create_timer(0.28).timeout
+	await get_tree().create_timer(0.56).timeout
 	for frame_index in range(1, HEALTH_FRAMES.size()):
 		health_icons[index].texture = HEALTH_FRAMES[frame_index]
-		await get_tree().create_timer(0.09).timeout
+		await get_tree().create_timer(0.18).timeout
 
 
 func _build_bench() -> void:
@@ -306,16 +328,17 @@ func _build_synergy() -> void:
 	synergy_list.custom_minimum_size = Vector2(244, 368)
 	synergy_list.size = synergy_list.custom_minimum_size
 	synergy_scroll.add_child(synergy_list)
-	for index in CATALOG.SYNERGY_ORDER.size():
-		var synergy: String = CATALOG.SYNERGY_ORDER[index]
+	var synergy_ids: Array[String] = CATALOG.synergy_ids()
+	for index in synergy_ids.size():
+		var synergy: String = synergy_ids[index]
 		var y := index * 61.0
-		var icon := _add_texture(synergy_list, TRAIT_ICON_PATHS[synergy], Rect2(8, y + 10, 38, 38))
+		var icon := _add_texture(synergy_list, CATALOG.synergy_icon_path(synergy), Rect2(8, y + 10, 38, 38))
 		var name_label := _add_label(synergy_list, synergy, Rect2(50, y + 4, 112, 26), 16, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 		var count_label := _add_label(synergy_list, "", Rect2(174, y + 4, 62, 26), 16, Color("f3a62f"), HORIZONTAL_ALIGNMENT_CENTER)
 		synergy_icons[synergy] = icon
 		synergy_name_labels[synergy] = name_label
 		synergy_count_labels[synergy] = count_label
-		var thresholds: Array = CATALOG.THRESHOLDS[synergy]
+		var thresholds: Array = CATALOG.synergy_thresholds(synergy)
 		var boxes: Array[ColorRect] = []
 		var step_labels: Array[Label] = []
 		for step_index in thresholds.size():
@@ -323,7 +346,7 @@ func _build_synergy() -> void:
 			var active_box := ColorRect.new()
 			active_box.position = Vector2(step_x, y + 33)
 			active_box.size = Vector2(25, 19)
-			active_box.color = TRAIT_COLORS[synergy]
+			active_box.color = CATALOG.synergy_color(synergy)
 			active_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			active_box.visible = false
 			synergy_list.add_child(active_box)
@@ -382,7 +405,7 @@ func _update_synergies() -> void:
 			active_team.append(creature_data[index])
 	synergy_current_counts = CATALOG.count_synergies(active_team)
 	var visible_row := 0
-	for synergy in CATALOG.SYNERGY_ORDER:
+	for synergy in CATALOG.synergy_ids():
 		var count := int(synergy_current_counts.get(synergy, 0))
 		var row_visible := count > 0
 		var row_y := visible_row * 61.0
@@ -401,7 +424,7 @@ func _update_synergies() -> void:
 			hover.position = Vector2(0, row_y)
 			synergy_row_positions[synergy] = 136.0 + row_y
 			visible_row += 1
-		var thresholds: Array = CATALOG.THRESHOLDS[synergy]
+		var thresholds: Array = CATALOG.synergy_thresholds(synergy)
 		count_label.text = "%d/%d" % [count, thresholds[thresholds.size() - 1]]
 		count_label.add_theme_color_override("font_color", Color("f3a62f") if count >= thresholds[0] else Color("777b83"))
 		var boxes: Array = synergy_step_boxes[synergy]
@@ -1164,6 +1187,7 @@ func _resolve_creature_merges(texture_path: String) -> int:
 			var keep_slot := _preferred_merge_slot(matches)
 			matches.erase(keep_slot)
 			creature_levels[keep_slot] = level + 1
+			GameState.mark_creature_owned(texture_path, level + 1)
 			_clear_creature_slot(matches[0])
 			_clear_creature_slot(matches[1])
 			_render_creature_slot(keep_slot)

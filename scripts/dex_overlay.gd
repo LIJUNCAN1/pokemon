@@ -73,6 +73,10 @@ var selected_accessory_index := 0
 var selected_item_index := 0
 var selected_trainer_index := 0
 var current_tab := 0
+var trainer_dragging := false
+var trainer_drag_last_x := 0.0
+var trainer_drag_distance := 0.0
+var trainer_drag_suppress_select := false
 
 
 func _ready() -> void:
@@ -104,6 +108,43 @@ func _ready() -> void:
 	selected_item_index = _first_seen_entry_index(item_entries, "item")
 	_build_interface()
 	refresh_data()
+
+
+func _input(event: InputEvent) -> void:
+	if current_tab != 3:
+		return
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT:
+			if mouse_event.pressed:
+				var local_position := monster_scroll.get_global_transform_with_canvas().affine_inverse() * mouse_event.position
+				if not Rect2(Vector2.ZERO, monster_scroll.size).has_point(local_position):
+					return
+				trainer_dragging = true
+				trainer_drag_distance = 0.0
+				trainer_drag_suppress_select = false
+				trainer_drag_last_x = mouse_event.position.x
+			else:
+				trainer_dragging = false
+				if trainer_drag_distance >= 8.0:
+					trainer_drag_suppress_select = true
+					_clear_trainer_drag_suppression.call_deferred()
+			return
+		if mouse_event.pressed and mouse_event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+			var direction := -1 if mouse_event.button_index == MOUSE_BUTTON_WHEEL_UP else 1
+			monster_scroll.scroll_horizontal = clampi(monster_scroll.scroll_horizontal + direction * 180, 0, int(monster_page.size.x - monster_scroll.size.x))
+			get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and trainer_dragging:
+		var motion := event as InputEventMouseMotion
+		var delta_x := motion.position.x - trainer_drag_last_x
+		trainer_drag_distance += absf(delta_x)
+		monster_scroll.scroll_horizontal = clampi(monster_scroll.scroll_horizontal - roundi(delta_x), 0, int(monster_page.size.x - monster_scroll.size.x))
+		trainer_drag_last_x = motion.position.x
+		get_viewport().set_input_as_handled()
+
+
+func _clear_trainer_drag_suppression() -> void:
+	trainer_drag_suppress_select = false
 
 
 func _build_interface() -> void:
@@ -204,7 +245,7 @@ func _build_collection_panel() -> void:
 	for index in item_entries.size():
 		_create_item_card("item", index, _collection_card_rect(index))
 	for index in TRAINER_TEXTURES.size():
-		_create_trainer_card(index, Rect2(12 + index * 221, 10, 205, 152))
+		_create_trainer_card(index, Rect2(22 + index * 330, 28, 292, 412))
 
 	var native_scrollbar := monster_scroll.get_v_scroll_bar()
 	native_scrollbar.modulate.a = 0.0
@@ -233,6 +274,12 @@ func _create_creature_card(index: int, rect: Rect2) -> void:
 	var trophy := _add_texture(card, DEX + "image-1785683743659-hcg3y7d2ca2.png", Rect2(151, 16, 32, 32))
 	var medal := _add_texture(card, DEX + "image-1785683749088-mt9x4axmxfo2.png", Rect2(154, 55, 27, 32))
 	var star := _add_texture(card, DEX + "image-1785683749811-6btmw25d8ow2.png", Rect2(153, 96, 29, 29))
+	trophy.tooltip_text = "奖杯：使用该角色赢得一场战斗"
+	medal.tooltip_text = "勋章：将该角色升到三星"
+	star.tooltip_text = "拼图：使用包含该角色的队伍完成完整远征"
+	trophy.mouse_filter = Control.MOUSE_FILTER_PASS
+	medal.mouse_filter = Control.MOUSE_FILTER_PASS
+	star.mouse_filter = Control.MOUSE_FILTER_PASS
 	var name_label := _add_label(card, "?", Rect2(12, 115, 132, 28), 12, HORIZONTAL_ALIGNMENT_CENTER)
 	_use_dark_text(name_label)
 	card_creature_sprites.append(creature_sprite)
@@ -262,11 +309,11 @@ func _create_item_card(kind: String, index: int, rect: Rect2) -> void:
 	card.visible = false
 	monster_page.add_child(card)
 	_add_texture(card, DEX + "13_切图_13.png", Rect2(Vector2.ZERO, rect.size), TextureRect.STRETCH_SCALE)
-	var sprite := _add_texture(card, String(entry["path"]), Rect2(24, 12, 112, 104))
+	var sprite := _add_texture(card, String(entry["path"]), Rect2(25, 20, 110, 88))
 	var unknown_label := _add_label(card, "?", Rect2(24, 12, 112, 104), 36, HORIZONTAL_ALIGNMENT_CENTER)
 	_use_dark_text(unknown_label)
 	var rarity := clampi(int(entry.get("rarity", 0)), 0, ITEM_CATALOG.RARITY_NAMES.size() - 1)
-	var rarity_label := _add_label(card, ITEM_CATALOG.RARITY_NAMES[rarity], Rect2(144, 18, 48, 24), 11, HORIZONTAL_ALIGNMENT_CENTER)
+	var rarity_label := _add_label(card, ITEM_CATALOG.RARITY_NAMES[rarity], Rect2(140, 10, 52, 24), 11, HORIZONTAL_ALIGNMENT_RIGHT)
 	rarity_label.add_theme_color_override("font_color", _item_rarity_color(rarity))
 	var name_label := _add_label(card, "?", Rect2(12, 116, 181, 28), 12, HORIZONTAL_ALIGNMENT_CENTER)
 	_use_dark_text(name_label)
@@ -303,8 +350,8 @@ func _create_trainer_card(index: int, rect: Rect2) -> void:
 	monster_page.add_child(card)
 	trainer_cards.append(card)
 	_add_texture(card, DEX + "13_切图_13.png", Rect2(Vector2.ZERO, rect.size), TextureRect.STRETCH_SCALE)
-	var trainer_sprite := _add_texture(card, TRAINER_TEXTURES[index], Rect2(26, 13, 153, 108))
-	var name_label := _add_label(card, TRAINER_NAMES[index], Rect2(16, 116, 173, 28), 14, HORIZONTAL_ALIGNMENT_CENTER)
+	var trainer_sprite := _add_texture(card, TRAINER_TEXTURES[index], Rect2(16, 12, 260, 350))
+	var name_label := _add_label(card, TRAINER_NAMES[index], Rect2(16, 370, 260, 32), 17, HORIZONTAL_ALIGNMENT_CENTER)
 	_use_dark_text(name_label)
 	var selection := _add_texture(card, DEX + "image-1785681904517-raawndjoah.png", Rect2(2, 2, rect.size.x - 4, rect.size.y - 4), TextureRect.STRETCH_SCALE)
 	selection.visible = index == 0
@@ -321,6 +368,8 @@ func _create_trainer_card(index: int, rect: Rect2) -> void:
 
 
 func _select_trainer(index: int) -> void:
+	if trainer_drag_suppress_select:
+		return
 	selected_trainer_index = clampi(index, 0, TRAINER_TEXTURES.size() - 1)
 	var unlocked := GameState.has_unlocked_trainer(TRAINER_IDS[selected_trainer_index])
 	detail_sprite.texture = load(TRAINER_TEXTURES[selected_trainer_index]) as Texture2D
@@ -417,7 +466,16 @@ func _select_creature(index: int) -> void:
 	detail_type.text = "%s·%s" % [element_text, race_text]
 	detail_cooldown.text = "%.1f\n秒" % (CATALOG.cooldown_for_texture(CREATURES[index]) / CATALOG.rarity_charge_multiplier(CREATURES[index]))
 	_refresh_creature_level_stats()
-	detail_description.text = "%s\n%s" % [CATALOG.skill_name_for_texture(CREATURES[index]), CATALOG.skill_text_for_texture(CREATURES[index])]
+	var progress := GameState.creature_progress_for(CREATURES[index])
+	detail_description.text = "%s\n%s\n拥有 %s · 最高 %d 星 · 击败 %d · 胜场 %d · 构筑通关 %s" % [
+		CATALOG.skill_name_for_texture(CREATURES[index]),
+		CATALOG.skill_text_for_texture(CREATURES[index]),
+		"是" if bool(progress.get("owned", false)) else "否",
+		int(progress.get("max_star", 0)),
+		int(progress.get("defeated", 0)),
+		int(progress.get("wins", 0)),
+		"完成" if bool(progress.get("build_clear", false)) else "未完成",
+	]
 	for frame_index in selection_frames.size():
 		selection_frames[frame_index].visible = frame_index == index
 
@@ -449,10 +507,18 @@ func _on_tab_pressed(index: int) -> void:
 			_set_collection_page_height(item_entries.size())
 			_select_item_entry("item", selected_item_index)
 		_:
-			_set_collection_page_height(TRAINER_TEXTURES.size())
+			monster_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+			monster_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+			monster_page.custom_minimum_size = Vector2(maxf(892.0, 44.0 + TRAINER_TEXTURES.size() * 330.0), 455.0)
+			monster_page.size = monster_page.custom_minimum_size
+			monster_page.update_minimum_size()
 			_select_trainer(selected_trainer_index)
 	_update_counters()
 	monster_scroll.scroll_vertical = 0
+	if index != 3:
+		monster_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		monster_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		monster_scroll.scroll_horizontal = 0
 
 
 func _on_collection_scrolled(_value: float) -> void:

@@ -134,6 +134,8 @@ var map_drag_distance := 0.0
 var tutorial_overlay: Control
 var tutorial_shade_layer: Control
 var tutorial_dialogue: Label
+var tutorial_hint_root: Control
+var tutorial_uses_gamepad := false
 var tutorial_step := 0
 const TUTORIAL_STEPS: Array[Dictionary] = [
 	{"focus": Rect2(40, 20, 370, 80), "text": "欢迎来到怪兽远征。我是森野博士。这里会显示当前区域与层数，击败区域尽头的首领才能继续前进。"},
@@ -177,6 +179,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventJoypadButton or event is InputEventJoypadMotion:
+		_set_tutorial_input_device(true)
+	elif event is InputEventKey or event is InputEventMouseButton or event is InputEventMouseMotion:
+		_set_tutorial_input_device(false)
 	if input_locked or not is_instance_valid(map_viewport) or not is_instance_valid(map_content) or is_instance_valid(event_overlay) or is_instance_valid(settings_overlay):
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -697,8 +703,8 @@ func _show_tutorial() -> void:
 	tutorial_shade_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tutorial_overlay.add_child(tutorial_shade_layer)
 	var professor_frame := Panel.new()
-	professor_frame.position = Vector2(26, 350)
-	professor_frame.size = Vector2(250, 350)
+	professor_frame.position = Vector2(26, 342)
+	professor_frame.size = Vector2(250, 358)
 	professor_frame.clip_contents = true
 	professor_frame.add_theme_stylebox_override("panel", _panel_style(Color("f6f3ea"), Color("48515d"), 4))
 	tutorial_overlay.add_child(professor_frame)
@@ -712,13 +718,13 @@ func _show_tutorial() -> void:
 	professor.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	professor_frame.add_child(professor)
 	var dialogue_panel := Panel.new()
-	dialogue_panel.position = Vector2(250, 500)
-	dialogue_panel.size = Vector2(1000, 185)
+	dialogue_panel.position = Vector2(250, 490)
+	dialogue_panel.size = Vector2(1000, 200)
 	dialogue_panel.add_theme_stylebox_override("panel", _panel_style(Color("f7f7f3"), Color("4e5662"), 5))
 	tutorial_overlay.add_child(dialogue_panel)
 	tutorial_dialogue = Label.new()
-	tutorial_dialogue.position = Vector2(35, 24)
-	tutorial_dialogue.size = Vector2(930, 105)
+	tutorial_dialogue.position = Vector2(35, 18)
+	tutorial_dialogue.size = Vector2(930, 92)
 	tutorial_dialogue.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tutorial_dialogue.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	tutorial_dialogue.add_theme_font_override("font", source_han_font)
@@ -728,32 +734,13 @@ func _show_tutorial() -> void:
 	tutorial_dialogue.add_theme_constant_override("shadow_offset_x", 1)
 	tutorial_dialogue.add_theme_constant_override("shadow_offset_y", 1)
 	dialogue_panel.add_child(tutorial_dialogue)
-	var uses_gamepad := not Input.get_connected_joypads().is_empty()
-	var hint_icons := [
-		"res://assets/ui/input/gamepad_dpad.png",
-		"res://assets/ui/input/gamepad_confirm.png",
-		"res://assets/ui/input/gamepad_cancel.png",
-	] if uses_gamepad else ["res://assets/ui/input/key_escape.png"]
-	for icon_index in hint_icons.size():
-		var hint_icon := TextureRect.new()
-		hint_icon.position = Vector2(38 + icon_index * 28, 143)
-		hint_icon.size = Vector2(22, 22)
-		hint_icon.texture = load(String(hint_icons[icon_index])) as Texture2D
-		hint_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		hint_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		hint_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		hint_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		dialogue_panel.add_child(hint_icon)
-	var hint_text := Label.new()
-	hint_text.position = Vector2(42 + hint_icons.size() * 28, 139)
-	hint_text.size = Vector2(410, 30)
-	hint_text.text = "移动 / 确认 / 返回" if uses_gamepad else "打开设置或返回"
-	hint_text.add_theme_font_override("font", source_han_font)
-	hint_text.add_theme_font_size_override("font_size", 14)
-	hint_text.add_theme_color_override("font_color", Color("555b65"))
-	dialogue_panel.add_child(hint_text)
+	tutorial_hint_root = Control.new()
+	tutorial_hint_root.position = Vector2(0, 0)
+	dialogue_panel.add_child(tutorial_hint_root)
+	tutorial_uses_gamepad = not Input.get_connected_joypads().is_empty()
+	_rebuild_tutorial_hints()
 	var next_button := Button.new()
-	next_button.position = Vector2(770, 133)
+	next_button.position = Vector2(770, 145)
 	next_button.size = Vector2(190, 42)
 	next_button.text = "下一步"
 	next_button.add_theme_font_override("font", source_han_font)
@@ -766,6 +753,43 @@ func _show_tutorial() -> void:
 	next_button.pressed.connect(_advance_tutorial.bind(next_button))
 	dialogue_panel.add_child(next_button)
 	_render_tutorial_step(next_button)
+
+
+func _set_tutorial_input_device(uses_gamepad: bool) -> void:
+	if tutorial_uses_gamepad == uses_gamepad:
+		return
+	tutorial_uses_gamepad = uses_gamepad
+	_rebuild_tutorial_hints()
+
+
+func _rebuild_tutorial_hints() -> void:
+	if not is_instance_valid(tutorial_hint_root):
+		return
+	for child in tutorial_hint_root.get_children():
+		child.queue_free()
+	var hint_icons := [
+		"res://assets/ui/input/gamepad_dpad.png",
+		"res://assets/ui/input/gamepad_confirm.png",
+		"res://assets/ui/input/gamepad_cancel.png",
+	] if tutorial_uses_gamepad else ["res://assets/ui/input/key_escape.png"]
+	for icon_index in hint_icons.size():
+		var hint_icon := TextureRect.new()
+		hint_icon.position = Vector2(38 + icon_index * 28, 151)
+		hint_icon.size = Vector2(22, 22)
+		hint_icon.texture = load(String(hint_icons[icon_index])) as Texture2D
+		hint_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		hint_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		hint_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		hint_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tutorial_hint_root.add_child(hint_icon)
+	var hint_text := Label.new()
+	hint_text.position = Vector2(42 + hint_icons.size() * 28, 147)
+	hint_text.size = Vector2(410, 30)
+	hint_text.text = "移动 / 确认 / 返回" if tutorial_uses_gamepad else "打开设置或返回"
+	hint_text.add_theme_font_override("font", source_han_font)
+	hint_text.add_theme_font_size_override("font_size", 14)
+	hint_text.add_theme_color_override("font_color", Color("555b65"))
+	tutorial_hint_root.add_child(hint_text)
 
 
 func _render_tutorial_step(next_button: Button) -> void:
@@ -915,11 +939,13 @@ func _show_event_popup(story_override := -1) -> void:
 	illustration.size = Vector2(492, 312)
 	illustration.clip_contents = true
 	event_overlay.add_child(illustration)
-	_add_event_texture(illustration, EVENT_ILLUSTRATION_FRAME, Rect2(Vector2.ZERO, illustration.size))
+	var illustration_frame := _add_event_texture(illustration, EVENT_ILLUSTRATION_FRAME, Rect2(Vector2.ZERO, illustration.size))
+	illustration_frame.z_index = 5
 	var illustration_content := Control.new()
 	illustration_content.position = Vector2(14, 14)
 	illustration_content.size = Vector2(464, 284)
 	illustration_content.clip_contents = true
+	illustration_content.z_index = 2
 	illustration.add_child(illustration_content)
 	if chest_event:
 		var chest_backdrop := ColorRect.new()
@@ -934,13 +960,10 @@ func _show_event_popup(story_override := -1) -> void:
 			Rect2(Vector2.ZERO, illustration_content.size),
 			TextureRect.STRETCH_KEEP_ASPECT_COVERED,
 		)
-		if event_story_id < 6:
-			var story_creature := _add_event_texture(illustration_content, event_creature_path, Rect2(188, 68, 89, 106))
-			story_creature.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 	event_option_area = Control.new()
 	event_option_area.position = Vector2(394, 368)
-	event_option_area.size = Vector2(492, 155)
+	event_option_area.size = Vector2(492, 180)
 	event_overlay.add_child(event_option_area)
 
 	var text_box := _add_event_texture(event_overlay, EVENT_TEXT_BOX, Rect2(220, 536, 840, 180))
@@ -1166,17 +1189,28 @@ func _event_stage_data() -> Dictionary:
 						{"text": "收集入口处的碎矿", "tag": "（金币：+%d）" % gold_medium, "kind": "coins", "amount": gold_medium, "detail": "出售容易取得的碎矿，安全获得金币。"},
 					]}
 		6:
-			return {"story": "林间空地的古老石台上悬浮着一枚金色晶石。它会回应靠近者的心跳，光芒也随着队伍的脚步逐渐增强。", "options": [
-				{"text": "触碰晶石并记录它的脉动", "tag": "（属性：全队充能速度 +10%）", "kind": "attribute", "attribute": "charge", "amount": 0.10, "detail": "晶石的节律强化本轮远征中全队的技能充能速度。"},
+			if event_stage_id == "crystal_depth":
+				return {"story": "晶石内部出现两层相反的脉动：稳定外壳可以安全剥离，核心则可能爆发。", "options": [
+					{"text": "剥离稳定外壳", "tag": "（属性：全队充能速度 +8%）", "kind": "attribute", "attribute": "charge", "amount": 0.08, "detail": "安全获得稳定的充能强化。"},
+					{"text": "冒险取出核心", "tag": "（风险：50% 饰品 / 50% 失去 1 生命）", "kind": "risk_loot", "entry": event_loot, "success_chance": 0.50, "detail": "成功获得饰品，失败则失去 1 点远征生命。"},
+				]}
+			var crystal_options: Array[Dictionary] = [
+				{"text": "深入追踪晶石脉动", "tag": "", "kind": "story", "next": "crystal_depth", "detail": "继续调查会进入第二层选择。"},
 				_loot_option("取下石台边缘脱落的晶片", event_loot),
-				{"text": "将石台位置卖给遗迹商人", "tag": "（金币：+%d）" % gold_medium, "kind": "coins", "amount": gold_medium, "detail": "记录遗迹坐标并换取金币，不惊动晶石本体。"},
-			]}
+			]
+			if GameState.coins >= 10:
+				crystal_options.append({"text": "用 5 金币稳定核心", "tag": "（金币 -5，全队伤害 +12%）", "kind": "attribute", "attribute": "damage", "amount": 0.12, "cost": 5, "detail": "只有持有至少 10 金币时出现，支付 5 金币换取稳定强化。"})
+			else:
+				crystal_options.append({"text": "记录晶石坐标", "tag": "（金币：+%d）" % gold_medium, "kind": "coins", "amount": gold_medium, "detail": "金币不足时保留安全退路，出售坐标获得金币。"})
+			return {"story": "林间空地的古老石台上悬浮着一枚金色晶石。它会回应靠近者的心跳，光芒也随着队伍的脚步逐渐增强。", "options": crystal_options}
 		7:
-			return {"story": "晶石突然迸发出耀眼金光！短暂的惊讶之后，你发现光芒正在凝聚成一份只属于勇敢探索者的馈赠。", "options": [
+			var surprise_options: Array[Dictionary] = [
 				{"text": "抓住飞散的金币", "tag": "（金币：+%d）" % gold_large, "kind": "coins", "amount": gold_large, "detail": "在光芒消失前收集一大把金币。"},
 				{"text": "邀请被光芒吸引来的伙伴", "tag": "（角色卡：%s）" % event_creature_name, "kind": "creature", "detail": "获得角色卡；共享卡池售罄或队伍已满时转化为金币。"},
-				{"text": "把闪光吸收进队伍徽记", "tag": "（属性：全队伤害 +8%）", "kind": "attribute", "attribute": "damage", "amount": 0.08, "detail": "本轮远征全队伤害永久提高 8%。"},
-			]}
+			]
+			if GameState.run_lives >= 2:
+				surprise_options.append({"text": "承受晶石过载", "tag": "（风险：失去 1 生命，获得饰品）", "kind": "life_for_loot", "entry": event_loot, "detail": "需要至少 2 点远征生命；支付 1 点生命，必定获得饰品。"})
+			return {"story": "晶石突然迸发出耀眼金光！短暂的惊讶之后，你发现光芒正在凝聚成一份只属于勇敢探索者的馈赠。", "options": surprise_options}
 		_:
 			return {"story": "前方出现了一道尚未记录的遗迹光芒。", "options": [
 				{"text": "谨慎调查", "tag": "（金币：+%d）" % gold_small, "kind": "coins", "amount": gold_small, "detail": "完成调查并获得少量金币。"},
@@ -1201,14 +1235,15 @@ func _render_event_stage() -> void:
 		var option: Dictionary = options[index]
 		var row := Control.new()
 		row.position = Vector2(0, index * 54.0)
-		row.size = Vector2(492, 46)
+		row.size = Vector2(492, 54)
 		event_option_area.add_child(row)
 		_add_event_texture(row, EVENT_OPTION_FRAME, Rect2(Vector2.ZERO, row.size))
-		var text_label := _event_rich_label(row, Rect2(16, 10, 460, 30), 15)
+		var text_label := _event_rich_label(row, Rect2(16, 7, 460, 40), 15)
+		text_label.fit_content = true
 		var kind := String(option.get("kind", "story"))
 		var tag := String(option.get("tag", ""))
 		var color: Color = REWARD_COLORS.get(kind, REWARD_COLORS["story"])
-		text_label.text = "[color=#30333d]%s[/color] [color=#%s]%s[/color]" % [option["text"], color.to_html(false), tag]
+		text_label.text = "[color=#30333d]%s [/color][color=#%s]%s[/color]" % [option["text"], color.to_html(false), tag]
 		var hit := Button.new()
 		hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		hit.flat = true
@@ -1262,7 +1297,7 @@ func _render_chest_choice_cards(options: Array) -> void:
 func _play_chest_open_animation(parent: Control) -> void:
 	var frames := SpriteFrames.new()
 	frames.add_animation(&"open")
-	frames.set_animation_speed(&"open", 8.0)
+	frames.set_animation_speed(&"open", 4.0)
 	frames.set_animation_loop(&"open", false)
 	# Gold chest open animation is row 6 of the authored 5x8 sheet.
 	for frame_index in 5:
@@ -1334,6 +1369,25 @@ func _choose_event_option(option: Dictionary) -> void:
 				event_result_text = "%s 与现有饰品冲突，转化为 %d 枚金币。" % [String(accessory_entry["name"]), accessory_gold]
 			else:
 				event_result_text = "你佩戴了%s。%s" % [String(accessory_entry["name"]), String(accessory_entry["effect"])]
+		"risk_loot":
+			if rng.randf() < float(option.get("success_chance", 0.5)):
+				var risky_entry: Dictionary = option.get("entry", event_loot)
+				if GameState.add_accessory(risky_entry).is_empty():
+					GameState.add_coins(int(risky_entry.get("sell_price", 1)))
+					event_result_text = "核心共鸣成功，但饰品冲突，转化为金币。"
+				else:
+					event_result_text = "核心共鸣成功：获得 %s。" % String(risky_entry.get("name", "饰品"))
+			else:
+				GameState.lose_run_life()
+				event_result_text = "核心突然失控：失去 1 点远征生命。"
+		"life_for_loot":
+			GameState.lose_run_life()
+			var life_entry: Dictionary = option.get("entry", event_loot)
+			if GameState.add_accessory(life_entry).is_empty():
+				GameState.add_coins(int(life_entry.get("sell_price", 1)))
+				event_result_text = "承受过载后饰品冲突，转化为金币。"
+			else:
+				event_result_text = "承受过载：失去 1 点生命，获得 %s。" % String(life_entry.get("name", "饰品"))
 		"recovery":
 			if GameState.run_lives < GameState.MAX_RUN_LIVES:
 				GameState.restore_run_life(int(option.get("amount", 1)))
@@ -1456,6 +1510,8 @@ func _show_run_complete() -> void:
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(overlay)
 	var final_floor := GameState.is_final_floor()
+	if final_floor:
+		GameState.mark_current_team_build_clear()
 	var result_title := "远 征 完 成" if final_floor else "第 %d 层 完 成" % GameState.floor
 	_add_label(overlay, result_title, Rect2(340, 225, 600, 90), 42, Color("ffd45f"), HORIZONTAL_ALIGNMENT_CENTER)
 	var result_detail := "区域 %d · 本区第 %d 层\n完成战斗：%d · 当前金币：%d · 剩余生命：%d" % [GameState.region, GameState.floor_in_region(), GameState.battle_victories, GameState.coins, GameState.run_lives]
