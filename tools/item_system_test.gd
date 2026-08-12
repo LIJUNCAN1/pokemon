@@ -176,10 +176,11 @@ func _test_collection_ui() -> void:
 	_check(inventory.item_grid.columns == 3, "Inventory must show three items per row")
 	_check(inventory.item_grid.get_child_count() >= 24, "Inventory must preserve eight rows before scrolling")
 	var first_slot := inventory.item_grid.get_child(0) as Control
+	var first_item := epic_item
 	_check(first_slot.tooltip_text.is_empty(), "Inventory slots must not open hover information boxes")
 	var rarity_found := false
 	for child in first_slot.get_children():
-		if child is Label and child.text == ITEM_CATALOG.RARITY_NAMES[int(common_item["rarity"])]:
+		if child is Label and child.text == ITEM_CATALOG.RARITY_NAMES[int(first_item["rarity"])]:
 			rarity_found = true
 	_check(rarity_found, "Inventory items must display their rarity")
 	var right_click := InputEventMouseButton.new()
@@ -188,6 +189,9 @@ func _test_collection_ui() -> void:
 	inventory._on_item_slot_gui_input(right_click, common_item, "持有 1/99")
 	_check(inventory.item_info_panel.visible, "Right-clicking an inventory item must open its fixed detail panel")
 	_check(inventory.item_info_name.text == String(common_item["name"]), "Inventory detail panel must show the selected item")
+	_check(inventory.item_info_dismiss_layer.visible, "Opening item details must enable the blank-area dismiss layer")
+	inventory.item_info_dismiss_layer.pressed.emit()
+	_check(not inventory.item_info_panel.visible and not inventory.item_info_dismiss_layer.visible, "Clicking blank inventory space must close item details")
 	inventory.queue_free()
 
 	GameState.mark_creature_seen("res://素材/宝可梦图/1 (1).png")

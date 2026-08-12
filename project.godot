@@ -19,6 +19,12 @@ config/features=PackedStringArray("4.7")
 GameState="*res://scripts/game_state.gd"
 CursorManager="*res://scripts/custom_cursor.gd"
 MusicManager="*res://scripts/music_manager.gd"
+UiTextStyle="*res://scripts/ui_text_style.gd"
+SceneManager="*res://addons/scene_manager/SceneManager.tscn"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/scene_manager/plugin.cfg")
 
 [display]
 

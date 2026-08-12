@@ -31,6 +31,10 @@ func _ready() -> void:
 	prep.shop_data = entries
 	for index in prep.shop_data.size():
 		prep._render_shop_card(index)
+	prep.creature_data[4] = CREATURES[0]
+	prep.creature_levels[4] = 1
+	prep._render_creature_slot(4)
+	prep._update_synergies()
 	prep._sync_coins()
 	await get_tree().create_timer(0.9).timeout
 	await _capture("res://battle_prep_shop_final.png")
@@ -56,6 +60,11 @@ func _ready() -> void:
 	inspect_event.pressed = false
 	prep._on_shop_card_gui_input(inspect_event, 2)
 	_assert(not CursorManager.inspecting_card, "releasing right-click must restore the normal cursor")
+	prep._show_item_card_tooltip(entries[4])
+	_assert(prep.card_tooltip.size == Vector2(292, 206), "item details must use the Aseprite-authored aspect ratio")
+	_assert(prep.item_tooltip_effect.text.contains("[color=#4f83c2]"), "item values must be highlighted in blue")
+	await _capture("res://battle_prep_item_detail.png")
+	prep._hide_card_tooltip()
 	prep.creature_data[0] = CREATURES[0]
 	prep.creature_levels[0] = 2
 	prep._render_creature_slot(0)
@@ -71,17 +80,19 @@ func _ready() -> void:
 	_assert(prep.shop_element_icon_backgrounds[0].texture != null, "attribute frame must come from the exported Aseprite asset")
 	_assert(prep.coin_label.text == "12G", "coin label must reflect GameState immediately")
 	_assert(prep.health_icons.size() == 3, "run health must contain three heart icons")
+	_assert(prep.health_icons[0].position == Vector2(38, 17), "run health must stay at the top-left reference position")
 	_assert(not prep.shop_card_outlines[0].visible, "shop cards must not draw a second outer outline")
 	_assert(prep.shop_outer_layers[0].visible, "shop cards must use the exported pixel frame")
 	_assert(prep.shop_trait_backgrounds[0].texture is GradientTexture2D, "creature cards must use a rarity gradient")
 	_assert((prep.shop_trait_backgrounds[0].texture as GradientTexture2D).width == 16, "rarity gradient must use pixel-sized color steps")
 	_assert(prep.shop_trait_backgrounds[4].texture is GradientTexture2D, "item cards must use a rarity gradient")
 	_assert(prep.shop_trait_backgrounds[4].visible, "item rarity background must remain visible")
-	_assert((prep.shop_trait_backgrounds[4].texture as GradientTexture2D).gradient.colors[0] == prep.SHOP_RARITY_COLORS[3], "epic items must use the purple global rarity color")
+	var epic_gradient := (prep.shop_trait_backgrounds[4].texture as GradientTexture2D).gradient.colors
+	_assert(epic_gradient[1] == prep.SHOP_RARITY_COLORS[3].lightened(0.34), "epic items must preserve the purple global rarity in the strengthened gradient")
 	_assert(not prep.shop_name_labels[0].text.is_empty() and prep.shop_name_labels[0].z_index > prep.shop_attribute_layers[0].z_index, "shop names must stay visible above the card frame")
 	_assert(prep.shop_price_labels[0].text == "$1" and prep.shop_price_labels[0].z_index > prep.shop_attribute_layers[0].z_index, "shop prices must stay visible above the card frame")
 	_assert(not prep.shop_element_icon_backgrounds[4].visible and not prep.shop_extra_icon_backgrounds[4].visible and not prep.shop_race_icon_backgrounds[4].visible, "item cards must not show trait slots")
-	_assert(prep.lock_label.get_theme_font("font") == prep.source_han_font, "lock text must use the same UI font as the shop header")
+	_assert(prep.lock_label.get_theme_font("font").resource_path.ends_with("SourceHanSansSC-Heavy.otf"), "lock text must use the global Source Han Heavy UI font")
 	_assert(is_equal_approx(prep.coin_label.position.y + prep.coin_label.size.y * 0.5, 551.0), "coin amount must align to the shop header center")
 	_assert(is_equal_approx(prep.shop_star_rows[0].position.x, 8.0), "shop stars must be placed at the top-left")
 	_assert(not prep.shop_star_rows[0].get_child(0).visible, "one-star cards must not display a star")
@@ -92,6 +103,23 @@ func _ready() -> void:
 	_assert(prep.creature_rarity_frames[0].visible, "bench cards must show their rarity frame")
 	_assert(prep.creature_star_rows[0].get_child(0).visible and prep.creature_star_rows[0].get_child(1).visible, "two-star creatures must show exactly two stars")
 	_assert(not prep.creature_star_rows[0].get_child(2).visible, "two-star creatures must not show a third star")
+	var synergy_texture := prep.synergy_icons["自然"].texture as Texture2D
+	_assert(synergy_texture != null, "synergy icons must load after importing the project")
+	_assert(prep.synergy_icons["自然"].modulate == Color.WHITE, "synergy masks must stay white above the new coloured icon cell")
+	_assert(prep.synergy_icon_cells["自然"].color == CREATURE_CATALOG.synergy_color("自然"), "synergy icon cells must use their configured colour")
+	_assert(prep.synergy_row_frames["自然"].size == Vector2(282, 30), "synergy rows must match the compact reference proportions")
+	_assert(prep.synergy_count_labels["自然"].text == "1/5", "synergy rows must report current count against the final threshold")
+	_assert(prep.synergy_count_labels["植物"].text == "1/5", "three-tier synergies must use their final threshold, not tier count, as denominator")
+	_assert(prep.synergy_count_labels["自然"].get_theme_color("font_color") == Color.WHITE, "synergy counts must use white text")
+	var spirit_thresholds: Array = CREATURE_CATALOG.synergy_thresholds("灵体")
+	_assert(spirit_thresholds == [2, 3, 4], "spirit synergy must keep three effects at thresholds 2, 3 and 4")
+	_assert(not prep.synergy_step_boxes["自然"][0].visible, "a synergy below its first threshold must not show a tier marker")
+	prep._show_synergy_tooltip("植物")
+	_assert(prep.synergy_tooltip_tier_rows[2].visible, "three-tier synergy details must show all tiers")
+	_assert(not prep.synergy_tooltip_tier_fills[0].visible, "inactive synergy tiers must keep their circles hollow")
+	_assert(prep.synergy_tooltip_tier_texts[0].text.contains("[color=#"), "synergy effect values must use the trait colour")
+	await _capture("res://synergy_tooltip_polished.png")
+	prep._hide_synergy_tooltip()
 	prep.shop_data[0] = {}
 	prep._render_shop_card(0)
 	_assert(not prep.shop_attribute_layers[0].visible, "sold cards must hide the attribute layer")
@@ -109,6 +137,10 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_assert(prep.inventory_popup.item_grid.columns == 3, "inventory must show three entries per row")
 	await _capture("res://inventory_popup_polished.png")
+	var inventory_detail_entry := ITEM_CATALOG.entry_for_id("accessory", 2)
+	prep.inventory_popup._show_item_info(inventory_detail_entry, "叠加上限 1")
+	_assert(prep.inventory_popup.item_info_effect_rich.text.contains("[color=#4f83c2]"), "inventory detail values must be blue")
+	await _capture("res://inventory_item_detail.png")
 	prep.inventory_popup.queue_free()
 	await get_tree().process_frame
 
@@ -120,6 +152,9 @@ func _ready() -> void:
 	prep.dex_overlay._on_level_pressed(2)
 	_assert(prep.dex_overlay.level_buttons[2].disabled, "selected dex level must move to the pressed button")
 	await _capture("res://dex_overlay_polished.png")
+	prep.dex_overlay._on_tab_pressed(2)
+	await get_tree().process_frame
+	await _capture("res://dex_items_centered.png")
 	print("BATTLE_PREP_SHOP_VISUAL_TEST: PASS")
 	get_tree().quit()
 

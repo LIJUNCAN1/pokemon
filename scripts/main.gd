@@ -373,7 +373,7 @@ func _on_start_pressed() -> void:
 	GameState.has_started_new_game = true
 	GameState.reset_run()
 	GameState.save_run()
-	get_tree().change_scene_to_file("res://trainer_select.tscn")
+	await SceneManager.change_scene("res://trainer_select.tscn", {"skip_fade_out": true})
 
 
 func _on_continue_pressed() -> void:
@@ -388,7 +388,7 @@ func _on_continue_pressed() -> void:
 		_show_status("没有可以继续的远征")
 		_update_continue_availability()
 		return
-	get_tree().change_scene_to_file("res://map.tscn")
+	await SceneManager.change_scene("res://map.tscn", {"skip_fade_out": true})
 
 
 func _on_settings_pressed() -> void:

@@ -309,8 +309,8 @@ func _create_item_card(kind: String, index: int, rect: Rect2) -> void:
 	card.visible = false
 	monster_page.add_child(card)
 	_add_texture(card, DEX + "13_切图_13.png", Rect2(Vector2.ZERO, rect.size), TextureRect.STRETCH_SCALE)
-	var sprite := _add_texture(card, String(entry["path"]), Rect2(25, 20, 110, 88))
-	var unknown_label := _add_label(card, "?", Rect2(24, 12, 112, 104), 36, HORIZONTAL_ALIGNMENT_CENTER)
+	var sprite := _add_texture(card, String(entry["path"]), Rect2(47, 24, 110, 82))
+	var unknown_label := _add_label(card, "?", Rect2(47, 20, 110, 90), 36, HORIZONTAL_ALIGNMENT_CENTER)
 	_use_dark_text(unknown_label)
 	var rarity := clampi(int(entry.get("rarity", 0)), 0, ITEM_CATALOG.RARITY_NAMES.size() - 1)
 	var rarity_label := _add_label(card, ITEM_CATALOG.RARITY_NAMES[rarity], Rect2(140, 10, 52, 24), 11, HORIZONTAL_ALIGNMENT_RIGHT)

@@ -9,6 +9,9 @@ const STAT_BADGE_SHADER: Shader = preload("res://shaders/stat_badge.gdshader")
 const DEX_OVERLAY_SCENE: PackedScene = preload("res://dex_overlay.tscn")
 const SETTINGS_OVERLAY_SCENE: PackedScene = preload("res://settings_overlay.tscn")
 const INVENTORY_POPUP_SCENE: PackedScene = preload("res://inventory_popup.tscn")
+const ITEM_INFO_TINT_SHADER: Shader = preload("res://assets/ui/item_info/rarity_tint.gdshader")
+const ITEM_INFO_ROOT := "res://assets/ui/item_info/"
+const SYNERGY_TOOLTIP_ROOT := "res://assets/ui/synergy_tooltip/"
 const DESIGN_SIZE := Vector2(1280, 720)
 const FULL_HD_SCALE := Vector2(0.5, 0.5)
 const UI := "res://素材/主菜单/"
@@ -152,6 +155,9 @@ var rng := RandomNumberGenerator.new()
 var synergy_count_labels: Dictionary = {}
 var synergy_icons: Dictionary = {}
 var synergy_name_labels: Dictionary = {}
+var synergy_row_frames: Dictionary = {}
+var synergy_icon_cells: Dictionary = {}
+var synergy_count_cells: Dictionary = {}
 var synergy_step_boxes: Dictionary = {}
 var synergy_step_labels: Dictionary = {}
 var synergy_hover_buttons: Dictionary = {}
@@ -162,6 +168,14 @@ var synergy_list: Control
 var synergy_tooltip: Panel
 var synergy_tooltip_title: Label
 var synergy_tooltip_body: Label
+var synergy_tooltip_icon: TextureRect
+var synergy_tooltip_count: Label
+var synergy_tooltip_tier_rows: Array[Control] = []
+var synergy_tooltip_tier_circles: Array[TextureRect] = []
+var synergy_tooltip_tier_fills: Array[ColorRect] = []
+var synergy_tooltip_tier_badges: Array[TextureRect] = []
+var synergy_tooltip_tier_numbers: Array[Label] = []
+var synergy_tooltip_tier_texts: Array[RichTextLabel] = []
 var hovered_synergy := ""
 var shop_hover_tweens: Dictionary = {}
 var idle_wobble_time := 0.0
@@ -180,6 +194,11 @@ var card_tooltip_extra: Label
 var card_tooltip_element_panel: Panel
 var card_tooltip_race_panel: Panel
 var card_tooltip_info_panel: Panel
+var item_tooltip_layers: Array[CanvasItem] = []
+var item_tooltip_type: Label
+var item_tooltip_effect: RichTextLabel
+var item_tooltip_rule: RichTextLabel
+var item_tooltip_divider: Control
 
 
 func _ready() -> void:
@@ -265,7 +284,7 @@ func _build_top_bar() -> void:
 	_add_label(self, "远 征 准 备", Rect2(500, 7, 280, 54), 34, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_add_icon_button(UI + "01_切图_1.png", Rect2(1068, 5, 58, 58), _open_inventory, "打开物品栏")
 	_add_static_icon_button("res://assets/ui/collection_book_icon.png", Rect2(1137, 7, 52, 52), _open_dex, "打开图鉴")
-	_add_icon_button(UI + "02_切图_2.png", Rect2(1202, 6, 56, 56), _on_settings_pressed, "设置")
+	_add_icon_button("res://素材/地图/设置icon.png", Rect2(1202, 6, 56, 56), _on_settings_pressed, "设置")
 	inventory_count_label = _add_label(self, "", Rect2(1101, 43, 24, 24), 18, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_refresh_inventory_count()
 
@@ -274,7 +293,7 @@ func _build_health_display() -> void:
 	health_icons.clear()
 	for index in 3:
 		var filled := index < GameState.run_lives
-		var heart := _add_texture(self, HEALTH_FRAMES[0 if filled else 4].resource_path, Rect2(365 + index * 46, 17, 42, 36))
+		var heart := _add_texture(self, HEALTH_FRAMES[0 if filled else 4].resource_path, Rect2(38 + index * 46, 17, 42, 36))
 		heart.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		health_icons.append(heart)
 	if GameState.pending_life_loss_animation and GameState.run_lives < 3:
@@ -315,26 +334,49 @@ func _build_team() -> void:
 
 
 func _build_synergy() -> void:
-	_add_texture(self, UI + "羁绊框.png", Rect2(979, 82, 272, 433), TextureRect.STRETCH_SCALE)
-	_add_label(self, "羁 绊", Rect2(991, 89, 248, 36), 24, Color(0.95, 0.87, 1.0), HORIZONTAL_ALIGNMENT_CENTER)
 	synergy_scroll = ScrollContainer.new()
-	synergy_scroll.position = Vector2(986, 136)
-	synergy_scroll.size = Vector2(258, 368)
+	synergy_scroll.position = Vector2(970, 98)
+	synergy_scroll.size = Vector2(292, 286)
 	synergy_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	synergy_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	synergy_scroll.clip_contents = true
+	synergy_scroll.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	add_child(synergy_scroll)
 	synergy_list = Control.new()
-	synergy_list.custom_minimum_size = Vector2(244, 368)
+	synergy_list.custom_minimum_size = Vector2(282, 286)
 	synergy_list.size = synergy_list.custom_minimum_size
 	synergy_scroll.add_child(synergy_list)
 	var synergy_ids: Array[String] = CATALOG.synergy_ids()
 	for index in synergy_ids.size():
 		var synergy: String = synergy_ids[index]
-		var y := index * 61.0
-		var icon := _add_texture(synergy_list, CATALOG.synergy_icon_path(synergy), Rect2(8, y + 10, 38, 38))
-		var name_label := _add_label(synergy_list, synergy, Rect2(50, y + 4, 112, 26), 16, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-		var count_label := _add_label(synergy_list, "", Rect2(174, y + 4, 62, 26), 16, Color("f3a62f"), HORIZONTAL_ALIGNMENT_CENTER)
+		var y := index * 36.0
+		var row := ColorRect.new()
+		row.position = Vector2(0, y)
+		row.size = Vector2(282, 30)
+		row.color = Color("4f4a91")
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		synergy_list.add_child(row)
+		synergy_row_frames[synergy] = row
+		var icon_cell := ColorRect.new()
+		icon_cell.position = Vector2(0, y)
+		icon_cell.size = Vector2(34, 30)
+		icon_cell.color = CATALOG.synergy_color(synergy)
+		icon_cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		synergy_list.add_child(icon_cell)
+		synergy_icon_cells[synergy] = icon_cell
+		var icon := _add_texture(synergy_list, CATALOG.synergy_icon_path(synergy), Rect2(5, y + 3, 24, 24))
+		icon.modulate = Color.WHITE
+		icon.z_index = 2
+		var name_label := _add_label(synergy_list, synergy, Rect2(34, y + 1, 46, 28), 14, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+		var count_cell := ColorRect.new()
+		count_cell.position = Vector2(224, y)
+		count_cell.size = Vector2(58, 30)
+		count_cell.color = Color("6961ad")
+		count_cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		synergy_list.add_child(count_cell)
+		synergy_count_cells[synergy] = count_cell
+		var count_label := _add_label(synergy_list, "", Rect2(224, y, 58, 30), 15, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+		count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		synergy_icons[synergy] = icon
 		synergy_name_labels[synergy] = name_label
 		synergy_count_labels[synergy] = count_label
@@ -342,22 +384,25 @@ func _build_synergy() -> void:
 		var boxes: Array[ColorRect] = []
 		var step_labels: Array[Label] = []
 		for step_index in thresholds.size():
-			var step_x := 57.0 + step_index * 31.0
+			var available_width := 144.0
+			var step_width := available_width / maxf(float(thresholds.size()), 1.0)
+			var step_x := 80.0 + step_index * step_width
 			var active_box := ColorRect.new()
-			active_box.position = Vector2(step_x, y + 33)
-			active_box.size = Vector2(25, 19)
-			active_box.color = CATALOG.synergy_color(synergy)
+			active_box.position = Vector2(step_x, y)
+			active_box.size = Vector2(step_width, 30)
+			active_box.color = Color("d9344b")
 			active_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			active_box.visible = false
 			synergy_list.add_child(active_box)
 			boxes.append(active_box)
-			var step_label := _add_label(synergy_list, "%d" % thresholds[step_index], Rect2(step_x, y + 33, 25, 19), 11, Color("777b83"), HORIZONTAL_ALIGNMENT_CENTER)
+			var step_label := _add_label(synergy_list, "%d" % thresholds[step_index], Rect2(step_x, y, step_width, 30), 14, Color("3b3972"), HORIZONTAL_ALIGNMENT_CENTER)
+			step_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 			step_labels.append(step_label)
 		synergy_step_boxes[synergy] = boxes
 		synergy_step_labels[synergy] = step_labels
 		var hover := Button.new()
 		hover.position = Vector2(0, y)
-		hover.size = Vector2(244, 60)
+		hover.size = Vector2(282, 30)
 		hover.flat = true
 		hover.focus_mode = Control.FOCUS_NONE
 		hover.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -371,26 +416,103 @@ func _build_synergy() -> void:
 
 func _build_synergy_tooltip() -> void:
 	synergy_tooltip = Panel.new()
-	synergy_tooltip.position = Vector2(742, 142)
-	synergy_tooltip.size = Vector2(224, 174)
+	synergy_tooltip.position = Vector2(648, 82)
+	synergy_tooltip.size = Vector2(320, 243)
 	synergy_tooltip.z_index = 90
 	synergy_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	synergy_tooltip.add_theme_stylebox_override("panel", _slot_style(Color(0.055, 0.07, 0.10, 0.97), Color(0.93, 0.93, 0.98, 1.0), 2))
+	synergy_tooltip.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	synergy_tooltip.visible = false
 	add_child(synergy_tooltip)
-	synergy_tooltip_title = _add_label(synergy_tooltip, "", Rect2(12, 8, 200, 30), 17, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-	synergy_tooltip_body = _add_label(synergy_tooltip, "", Rect2(14, 38, 196, 124), 11, Color.WHITE)
-	synergy_tooltip_body.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	synergy_tooltip_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	for asset_name in ["frame.png", "header.png", "body.png", "count_border.png", "count_fill.png", "icon_shadow.png", "icon_border.png", "icon_fill.png"]:
+		var layer := _add_texture(synergy_tooltip, SYNERGY_TOOLTIP_ROOT + asset_name, Rect2(0, 0, 320, 243), TextureRect.STRETCH_KEEP_ASPECT_CENTERED)
+		layer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if asset_name in ["header.png", "count_border.png", "count_fill.png", "icon_border.png", "icon_fill.png"]:
+			var material := ShaderMaterial.new()
+			material.shader = ITEM_INFO_TINT_SHADER
+			layer.material = material
+	synergy_tooltip_icon = _add_texture(synergy_tooltip, CATALOG.synergy_icon_path("自然"), Rect2(23, 14, 25, 25))
+	synergy_tooltip_title = _add_label(synergy_tooltip, "", Rect2(62, 13, 196, 34), 23, Color.WHITE)
+	synergy_tooltip_count = _add_label(synergy_tooltip, "", Rect2(54, 58, 96, 26), 15, Color("cdd2df"), HORIZONTAL_ALIGNMENT_CENTER)
+	synergy_tooltip_body = _add_label(synergy_tooltip, "", Rect2(Vector2.ZERO, Vector2.ZERO), 1, Color.TRANSPARENT)
+	for tier_index in 3:
+		var row := Control.new()
+		row.position = Vector2(48, 92 + tier_index * 48)
+		row.size = Vector2(286, 45)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		synergy_tooltip.add_child(row)
+		synergy_tooltip_tier_rows.append(row)
+		var circle := _add_texture(row, SYNERGY_TOOLTIP_ROOT + "tier_circle_trim.png", Rect2(0, 8, 14, 14))
+		synergy_tooltip_tier_circles.append(circle)
+		var fill := ColorRect.new()
+		fill.position = Vector2(3, 11)
+		fill.size = Vector2(8, 8)
+		fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(fill)
+		synergy_tooltip_tier_fills.append(fill)
+		var badge := _add_texture(row, SYNERGY_TOOLTIP_ROOT + "tier_border_trim.png", Rect2(20, 4, 18, 20))
+		synergy_tooltip_tier_badges.append(badge)
+		var number := _add_label(row, "", Rect2(20, 3, 18, 21), 13, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+		synergy_tooltip_tier_numbers.append(number)
+		var text_label := RichTextLabel.new()
+		text_label.position = Vector2(45, 0)
+		text_label.size = Vector2(235, 34)
+		text_label.bbcode_enabled = true
+		text_label.fit_content = false
+		text_label.scroll_active = false
+		text_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		text_label.add_theme_font_override("normal_font", source_han_font)
+		text_label.add_theme_font_size_override("normal_font_size", 10)
+		text_label.add_theme_color_override("default_color", Color.WHITE)
+		row.add_child(text_label)
+		synergy_tooltip_tier_texts.append(text_label)
+		if tier_index < 2:
+			_make_dashed_divider(row, Vector2(0, 43), 282.0, 0)
 
 
 func _show_synergy_tooltip(synergy: String) -> void:
 	hovered_synergy = synergy
-	var row_y := float(synergy_row_positions.get(synergy, 136.0)) - float(synergy_scroll.scroll_vertical)
-	synergy_tooltip.position.y = clampf(row_y - 8.0, 112.0, 337.0)
+	var synergy_color := CATALOG.synergy_color(synergy)
+	var count := int(synergy_current_counts.get(synergy, 0))
+	var thresholds: Array = CATALOG.synergy_thresholds(synergy)
+	var effects: Array = CATALOG.synergy_effect_lines(synergy)
+	var active_tier := CATALOG.active_tier(synergy, count)
+	for child in synergy_tooltip.get_children():
+		if child is TextureRect and child.material is ShaderMaterial:
+			var material := child.material as ShaderMaterial
+			material.set_shader_parameter("rarity_color", synergy_color)
+			material.set_shader_parameter("tint_strength", 0.84)
+			material.set_shader_parameter("brightness", 0.72)
+	synergy_tooltip_icon.texture = load(CATALOG.synergy_icon_path(synergy)) as Texture2D
 	synergy_tooltip_title.text = "%s羁绊" % synergy
-	synergy_tooltip_body.text = CATALOG.tooltip_text(synergy, int(synergy_current_counts.get(synergy, 0)))
+	synergy_tooltip_count.text = "当前数量：%d" % count
+	for tier_index in 3:
+		var row := synergy_tooltip_tier_rows[tier_index]
+		var tier_visible := tier_index < thresholds.size()
+		row.visible = tier_visible
+		if not tier_visible:
+			continue
+		var activated := active_tier >= tier_index
+		var fill := synergy_tooltip_tier_fills[tier_index]
+		fill.color = synergy_color
+		fill.visible = activated
+		var badge := synergy_tooltip_tier_badges[tier_index]
+		var badge_material := ShaderMaterial.new()
+		badge_material.shader = ITEM_INFO_TINT_SHADER
+		badge_material.set_shader_parameter("rarity_color", synergy_color)
+		badge_material.set_shader_parameter("tint_strength", 0.86)
+		badge_material.set_shader_parameter("brightness", 0.72)
+		badge.material = badge_material
+		synergy_tooltip_tier_numbers[tier_index].text = "%d" % int(thresholds[tier_index])
+		synergy_tooltip_tier_texts[tier_index].text = _synergy_colored_numbers(String(effects[tier_index]), synergy_color)
 	synergy_tooltip.visible = true
+	synergy_tooltip.move_to_front()
+
+
+func _synergy_colored_numbers(text: String, color: Color) -> String:
+	var value_pattern := RegEx.new()
+	value_pattern.compile("([+-]?\\d+(?:\\.\\d+)?%?)")
+	return value_pattern.sub(text, "[color=#%s]$1[/color]" % color.to_html(false), true)
 
 
 func _hide_synergy_tooltip() -> void:
@@ -408,37 +530,52 @@ func _update_synergies() -> void:
 	for synergy in CATALOG.synergy_ids():
 		var count := int(synergy_current_counts.get(synergy, 0))
 		var row_visible := count > 0
-		var row_y := visible_row * 61.0
+		var row_y := visible_row * 36.0
+		var row: ColorRect = synergy_row_frames[synergy]
+		var icon_cell: ColorRect = synergy_icon_cells[synergy]
+		var count_cell: ColorRect = synergy_count_cells[synergy]
 		var icon: TextureRect = synergy_icons[synergy]
 		var name_label: Label = synergy_name_labels[synergy]
 		var count_label: Label = synergy_count_labels[synergy]
 		var hover: Button = synergy_hover_buttons[synergy]
+		row.visible = row_visible
+		icon_cell.visible = row_visible
+		count_cell.visible = row_visible
 		icon.visible = row_visible
 		name_label.visible = row_visible
 		count_label.visible = row_visible
 		hover.visible = row_visible
 		if row_visible:
-			icon.position = Vector2(8, row_y + 10)
-			name_label.position = Vector2(50, row_y + 4)
-			count_label.position = Vector2(174, row_y + 4)
+			row.position = Vector2(0, row_y)
+			icon_cell.position = Vector2(0, row_y)
+			icon.position = Vector2(5, row_y + 3)
+			name_label.position = Vector2(34, row_y + 1)
+			count_cell.position = Vector2(224, row_y)
+			count_label.position = Vector2(224, row_y)
 			hover.position = Vector2(0, row_y)
-			synergy_row_positions[synergy] = 136.0 + row_y
+			synergy_row_positions[synergy] = 96.0 + row_y
 			visible_row += 1
 		var thresholds: Array = CATALOG.synergy_thresholds(synergy)
-		count_label.text = "%d/%d" % [count, thresholds[thresholds.size() - 1]]
-		count_label.add_theme_color_override("font_color", Color("f3a62f") if count >= thresholds[0] else Color("777b83"))
+		var highlighted_step := CATALOG.active_tier(synergy, count)
+		var maximum_threshold := int(thresholds[-1]) if not thresholds.is_empty() else 0
+		count_label.text = "%d/%d" % [count, maximum_threshold]
+		count_label.add_theme_color_override("font_color", Color.WHITE)
 		var boxes: Array = synergy_step_boxes[synergy]
 		var step_labels: Array = synergy_step_labels[synergy]
 		for index in boxes.size():
-			var step_x := 57.0 + index * 31.0
+			var step_width := 144.0 / maxf(float(thresholds.size()), 1.0)
+			var step_x := 80.0 + index * step_width
 			var box := boxes[index] as ColorRect
 			var step_label := step_labels[index] as Label
-			box.position = Vector2(step_x, row_y + 33)
-			step_label.position = Vector2(step_x, row_y + 33)
-			box.visible = row_visible and count >= thresholds[index]
+			box.color = CATALOG.synergy_color(synergy)
+			box.position = Vector2(step_x, row_y)
+			box.size = Vector2(step_width, 30)
+			step_label.position = Vector2(step_x, row_y)
+			step_label.size = Vector2(step_width, 30)
+			box.visible = row_visible and highlighted_step >= 0 and index == highlighted_step
 			step_label.visible = row_visible
-			step_label.add_theme_color_override("font_color", Color.WHITE if count >= thresholds[index] else Color("777b83"))
-	synergy_list.custom_minimum_size = Vector2(244, maxf(368.0, visible_row * 61.0))
+			step_label.add_theme_color_override("font_color", Color.WHITE if box.visible else Color("3b3972"))
+	synergy_list.custom_minimum_size = Vector2(282, maxf(286.0, visible_row * 36.0))
 	synergy_list.size = synergy_list.custom_minimum_size
 	if not hovered_synergy.is_empty():
 		if int(synergy_current_counts.get(hovered_synergy, 0)) > 0:
@@ -454,15 +591,19 @@ func _build_shop() -> void:
 	var rarity_chances := _shop_rarity_chances()
 	var rarity_labels: Array[Label] = []
 	for rarity_index in SHOP_RARITY_NAMES.size():
-		var label_color := Color.WHITE if rarity_index == 0 else SHOP_RARITY_COLORS[rarity_index]
-		rarity_labels.append(_add_label(
+		var label_color := SHOP_RARITY_COLORS[rarity_index]
+		var rarity_label := _add_label(
 			self,
-			"%s %d%%" % [SHOP_RARITY_NAMES[rarity_index], roundi(rarity_chances[rarity_index] * 100.0)],
-			Rect2(345 + rarity_index * 69, header_center_y - 12.0, 68, 24),
-			9,
+			"◆%d%%" % roundi(rarity_chances[rarity_index] * 100.0),
+			Rect2(354 + rarity_index * 61, header_center_y - 12.0, 58, 24),
+			10,
 			label_color,
 			HORIZONTAL_ALIGNMENT_CENTER
-		))
+		)
+		rarity_label.add_theme_color_override("font_shadow_color", Color(0.08, 0.10, 0.14, 0.82))
+		rarity_label.add_theme_constant_override("shadow_offset_x", 1)
+		rarity_label.add_theme_constant_override("shadow_offset_y", 1)
+		rarity_labels.append(rarity_label)
 	shop_data = _roll_shop_entries(true)
 	for entry in shop_data:
 		_mark_shop_creature_seen(entry)
@@ -658,8 +799,10 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	creature_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(creature_overlay)
 	var sprite := TextureRect.new()
-	sprite.position = Vector2(28, 7)
-	sprite.size = Vector2(rect.size.x - 56, top_height - 13)
+	# Keep the visual box symmetrical; item cards use the full box while creatures
+	# retain extra breathing room for their level and trait badges.
+	sprite.position = Vector2(8, 7)
+	sprite.size = Vector2(rect.size.x - 16, top_height - 13)
 	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -780,7 +923,7 @@ func _build_card_tooltip() -> void:
 	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card_tooltip.add_child(header)
 	card_tooltip_name = _add_label(card_tooltip, "", Rect2(18, 8, 165, 38), 19, Color.WHITE)
-	card_tooltip_rarity = _add_label(card_tooltip, "", Rect2(180, 8, 94, 38), 16, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	card_tooltip_rarity = _add_label(card_tooltip, "", Rect2(180, 8, 94, 38), 16, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	var portrait_panel := Panel.new()
 	portrait_panel.position = Vector2(16, 58)
 	portrait_panel.size = Vector2(128, 128)
@@ -815,6 +958,102 @@ func _build_card_tooltip() -> void:
 	card_tooltip_damage.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	card_tooltip_extra = _add_label(card_tooltip_info_panel, "", Rect2(76, 45, 170, 63), 10, Color("5579b9"))
 	card_tooltip_extra.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_build_item_tooltip_layers()
+
+
+func _build_item_tooltip_layers() -> void:
+	for asset_name in ["frame.png", "header.png", "header_accent.png", "rarity_icon_shadow.png", "rarity_icon_border.png", "rarity_icon_fill.png", "portrait_border.png", "portrait_fill.png", "rarity_badge.png"]:
+		var layer := _add_texture(card_tooltip, ITEM_INFO_ROOT + asset_name, Rect2(0, 0, 292, 206), TextureRect.STRETCH_KEEP_ASPECT_CENTERED)
+		layer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		layer.z_index = 10
+		layer.visible = false
+		if asset_name in ["header.png", "header_accent.png", "rarity_icon_border.png", "rarity_icon_fill.png", "rarity_badge.png", "portrait_border.png", "portrait_fill.png"]:
+			var material := ShaderMaterial.new()
+			material.shader = ITEM_INFO_TINT_SHADER
+			layer.material = material
+		item_tooltip_layers.append(layer)
+	item_tooltip_type = _add_label(card_tooltip, "", Rect2(150, 59, 126, 28), 16, Color("252b35"))
+	item_tooltip_type.z_index = 12
+	item_tooltip_effect = RichTextLabel.new()
+	item_tooltip_effect.position = Vector2(150, 88)
+	item_tooltip_effect.size = Vector2(126, 62)
+	item_tooltip_effect.bbcode_enabled = true
+	item_tooltip_effect.fit_content = false
+	item_tooltip_effect.scroll_active = false
+	item_tooltip_effect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	item_tooltip_effect.add_theme_font_override("normal_font", source_han_font)
+	item_tooltip_effect.add_theme_font_size_override("normal_font_size", 11)
+	item_tooltip_effect.add_theme_color_override("default_color", Color("596275"))
+	item_tooltip_effect.z_index = 12
+	card_tooltip.add_child(item_tooltip_effect)
+	item_tooltip_rule = RichTextLabel.new()
+	item_tooltip_rule.position = Vector2(150, 151)
+	item_tooltip_rule.size = Vector2(126, 34)
+	item_tooltip_rule.bbcode_enabled = true
+	item_tooltip_rule.fit_content = false
+	item_tooltip_rule.scroll_active = false
+	item_tooltip_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	item_tooltip_rule.add_theme_font_override("normal_font", source_han_font)
+	item_tooltip_rule.add_theme_font_size_override("normal_font_size", 10)
+	item_tooltip_rule.add_theme_color_override("default_color", Color("596275"))
+	item_tooltip_rule.z_index = 12
+	card_tooltip.add_child(item_tooltip_rule)
+	item_tooltip_divider = _make_dashed_divider(card_tooltip, Vector2(150, 146), 126.0, 12)
+	item_tooltip_layers.append_array([item_tooltip_type, item_tooltip_effect, item_tooltip_rule, item_tooltip_divider])
+	_set_item_tooltip_visible(false)
+
+
+func _make_dashed_divider(parent: Control, start: Vector2, width: float, z := 0) -> Control:
+	var line := Control.new()
+	line.position = start
+	line.size = Vector2(width, 1)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.z_index = z
+	var dash_width := 5.0
+	var gap_width := 4.0
+	var x := 0.0
+	while x < width:
+		var dash := ColorRect.new()
+		dash.position = Vector2(x, 0)
+		dash.size = Vector2(minf(dash_width, width - x), 1)
+		dash.color = Color("c8cbd2")
+		dash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.add_child(dash)
+		x += dash_width + gap_width
+	parent.add_child(line)
+	return line
+
+
+func _set_item_tooltip_visible(visible_value: bool) -> void:
+	for layer_index in item_tooltip_layers.size():
+		var node := item_tooltip_layers[layer_index]
+		# Layers 3..5 are the old title-side rarity icon. The revised layout keeps
+		# the title clean and uses only the centered rarity badge on the right.
+		node.visible = visible_value and layer_index not in [3, 4, 5]
+
+
+func _set_creature_tooltip_visible(visible_value: bool) -> void:
+	for node in [card_tooltip_element_panel, card_tooltip_race_panel, card_tooltip_info_panel]:
+		node.visible = visible_value
+
+
+func _blue_item_values(text: String) -> String:
+	var value_pattern := RegEx.new()
+	value_pattern.compile("([+-]?\\d+(?:\\.\\d+)?%?)")
+	return value_pattern.sub(text, "[color=#4f83c2]$1[/color]", true)
+
+
+func _apply_item_tooltip_rarity(rarity_color: Color) -> void:
+	var tint_strengths := {1: 0.82, 2: 0.96, 4: 0.92, 5: 0.84, 6: 0.42, 7: 0.12, 8: 0.72}
+	var brightnesses := {1: 0.54, 2: 0.88, 4: 0.82, 5: 0.72, 6: 0.62, 7: 1.0, 8: 0.72}
+	for layer_index in 9:
+		var layer := item_tooltip_layers[layer_index]
+		if layer is TextureRect and layer.material is ShaderMaterial:
+			var material := layer.material as ShaderMaterial
+			material.set_shader_parameter("rarity_color", rarity_color)
+			material.set_shader_parameter("tint_strength", float(tint_strengths.get(layer_index, 0.8)))
+			material.set_shader_parameter("brightness", float(brightnesses.get(layer_index, 1.0)))
 
 
 func _show_creature_card_tooltip(index: int) -> void:
@@ -854,6 +1093,22 @@ func _on_shop_card_gui_input(event: InputEvent, index: int) -> void:
 
 
 func _show_card_tooltip(texture_path: String, level: int) -> void:
+	card_tooltip.size = Vector2(292, 331)
+	_set_item_tooltip_visible(false)
+	_set_creature_tooltip_visible(true)
+	card_tooltip_name.visible = true
+	card_tooltip_rarity.visible = true
+	card_tooltip_sprite.visible = true
+	card_tooltip_name.position = Vector2(18, 8)
+	card_tooltip_name.size = Vector2(165, 38)
+	card_tooltip_name.add_theme_font_size_override("font_size", 19)
+	card_tooltip_rarity.position = Vector2(180, 8)
+	card_tooltip_rarity.size = Vector2(94, 38)
+	card_tooltip_sprite.position = Vector2(12, 12)
+	card_tooltip_sprite.size = Vector2(104, 104)
+	card_tooltip_name.z_index = 0
+	card_tooltip_rarity.z_index = 0
+	card_tooltip_sprite.z_index = 0
 	var elements: PackedStringArray = CATALOG.elements_for_texture(texture_path)
 	var races: PackedStringArray = CATALOG.races_for_texture(texture_path)
 	var rarity_index := CATALOG.rarity_for_texture(texture_path)
@@ -880,18 +1135,35 @@ func _show_card_tooltip(texture_path: String, level: int) -> void:
 
 
 func _show_item_card_tooltip(entry: Dictionary) -> void:
-	card_tooltip_element_panel.visible = false
-	card_tooltip_race_panel.visible = false
+	card_tooltip.size = Vector2(292, 206)
+	_set_creature_tooltip_visible(false)
+	_set_item_tooltip_visible(true)
 	card_tooltip_name.text = _shop_entry_name(entry)
+	card_tooltip_name.position = Vector2(18, 12)
+	card_tooltip_name.size = Vector2(196, 32)
+	card_tooltip_name.add_theme_font_size_override("font_size", 19)
+	card_tooltip_name.z_index = 12
 	var item_rarity_index := clampi(int(entry["rarity"]), 0, ITEM_CATALOG.RARITY_NAMES.size() - 1)
 	var display_rarity_index := _item_display_rarity_index(item_rarity_index)
+	var rarity_color := SHOP_RARITY_COLORS[display_rarity_index]
+	_apply_item_tooltip_rarity(rarity_color)
 	card_tooltip_rarity.text = ITEM_CATALOG.RARITY_NAMES[item_rarity_index]
-	card_tooltip_rarity.add_theme_color_override("font_color", _rarity_text_color(display_rarity_index))
+	# Aseprite badge bounds: x=929..1100, y=65..150 on the 1170x825 canvas.
+	# At 292x206 this is a 43x21 box; use its full measured area and equal padding.
+	card_tooltip_rarity.position = Vector2(232, 16)
+	card_tooltip_rarity.size = Vector2(43, 22)
+	card_tooltip_rarity.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card_tooltip_rarity.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	card_tooltip_rarity.add_theme_color_override("font_color", rarity_color.lightened(0.16))
+	card_tooltip_rarity.z_index = 12
 	card_tooltip_sprite.texture = load(entry["path"]) as Texture2D
-	card_tooltip_cooldown.text = "饰品" if entry["kind"] == "accessory" else "道具"
-	card_tooltip_damage.text = "售价 $%d" % int(entry["price"])
+	card_tooltip_sprite.position = Vector2(1, 4)
+	card_tooltip_sprite.size = Vector2(120, 120)
+	card_tooltip_sprite.z_index = 12
+	item_tooltip_type.text = "◆ %s" % ("饰品" if entry["kind"] == "accessory" else "道具")
 	var rule_text := "唯一饰品" if not String(entry.get("exclusive_group", "")).is_empty() else "叠加上限 %d" % int(entry.get("stack_limit", 1))
-	card_tooltip_extra.text = "%s\n%s" % [String(entry["effect"]), rule_text]
+	item_tooltip_effect.text = _blue_item_values(String(entry["effect"]))
+	item_tooltip_rule.text = _blue_item_values(rule_text)
 	_position_card_tooltip()
 
 
@@ -1440,13 +1712,13 @@ func _on_battle_pressed() -> void:
 	fade_out.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	fade_out.tween_property(transition, "color:a", 1.0, 0.55)
 	await fade_out.finished
-	get_tree().change_scene_to_file("res://battle.tscn")
+	await SceneManager.change_scene("res://battle.tscn", {"skip_fade_out": true})
 
 
 func _leave_shop() -> void:
 	_save_current_team()
 	GameState.complete_current_map_node()
-	get_tree().change_scene_to_file("res://map.tscn")
+	SceneManager.change_scene("res://map.tscn")
 
 
 func _leave_start() -> void:
@@ -1460,7 +1732,7 @@ func _leave_start() -> void:
 		return
 	_save_current_team()
 	GameState.complete_current_map_node()
-	get_tree().change_scene_to_file("res://map.tscn")
+	SceneManager.change_scene("res://map.tscn")
 
 
 func _on_back_pressed() -> void:
@@ -1468,9 +1740,9 @@ func _on_back_pressed() -> void:
 		_save_current_team()
 		if GameState.current_map_node_type() == "shop":
 			GameState.complete_current_map_node()
-		get_tree().change_scene_to_file("res://map.tscn")
+		SceneManager.change_scene("res://map.tscn")
 	else:
-		get_tree().change_scene_to_file("res://main.tscn")
+		SceneManager.change_scene("res://main.tscn")
 
 
 func _save_current_team() -> void:
@@ -1624,6 +1896,8 @@ func _render_shop_card(index: int) -> void:
 	shop_trait_backgrounds[index].texture = _make_rarity_background(display_rarity_index)
 	shop_trait_backgrounds[index].visible = true
 	shop_sprites[index].texture = load(texture_path) as Texture2D
+	shop_sprites[index].position = Vector2(28, 7) if is_creature else Vector2(8, 7)
+	shop_sprites[index].size = Vector2(shop_buttons[index].size.x - 56, 87) if is_creature else Vector2(shop_buttons[index].size.x - 16, 87)
 	shop_sprites[index].visible = true
 	shop_name_labels[index].text = _shop_entry_name(entry)
 	shop_price_labels[index].text = "$%d" % int(entry["price"])
@@ -1771,15 +2045,19 @@ func _make_trait_background(traits: PackedStringArray) -> GradientTexture2D:
 func _make_rarity_background(rarity_index: int) -> GradientTexture2D:
 	var base_color := SHOP_RARITY_COLORS[clampi(rarity_index, 0, SHOP_RARITY_COLORS.size() - 1)]
 	var gradient := Gradient.new()
-	gradient.offsets = PackedFloat32Array([0.0, 1.0])
-	gradient.colors = PackedColorArray([base_color, base_color.lightened(0.28)])
+	gradient.offsets = PackedFloat32Array([0.0, 0.48, 1.0])
+	gradient.colors = PackedColorArray([
+		base_color.darkened(0.32),
+		base_color.lightened(0.34),
+		base_color.darkened(0.12),
+	])
 	var texture := GradientTexture2D.new()
 	texture.gradient = gradient
 	texture.width = 16
 	texture.height = 16
 	texture.fill = GradientTexture2D.FILL_LINEAR
-	texture.fill_from = Vector2.ZERO
-	texture.fill_to = Vector2.ONE
+	texture.fill_from = Vector2(0.0, 0.0)
+	texture.fill_to = Vector2(0.0, 1.0)
 	return texture
 
 

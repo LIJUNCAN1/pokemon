@@ -148,7 +148,7 @@ func _confirm_selection() -> void:
 	var fade := create_tween()
 	fade.tween_property(curtain, "color:a", 1.0, 0.45)
 	await fade.finished
-	get_tree().change_scene_to_file("res://map.tscn")
+	await SceneManager.change_scene("res://map.tscn", {"skip_fade_out": true})
 
 
 func _label(text: String, rect: Rect2, font_size: int, color: Color) -> Label:
@@ -160,8 +160,12 @@ func _label(text: String, rect: Rect2, font_size: int, color: Color) -> Label:
 	label.add_theme_font_override("font", FONT)
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
-	label.add_theme_color_override("font_outline_color", Color("20242b"))
-	label.add_theme_constant_override("outline_size", 1)
+	var light_text := color.get_luminance() >= 0.62
+	label.add_theme_color_override("font_shadow_color", Color(0.08, 0.10, 0.14, 0.72) if light_text else Color("c9cbd0"))
+	label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	label.add_theme_constant_override("outline_size", 0)
+	label.add_theme_constant_override("shadow_offset_x", 1)
+	label.add_theme_constant_override("shadow_offset_y", 1)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(label)
 	return label
@@ -171,8 +175,11 @@ func _style_button(button: Button, color: Color) -> void:
 	button.add_theme_font_override("font", FONT)
 	button.add_theme_font_size_override("font_size", 24)
 	button.add_theme_color_override("font_color", Color.WHITE)
-	button.add_theme_color_override("font_outline_color", Color.BLACK)
-	button.add_theme_constant_override("outline_size", 1)
+	button.add_theme_color_override("font_shadow_color", Color(0.08, 0.10, 0.14, 0.72))
+	button.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	button.add_theme_constant_override("outline_size", 0)
+	button.add_theme_constant_override("shadow_offset_x", 1)
+	button.add_theme_constant_override("shadow_offset_y", 1)
 	button.add_theme_stylebox_override("normal", _panel_style(color, Color("2b2e36"), 4))
 	button.add_theme_stylebox_override("hover", _panel_style(color.lightened(0.12), Color.WHITE, 4))
 	button.add_theme_stylebox_override("pressed", _panel_style(color.darkened(0.12), Color("2b2e36"), 4))

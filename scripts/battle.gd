@@ -65,6 +65,7 @@ const P7_PROJECTILE_FPS := 12.5
 const P7_PROJECTILE_TRAVEL_FRAMES := 16
 const STATUS_ICON_SHEET: Texture2D = preload("res://assets/ui/status/status_icons.png")
 const STATUS_ICON_SIZE := Vector2i(16, 16)
+const RESULT_COIN_ICON: Texture2D = preload("res://assets/ui/battle_result/coin.png")
 const MENU_BUTTON_NORMAL: Texture2D = preload("res://assets/ui/pixel_menu/controls/button-normal.png")
 const MENU_BUTTON_PRESSED: Texture2D = preload("res://assets/ui/pixel_menu/controls/button-pressed.png")
 const STONE_GOLEM_SHEET: Texture2D = preload("res://assets/boss/stone_golem/character_sheet.png")
@@ -129,9 +130,11 @@ var fighter_info_description: Label
 var victory_reward_text := ""
 var result_item_rewards: Array[Dictionary] = []
 var result_gold_reward := 0
+var result_reward_sources: Array[String] = []
 var consumable_bonuses: Dictionary = {"health": 0.0, "damage": 0.0, "charge": 0.0}
 var p7_projectile_frames: SpriteFrames
 var status_info_panel: Panel
+var result_gold_info_panel: Panel
 
 # Kept as a silent compatibility node for existing scene tests and older saves;
 # actual playback is owned by the global crossfade manager.
@@ -167,7 +170,35 @@ func _apply_full_hd_layout() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		var mouse_event := event as InputEventMouseButton
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT:
+			var local_mouse := get_global_transform_with_canvas().affine_inverse() * get_viewport().get_mouse_position()
+			if is_instance_valid(result_gold_info_panel) and not result_gold_info_panel.get_rect().has_point(local_mouse):
+				_hide_result_gold_info()
+				get_viewport().set_input_as_handled()
+				return
+			if is_instance_valid(status_info_panel) and not status_info_panel.get_rect().has_point(local_mouse):
+				_hide_status_info()
+				get_viewport().set_input_as_handled()
+				return
+			if is_instance_valid(fighter_info_panel) and fighter_info_panel.visible and not fighter_info_panel.get_rect().has_point(local_mouse):
+				_hide_fighter_info()
+				get_viewport().set_input_as_handled()
+				return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		if is_instance_valid(result_gold_info_panel):
+			_hide_result_gold_info()
+			get_viewport().set_input_as_handled()
+			return
+		if is_instance_valid(status_info_panel):
+			_hide_status_info()
+			get_viewport().set_input_as_handled()
+			return
+		if is_instance_valid(fighter_info_panel) and fighter_info_panel.visible:
+			_hide_fighter_info()
+			get_viewport().set_input_as_handled()
+			return
 		if not is_instance_valid(settings_overlay):
 			get_viewport().set_input_as_handled()
 			_open_battle_settings()
@@ -889,12 +920,61 @@ func _play_attack_animation(attacker: Fighter, target: Fighter) -> void:
 			await _play_stone_golem_projectile(attacker, target)
 		_set_stone_golem_frame(attacker, 0)
 		return
+	if attacker.attack_range == "melee":
+		await _play_melee_contact(attacker, target)
+		return
 	var playback_scale := maxf(battle_speed, 0.01)
 	var attack_tween := create_tween()
 	attack_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	attack_tween.tween_property(attacker.sprite, "scale", attacker.base_scale * 1.28, 0.12 / playback_scale)
 	attack_tween.tween_property(attacker.sprite, "scale", attacker.base_scale, 0.16 / playback_scale)
-	await _play_p7_projectile(attacker, target)
+	await _play_element_projectile(attacker, target)
+
+
+func _play_melee_contact(attacker: Fighter, target: Fighter) -> void:
+	var start := attacker.sprite.position
+	var target_center := _fighter_visual_center(target)
+	var contact_x := target_center.x - attacker.sprite.size.x * (0.58 if attacker.player_side else 0.42)
+	var contact_y := target_center.y - attacker.sprite.size.y * 0.5
+	var contact := Vector2(contact_x, contact_y)
+	var playback_scale := maxf(battle_speed, 0.01)
+	var approach := create_tween()
+	approach.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	approach.tween_property(attacker.sprite, "position", contact, 0.22 / playback_scale)
+	await approach.finished
+	# Damage and the red hit flash are triggered immediately after contact. The
+	# attacker can return home independently without delaying the hit feedback.
+	var retreat := create_tween()
+	retreat.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	retreat.tween_property(attacker.sprite, "position", start, 0.24 / playback_scale)
+
+
+func _play_element_projectile(attacker: Fighter, target: Fighter) -> void:
+	var element := _fighter_element(attacker)
+	var advanced := _uses_advanced_vfx(attacker)
+	var config := _element_vfx_config(element, advanced)
+	var frames := _sprite_frames_from_vfx_config(config, advanced)
+	if frames == null:
+		await get_tree().create_timer(0.24 / maxf(battle_speed, 0.01)).timeout
+		return
+	var projectile := AnimatedSprite2D.new()
+	projectile.sprite_frames = frames
+	projectile.animation = &"effect"
+	projectile.centered = true
+	projectile.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	projectile.flip_h = not attacker.player_side
+	projectile.z_index = 21
+	projectile.position = _fighter_attack_origin(attacker)
+	projectile.scale = Vector2.ONE * (1.55 if advanced else 1.15)
+	projectile.modulate = TRAIT_VFX_COLORS.get(element, Color.WHITE)
+	add_child(projectile)
+	projectile.speed_scale = maxf(battle_speed, 0.01)
+	projectile.play()
+	var travel := create_tween()
+	travel.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	travel.tween_property(projectile, "position", _fighter_visual_center(target), 0.34 / maxf(battle_speed, 0.01))
+	await travel.finished
+	projectile.queue_free()
 
 
 func _play_stone_golem_projectile(attacker: Fighter, target: Fighter) -> void:
@@ -1040,34 +1120,16 @@ func _fighter_attack_origin(fighter: Fighter) -> Vector2:
 
 
 func _play_element_contact_vfx(attacker: Fighter, target: Fighter) -> void:
-	var element := ""
-	for candidate in CATALOG.ELEMENTS:
-		if attacker.traits.has(candidate):
-			element = candidate
-			break
-	var rarity := CATALOG.rarity_for_texture(attacker.texture_path) if CATALOG.data_for_texture(attacker.texture_path) else 4
-	var advanced := attacker.level >= 2 or rarity >= 3 or attacker.skill_id == "boss_quake"
-	var config: Array = ELEMENT_VFX.get(element, {}).get("advanced" if advanced else "basic", ["res://assets/battle/vfx/hit_advanced.png" if advanced else "res://assets/battle/vfx/hit_basic.png", Vector2i(48, 48), 7])
+	var element := _fighter_element(attacker)
+	var advanced := _uses_advanced_vfx(attacker)
+	var config := _element_vfx_config(element, advanced)
 	_play_vfx_config(config, target, advanced, TRAIT_VFX_COLORS.get(element, Color.WHITE))
 
 
 func _play_vfx_config(config: Array, target: Fighter, advanced: bool, tint := Color.WHITE) -> void:
-	var sheet := load(String(config[0])) as Texture2D
-	var frame_size: Vector2i = config[1]
-	var frame_count := int(config[2])
-	if sheet == null:
+	var frames := _sprite_frames_from_vfx_config(config, advanced)
+	if frames == null:
 		return
-	var columns := maxi(sheet.get_width() / frame_size.x, 1)
-	var available_frames := columns * maxi(sheet.get_height() / frame_size.y, 1)
-	var frames := SpriteFrames.new()
-	frames.add_animation(&"effect")
-	frames.set_animation_speed(&"effect", 18.0 if advanced else 15.0)
-	frames.set_animation_loop(&"effect", false)
-	for index in mini(frame_count, available_frames):
-		var atlas := AtlasTexture.new()
-		atlas.atlas = sheet
-		atlas.region = Rect2i((index % columns) * frame_size.x, (index / columns) * frame_size.y, frame_size.x, frame_size.y)
-		frames.add_frame(&"effect", atlas)
 	var effect := AnimatedSprite2D.new()
 	effect.sprite_frames = frames
 	effect.animation = &"effect"
@@ -1079,6 +1141,45 @@ func _play_vfx_config(config: Array, target: Fighter, advanced: bool, tint := Co
 	effect.animation_finished.connect(effect.queue_free)
 	add_child(effect)
 	effect.play()
+
+
+func _fighter_element(fighter: Fighter) -> String:
+	for candidate in CATALOG.ELEMENTS:
+		if fighter.traits.has(candidate):
+			return candidate
+	return ""
+
+
+func _uses_advanced_vfx(fighter: Fighter) -> bool:
+	var data: Dictionary = CATALOG.data_for_texture(fighter.texture_path)
+	var rarity := CATALOG.rarity_for_texture(fighter.texture_path) if not data.is_empty() else 0
+	return fighter.level >= 2 or rarity >= 3 or fighter.skill_id == "boss_quake"
+
+
+func _element_vfx_config(element: String, advanced: bool) -> Array:
+	var fallback := "res://assets/battle/vfx/hit_advanced.png" if advanced else "res://assets/battle/vfx/hit_basic.png"
+	return ELEMENT_VFX.get(element, {}).get("advanced" if advanced else "basic", [fallback, Vector2i(48, 48), 7])
+
+
+func _sprite_frames_from_vfx_config(config: Array, advanced: bool) -> SpriteFrames:
+	var sheet := load(String(config[0])) as Texture2D
+	var frame_size: Vector2i = config[1]
+	var frame_count := int(config[2])
+	if sheet == null or frame_size.x <= 0 or frame_size.y <= 0:
+		return null
+	var columns := maxi(sheet.get_width() / frame_size.x, 1)
+	var available_frames := columns * maxi(sheet.get_height() / frame_size.y, 1)
+	var frames := SpriteFrames.new()
+	frames.remove_animation(&"default")
+	frames.add_animation(&"effect")
+	frames.set_animation_speed(&"effect", 18.0 if advanced else 15.0)
+	frames.set_animation_loop(&"effect", false)
+	for index in mini(frame_count, available_frames):
+		var atlas := AtlasTexture.new()
+		atlas.atlas = sheet
+		atlas.region = Rect2i((index % columns) * frame_size.x, (index / columns) * frame_size.y, frame_size.x, frame_size.y)
+		frames.add_frame(&"effect", atlas)
+	return frames
 
 
 func _process_synergy_timers(delta: float) -> void:
@@ -1392,7 +1493,7 @@ func _status_icon(index: int, description: String) -> Control:
 	)
 	var root := Control.new()
 	root.custom_minimum_size = Vector2(18, 18)
-	root.tooltip_text = "右键查看：%s" % description
+	root.tooltip_text = ""
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	root.gui_input.connect(_on_status_icon_input.bind(description))
@@ -1446,6 +1547,12 @@ func _show_status_info(description: String) -> void:
 	_add_info_label(status_info_panel, title, Rect2(16, 8, 298, 28), 17, Color("ffd267"))
 	var body := _add_info_label(status_info_panel, detail, Rect2(16, 36, 298, 66), 12, Color.WHITE)
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+
+func _hide_status_info() -> void:
+	if is_instance_valid(status_info_panel):
+		status_info_panel.queue_free()
+	status_info_panel = null
 
 
 func _status_detail_text(description: String) -> String:
@@ -1565,7 +1672,7 @@ func _finish_battle(player_won: bool) -> void:
 		var gold_reward := GameState.battle_gold_breakdown(node_type)
 		GameState.add_coins(int(gold_reward["total"]))
 		result_gold_reward = int(gold_reward["total"])
-		victory_reward_text = "战斗金币：+%d（基础 %d" % [int(gold_reward["total"]), int(gold_reward["base"])]
+		victory_reward_text = "+%d（基础 %d" % [int(gold_reward["total"]), int(gold_reward["base"])]
 		if int(gold_reward["node_bonus"]) > 0:
 			victory_reward_text += "，节点 +%d" % int(gold_reward["node_bonus"])
 		if int(gold_reward["accessory_gold"]) > 0:
@@ -1573,13 +1680,16 @@ func _finish_battle(player_won: bool) -> void:
 		victory_reward_text += "，利息 +%d）" % int(gold_reward["interest"])
 		GameState.battle_victories += 1
 		if GameState.battle_victories % 3 == 0:
-			victory_reward_text += "\n三战奖励：%s" % _grant_battle_streak_item()
+			_grant_battle_streak_item()
+			result_reward_sources.append("三战奖励")
 		if GameState.map_initialized:
 			GameState.complete_current_map_node()
 			if first_battle_victory:
-				victory_reward_text += "\n" + _grant_first_battle_chest()
+				_grant_first_battle_chest()
+				result_reward_sources.append("宝箱奖励")
 			elif _is_mimic_battle():
-				victory_reward_text += "\n" + _grant_mimic_chest_reward()
+				_grant_mimic_chest_reward()
+				result_reward_sources.append("宝箱奖励")
 	else:
 		GameState.lose_run_life()
 		if GameState.run_lives > 0 and GameState.map_initialized:
@@ -1599,13 +1709,25 @@ func _finish_battle(player_won: bool) -> void:
 	add_child(shade)
 	_add_label("胜 利" if player_won else "战斗失败", Rect2(390, 245, 500, 80), 38, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 110)
 	if not victory_reward_text.is_empty():
-		var reward_label_x := 325.0 if result_gold_reward > 0 else 300.0
 		if result_gold_reward > 0:
-			_create_result_coin_icon(Vector2(298, 320))
-		_add_label(victory_reward_text, Rect2(reward_label_x, 315, 655, 58), 15, Color("ffd159"), HORIZONTAL_ALIGNMENT_CENTER, 110)
+			var text_width := ceilf(source_han_font.get_string_size(victory_reward_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x)
+			var reward_row_width := 28.0 + 10.0 + text_width
+			var reward_row_x := floorf((DESIGN_SIZE.x - reward_row_width) * 0.5)
+			_create_result_coin_icon(Vector2(reward_row_x, 330))
+			var gold_label := _add_label(victory_reward_text, Rect2(reward_row_x + 38.0, 315, text_width + 4.0, 58), 15, Color("ffd159"), HORIZONTAL_ALIGNMENT_LEFT, 110)
+			gold_label.name = "ResultGoldText"
+			_create_result_gold_hitbox(Rect2(reward_row_x - 5.0, 315, reward_row_width + 10.0, 58))
+		else:
+			_add_label(victory_reward_text, Rect2(300, 315, 680, 58), 15, Color("ffd159"), HORIZONTAL_ALIGNMENT_CENTER, 110)
+	if not result_reward_sources.is_empty():
+		var source_label := _add_label("    ".join(result_reward_sources), Rect2(390, 362, 500, 34), 15, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 110)
+		source_label.name = "ResultRewardSources"
+	var reward_gap := 15.0
+	var reward_width := result_item_rewards.size() * 140.0 + maxi(result_item_rewards.size() - 1, 0) * reward_gap
+	var reward_start_x := floorf((DESIGN_SIZE.x - reward_width) * 0.5)
 	for reward_index in result_item_rewards.size():
-		_create_result_item_card(result_item_rewards[reward_index], Vector2(485 + reward_index * 155, 378))
-	var result_button_y := 510.0 if not result_item_rewards.is_empty() else (390.0 if not victory_reward_text.is_empty() else 350.0)
+		_create_result_item_card(result_item_rewards[reward_index], Vector2(reward_start_x + reward_index * (140.0 + reward_gap), 398))
+	var result_button_y := 535.0 if not result_item_rewards.is_empty() else (405.0 if not victory_reward_text.is_empty() else 350.0)
 	if player_won and not GameState.map_initialized:
 		var retry := _create_result_button("重新战斗", Vector2(435, result_button_y))
 		retry.pressed.connect(_restart_battle)
@@ -1694,6 +1816,7 @@ func _create_result_item_card(entry: Dictionary, position: Vector2) -> void:
 	var rarity := clampi(int(entry.get("rarity", 0)), 0, 2)
 	var rarity_colors := [Color("b8bdc5"), Color("3e95d8"), Color("c45ad9")]
 	var card := Panel.new()
+	card.name = "ResultItemCard"
 	card.position = position
 	card.size = Vector2(140, 118)
 	card.z_index = 112
@@ -1713,26 +1836,59 @@ func _create_result_item_card(entry: Dictionary, position: Vector2) -> void:
 
 
 func _create_result_coin_icon(position: Vector2) -> void:
-	var coin := Panel.new()
+	var coin := TextureRect.new()
+	coin.name = "ResultCoinIcon"
 	coin.position = position
-	coin.size = Vector2(24, 24)
+	coin.size = Vector2(28, 28)
+	coin.texture = RESULT_COIN_ICON
+	coin.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	coin.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	coin.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	coin.z_index = 112
-	coin.tooltip_text = "金币奖励"
-	coin.mouse_filter = Control.MOUSE_FILTER_PASS
-	coin.add_theme_stylebox_override("panel", _panel_style(Color("f5b82e"), Color("6e3e12"), 3))
+	coin.tooltip_text = ""
+	coin.mouse_filter = Control.MOUSE_FILTER_STOP
+	coin.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	coin.gui_input.connect(_on_result_coin_input)
 	add_child(coin)
-	var shine := ColorRect.new()
-	shine.position = Vector2(6, 5)
-	shine.size = Vector2(5, 5)
-	shine.color = Color("fff09a")
-	shine.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	coin.add_child(shine)
-	var center := ColorRect.new()
-	center.position = Vector2(9, 10)
-	center.size = Vector2(8, 8)
-	center.color = Color("d77d18")
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	coin.add_child(center)
+
+
+func _on_result_coin_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		_show_result_gold_info()
+		get_viewport().set_input_as_handled()
+
+
+func _create_result_gold_hitbox(rect: Rect2) -> void:
+	var hitbox := Control.new()
+	hitbox.name = "ResultGoldHitbox"
+	hitbox.position = rect.position
+	hitbox.size = rect.size
+	hitbox.z_index = 113
+	hitbox.mouse_filter = Control.MOUSE_FILTER_STOP
+	hitbox.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	hitbox.gui_input.connect(_on_result_coin_input)
+	add_child(hitbox)
+
+
+func _show_result_gold_info() -> void:
+	_hide_result_gold_info()
+	result_gold_info_panel = Panel.new()
+	result_gold_info_panel.position = Vector2(430, 356)
+	result_gold_info_panel.size = Vector2(420, 112)
+	result_gold_info_panel.z_index = 125
+	result_gold_info_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	result_gold_info_panel.add_theme_stylebox_override("panel", _panel_style(Color("171925"), Color("ffd159"), 3))
+	add_child(result_gold_info_panel)
+	_add_info_label(result_gold_info_panel, "金币奖励明细", Rect2(18, 10, 384, 30), 18, Color("ffd159"), HORIZONTAL_ALIGNMENT_CENTER)
+	var detail := victory_reward_text.trim_prefix("+%d" % result_gold_reward).strip_edges()
+	var body := _add_info_label(result_gold_info_panel, "本次获得 %d 金币  %s" % [result_gold_reward, detail], Rect2(22, 44, 376, 48), 14, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+
+func _hide_result_gold_info() -> void:
+	if is_instance_valid(result_gold_info_panel):
+		result_gold_info_panel.queue_free()
+	result_gold_info_panel = null
 
 
 func _create_result_button(text: String, position: Vector2) -> Button:
@@ -1772,18 +1928,18 @@ func _play_transition_in() -> void:
 
 
 func _restart_battle() -> void:
-	get_tree().reload_current_scene()
+	SceneManager.reload_scene()
 
 
 func _back_to_prep() -> void:
-	get_tree().change_scene_to_file("res://map.tscn" if GameState.map_initialized else "res://battle_prep.tscn")
+	SceneManager.change_scene("res://map.tscn" if GameState.map_initialized else "res://battle_prep.tscn")
 
 
 func _return_to_main_after_defeat() -> void:
 	GameState.reset_run()
 	GameState.has_started_new_game = false
 	GameState.clear_run_save()
-	get_tree().change_scene_to_file("res://main.tscn")
+	SceneManager.change_scene("res://main.tscn")
 
 
 func _add_texture(path: String, rect: Rect2, z: int, stretch := TextureRect.STRETCH_KEEP_ASPECT_CENTERED) -> TextureRect:

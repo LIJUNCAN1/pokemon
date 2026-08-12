@@ -2,6 +2,8 @@ extends Control
 
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
+const ITEM_INFO_TINT_SHADER: Shader = preload("res://assets/ui/item_info/rarity_tint.gdshader")
+const ITEM_INFO_ROOT := "res://assets/ui/item_info/"
 const VISIBLE_SLOT_COUNT := 24
 const GRID_COLUMNS := 3
 const CELL_SIZE := Vector2(157, 68)
@@ -13,11 +15,18 @@ var count_label: Label
 var accessory_tab: Button
 var item_tab: Button
 var item_info_panel: Panel
+var item_info_dismiss_layer: Button
 var item_info_icon: TextureRect
 var item_info_name: Label
 var item_info_rarity: Label
 var item_info_effect: Label
 var item_info_rule: Label
+var item_info_layers: Array[TextureRect] = []
+var item_info_type: Label
+var item_info_star: Label
+var item_info_effect_rich: RichTextLabel
+var item_info_rule_rich: RichTextLabel
+var item_info_divider: Control
 var active_kind := "accessory"
 
 
@@ -108,8 +117,7 @@ func _build_interface() -> void:
 func refresh_items() -> void:
 	if item_grid == null:
 		return
-	if is_instance_valid(item_info_panel):
-		item_info_panel.visible = false
+	_hide_item_info()
 	for child in item_grid.get_children():
 		child.queue_free()
 	var source_items: Array = GameState.accessory_inventory if active_kind == "accessory" else GameState.item_inventory
@@ -170,32 +178,42 @@ func _create_item_slot(entry: Dictionary, index: int) -> void:
 
 
 func _build_item_info_panel(parent: Control) -> void:
+	item_info_dismiss_layer = Button.new()
+	item_info_dismiss_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	item_info_dismiss_layer.flat = true
+	item_info_dismiss_layer.focus_mode = Control.FOCUS_NONE
+	item_info_dismiss_layer.mouse_default_cursor_shape = Control.CURSOR_ARROW
+	item_info_dismiss_layer.z_index = 19
+	item_info_dismiss_layer.visible = false
+	item_info_dismiss_layer.pressed.connect(_hide_item_info)
+	parent.add_child(item_info_dismiss_layer)
+
 	item_info_panel = Panel.new()
 	item_info_panel.position = Vector2(22, 116)
-	item_info_panel.size = Vector2(506, 166)
+	item_info_panel.size = Vector2(506, 357)
 	item_info_panel.z_index = 20
 	item_info_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	item_info_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.075, 0.085, 0.12, 0.985), Color("4e4a86"), 3))
-	item_info_panel.gui_input.connect(_on_item_info_background_input)
+	item_info_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	item_info_panel.visible = false
 	parent.add_child(item_info_panel)
 
 	item_info_icon = TextureRect.new()
-	item_info_icon.position = Vector2(16, 20)
-	item_info_icon.size = Vector2(94, 94)
+	item_info_icon.position = Vector2(29, 108)
+	item_info_icon.size = Vector2(213, 213)
 	item_info_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	item_info_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	item_info_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	item_info_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	item_info_panel.add_child(item_info_icon)
-	item_info_name = _add_label(item_info_panel, "", Rect2(126, 12, 260, 34), 18, Color.WHITE)
-	item_info_rarity = _add_label(item_info_panel, "", Rect2(392, 42, 82, 28), 12, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
-	item_info_effect = _add_label(item_info_panel, "", Rect2(126, 47, 352, 66), 13, Color.WHITE)
+	item_info_name = _add_label(item_info_panel, "", Rect2(72, 22, 265, 44), 26, Color.WHITE)
+	item_info_rarity = _add_label(item_info_panel, "", Rect2(402, 28, 73, 36), 18, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	item_info_effect = _add_label(item_info_panel, "", Rect2(Vector2.ZERO, Vector2.ZERO), 1, Color.TRANSPARENT)
 	item_info_effect.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	item_info_rule = _add_label(item_info_panel, "", Rect2(16, 122, 462, 32), 12, Color("bfc5d4"))
+	item_info_rule = _add_label(item_info_panel, "", Rect2(Vector2.ZERO, Vector2.ZERO), 1, Color.TRANSPARENT)
+	_build_item_info_art()
 
 	var close_info := Button.new()
-	close_info.position = Vector2(462, 4)
+	close_info.position = Vector2(466, 4)
 	close_info.size = Vector2(38, 34)
 	close_info.text = "×"
 	close_info.flat = true
@@ -205,6 +223,84 @@ func _build_item_info_panel(parent: Control) -> void:
 	close_info.add_theme_color_override("font_color", Color.WHITE)
 	close_info.pressed.connect(_hide_item_info)
 	item_info_panel.add_child(close_info)
+
+
+func _build_item_info_art() -> void:
+	for asset_name in ["frame.png", "header.png", "header_accent.png", "rarity_icon_shadow.png", "rarity_icon_border.png", "rarity_icon_fill.png", "portrait_border.png", "portrait_fill.png", "rarity_badge.png"]:
+		var layer := TextureRect.new()
+		layer.position = Vector2.ZERO
+		layer.size = item_info_panel.size
+		layer.texture = load(ITEM_INFO_ROOT + asset_name) as Texture2D
+		layer.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		layer.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		layer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		layer.z_index = -2 if asset_name == "frame.png" else -1
+		if asset_name in ["header.png", "header_accent.png", "rarity_icon_border.png", "rarity_icon_fill.png", "rarity_badge.png", "portrait_border.png", "portrait_fill.png"]:
+			var material := ShaderMaterial.new()
+			material.shader = ITEM_INFO_TINT_SHADER
+			layer.material = material
+		item_info_panel.add_child(layer)
+		item_info_layers.append(layer)
+	item_info_star = _add_label(item_info_panel, "✦", Rect2(24, 22, 44, 44), 25, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	item_info_type = _add_label(item_info_panel, "", Rect2(270, 105, 200, 42), 20, Color("252b35"))
+	item_info_effect_rich = _add_rich_text(item_info_panel, Rect2(270, 150, 208, 104), 15)
+	item_info_rule_rich = _add_rich_text(item_info_panel, Rect2(270, 260, 208, 54), 14)
+	item_info_divider = _make_dashed_divider(item_info_panel, Vector2(270, 252), 208.0)
+
+
+func _make_dashed_divider(parent: Control, start: Vector2, width: float) -> Control:
+	var line := Control.new()
+	line.position = start
+	line.size = Vector2(width, 2)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.z_index = 1
+	var dash_width := 8.0
+	var gap_width := 6.0
+	var x := 0.0
+	while x < width:
+		var dash := ColorRect.new()
+		dash.position = Vector2(x, 0)
+		dash.size = Vector2(minf(dash_width, width - x), 2)
+		dash.color = Color("c8cbd2")
+		dash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.add_child(dash)
+		x += dash_width + gap_width
+	parent.add_child(line)
+	return line
+
+
+func _add_rich_text(parent: Control, rect: Rect2, font_size: int) -> RichTextLabel:
+	var rich := RichTextLabel.new()
+	rich.position = rect.position
+	rich.size = rect.size
+	rich.bbcode_enabled = true
+	rich.fit_content = false
+	rich.scroll_active = false
+	rich.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rich.add_theme_font_override("normal_font", source_han_font)
+	rich.add_theme_font_size_override("normal_font_size", font_size)
+	rich.add_theme_color_override("default_color", Color("596275"))
+	parent.add_child(rich)
+	return rich
+
+
+func _blue_item_values(text: String) -> String:
+	var value_pattern := RegEx.new()
+	value_pattern.compile("([+-]?\\d+(?:\\.\\d+)?%?)")
+	return value_pattern.sub(text, "[color=#4f83c2]$1[/color]", true)
+
+
+func _apply_item_info_rarity(rarity_color: Color) -> void:
+	var tint_strengths := {1: 0.82, 2: 0.96, 4: 0.92, 5: 0.84, 6: 0.42, 7: 0.12, 8: 0.72}
+	var brightnesses := {1: 0.54, 2: 0.88, 4: 0.82, 5: 0.72, 6: 0.62, 7: 1.0, 8: 0.72}
+	for layer_index in item_info_layers.size():
+		var layer := item_info_layers[layer_index]
+		if layer.material is ShaderMaterial:
+			var material := layer.material as ShaderMaterial
+			material.set_shader_parameter("rarity_color", rarity_color)
+			material.set_shader_parameter("tint_strength", float(tint_strengths.get(layer_index, 0.8)))
+			material.set_shader_parameter("brightness", float(brightnesses.get(layer_index, 1.0)))
 
 
 func _on_item_slot_gui_input(event: InputEvent, entry: Dictionary, rule_text: String) -> void:
@@ -223,19 +319,21 @@ func _show_item_info(entry: Dictionary, rule_text: String) -> void:
 	item_info_name.text = String(entry["name"])
 	item_info_rarity.text = ITEM_CATALOG.RARITY_NAMES[rarity]
 	item_info_rarity.add_theme_color_override("font_color", RARITY_COLORS[rarity].lightened(0.18))
-	item_info_effect.text = String(entry["effect"])
-	item_info_rule.text = "%s · 右键查看，左键使用" % rule_text if active_kind == "item" else rule_text
+	_apply_item_info_rarity(RARITY_COLORS[rarity])
+	item_info_type.text = "✦ %s" % ("饰品" if active_kind == "accessory" else "道具")
+	item_info_effect_rich.text = _blue_item_values(String(entry["effect"]))
+	item_info_rule_rich.text = _blue_item_values(rule_text)
+	item_info_dismiss_layer.visible = true
 	item_info_panel.visible = true
+	item_info_dismiss_layer.move_to_front()
 	item_info_panel.move_to_front()
 
 
 func _hide_item_info() -> void:
-	item_info_panel.visible = false
-
-
-func _on_item_info_background_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_hide_item_info()
+	if is_instance_valid(item_info_dismiss_layer):
+		item_info_dismiss_layer.visible = false
+	if is_instance_valid(item_info_panel):
+		item_info_panel.visible = false
 
 
 func _owned_entry_count(entry: Dictionary) -> int:

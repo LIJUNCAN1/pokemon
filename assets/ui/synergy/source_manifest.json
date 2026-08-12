@@ -1,0 +1,95 @@
+{
+  "source": "D:\\pokemon\\素材\\主菜单\\菜单.psd",
+  "canvas": [
+    2560,
+    1440
+  ],
+  "color_mode": "3",
+  "depth": 8,
+  "layers": [
+    {
+      "index": 0,
+      "name": "背景",
+      "kind": "pixel",
+      "visible": true,
+      "opacity": 255,
+      "bbox": [
+        0,
+        0,
+        2560,
+        1440
+      ],
+      "file": "00_背景.png"
+    },
+    {
+      "index": 1,
+      "name": "3",
+      "kind": "pixel",
+      "visible": true,
+      "opacity": 255,
+      "bbox": [
+        804,
+        676,
+        1751,
+        1339
+      ],
+      "file": "01_3.png"
+    },
+    {
+      "index": 2,
+      "name": "2",
+      "kind": "pixel",
+      "visible": true,
+      "opacity": 255,
+      "bbox": [
+        837,
+        706,
+        1719,
+        841
+      ],
+      "file": "02_2.png"
+    },
+    {
+      "index": 3,
+      "name": "2 拷贝",
+      "kind": "pixel",
+      "visible": true,
+      "opacity": 255,
+      "bbox": [
+        837,
+        860,
+        1719,
+        995
+      ],
+      "file": "03_2_拷贝.png"
+    },
+    {
+      "index": 4,
+      "name": "2 拷贝 2",
+      "kind": "pixel",
+      "visible": true,
+      "opacity": 255,
+      "bbox": [
+        837,
+        1014,
+        1719,
+        1149
+      ],
+      "file": "04_2_拷贝_2.png"
+    },
+    {
+      "index": 5,
+      "name": "2 拷贝 2",
+      "kind": "pixel",
+      "visible": true,
+      "opacity": 255,
+      "bbox": [
+        837,
+        1168,
+        1719,
+        1303
+      ],
+      "file": "05_2_拷贝_2.png"
+    }
+  ]
+}

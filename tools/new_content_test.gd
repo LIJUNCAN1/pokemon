@@ -44,6 +44,8 @@ func _test_new_accessories() -> void:
 func _test_creature_combat_rules() -> void:
 	for texture_path in CREATURE_CATALOG.all_textures():
 		_check(FileAccess.file_exists(texture_path), "角色源立绘不存在：%s" % texture_path)
+		var creature_texture := load(texture_path) as Texture2D
+		_check(creature_texture != null and creature_texture.get_width() > 0 and creature_texture.get_height() > 0, "角色立绘未成功导入：%s" % texture_path)
 		_check(CREATURE_CATALOG.target_rule_for_texture(texture_path) in ["front_row", "rear_chance", "lowest_hp"], "%s 目标规则无效" % texture_path)
 		_check(not CREATURE_CATALOG.trigger_rule_for_texture(texture_path).is_empty(), "%s 缺少技能触发规则" % texture_path)
 		var one_star := CREATURE_CATALOG.star_growth_for_texture(texture_path, 1)
@@ -60,6 +62,8 @@ func _test_synergy_extension_api() -> void:
 		_check(not CREATURE_CATALOG.synergy_thresholds(synergy).is_empty(), "羁绊缺少档位：%s" % synergy)
 		_check(CREATURE_CATALOG.synergy_effect_lines(synergy).size() == CREATURE_CATALOG.synergy_thresholds(synergy).size(), "羁绊说明与档位数量不一致：%s" % synergy)
 		_check(ResourceLoader.exists(CREATURE_CATALOG.synergy_icon_path(synergy)), "羁绊图标不存在：%s" % synergy)
+		var synergy_texture := load(CREATURE_CATALOG.synergy_icon_path(synergy)) as Texture2D
+		_check(synergy_texture != null and synergy_texture.get_width() > 0 and synergy_texture.get_height() > 0, "羁绊图标未成功导入：%s" % synergy)
 	var available_ids: Array[String] = CREATURE_CATALOG.available_synergy_ids()
 	_check(available_ids.is_empty(), "七个新羁绊启用后不应继续留在预留列表")
 	for synergy in available_ids:

@@ -166,7 +166,7 @@ func _close_overlay() -> void:
 
 func _exit_current_mode() -> void:
 	if not exit_scene_path.is_empty():
-		get_tree().change_scene_to_file(exit_scene_path)
+		SceneManager.change_scene(exit_scene_path)
 
 
 func _change_option(row_index: int, direction: int) -> void:
