@@ -1,0 +1,81 @@
+{
+  "sources": {
+    "common": "source/common-layer.png",
+    "uncommon": "source/uncommon-layer.png",
+    "rare": "source/rare-reference.png",
+    "epic": "source/epic-layer.png",
+    "legendary": "source/legendary-layer.png"
+  },
+  "source_bounds": [
+    10,
+    7,
+    114,
+    60
+  ],
+  "native_size": [
+    104,
+    53
+  ],
+  "native_sizes": {
+    "rare": [
+      104,
+      53
+    ],
+    "common": [
+      834,
+      449
+    ],
+    "uncommon": [
+      834,
+      449
+    ],
+    "epic": [
+      834,
+      449
+    ],
+    "legendary": [
+      834,
+      449
+    ]
+  },
+  "geometry_baseline": "rare remains the existing in-game asset; native Aseprite layers are preserved",
+  "text_removed": true,
+  "reconstruction": "inferred from adjacent authored background rows",
+  "tags": {
+    "common": {
+      "asset": "common.png",
+      "source_layer": "品质框.aseprite native layer",
+      "display_name": "普通",
+      "text_color": "#607c9e",
+      "body_color": "#f8fafc"
+    },
+    "uncommon": {
+      "asset": "uncommon.png",
+      "source_layer": "品质框.aseprite native layer",
+      "display_name": "优秀",
+      "text_color": "#c7f8c9",
+      "body_color": "#64a460"
+    },
+    "rare": {
+      "asset": "rare.png",
+      "source_layer": "existing in-game blue tag",
+      "display_name": "稀有",
+      "text_color": "#5da6de",
+      "body_color": "#3b6586"
+    },
+    "epic": {
+      "asset": "epic.png",
+      "source_layer": "品质框.aseprite native layer",
+      "display_name": "史诗",
+      "text_color": "#d0b5ff",
+      "body_color": "#8061bf"
+    },
+    "legendary": {
+      "asset": "legendary.png",
+      "source_layer": "品质框.aseprite native layer",
+      "display_name": "传说",
+      "text_color": "#ffd0a6",
+      "body_color": "#ef8125"
+    }
+  }
+}

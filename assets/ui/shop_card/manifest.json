@@ -1,0 +1,86 @@
+{
+  "source": "res://素材/主菜单/商店卡片.aseprite",
+  "canvas_size": [
+    607,
+    111
+  ],
+  "card_size": [
+    115,
+    94
+  ],
+  "inner_image_rect": [
+    5,
+    5,
+    105,
+    66
+  ],
+  "bottom_text_rect": [
+    5,
+    72,
+    105,
+    17
+  ],
+  "filter": "nearest",
+  "cards": [
+    {
+      "rarity": "common",
+      "source_rect": [
+        12,
+        10,
+        115,
+        94
+      ],
+      "composite": "res://assets/ui/shop_card/card_common.png",
+      "frame": "res://assets/ui/shop_card/frame_common.png",
+      "fill": "res://assets/ui/shop_card/fill_common.png"
+    },
+    {
+      "rarity": "uncommon",
+      "source_rect": [
+        129,
+        10,
+        115,
+        94
+      ],
+      "composite": "res://assets/ui/shop_card/card_uncommon.png",
+      "frame": "res://assets/ui/shop_card/frame_uncommon.png",
+      "fill": "res://assets/ui/shop_card/fill_uncommon.png"
+    },
+    {
+      "rarity": "rare",
+      "source_rect": [
+        247,
+        10,
+        115,
+        94
+      ],
+      "composite": "res://assets/ui/shop_card/card_rare.png",
+      "frame": "res://assets/ui/shop_card/frame_rare.png",
+      "fill": "res://assets/ui/shop_card/fill_rare.png"
+    },
+    {
+      "rarity": "epic",
+      "source_rect": [
+        366,
+        10,
+        115,
+        94
+      ],
+      "composite": "res://assets/ui/shop_card/card_epic.png",
+      "frame": "res://assets/ui/shop_card/frame_epic.png",
+      "fill": "res://assets/ui/shop_card/fill_epic.png"
+    },
+    {
+      "rarity": "legendary",
+      "source_rect": [
+        483,
+        10,
+        115,
+        94
+      ],
+      "composite": "res://assets/ui/shop_card/card_legendary.png",
+      "frame": "res://assets/ui/shop_card/frame_legendary.png",
+      "fill": "res://assets/ui/shop_card/fill_legendary.png"
+    }
+  ]
+}

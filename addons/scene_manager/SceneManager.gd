@@ -85,10 +85,10 @@ var _current_scene: Node
 ## To differ per side, pass [code]pattern_enter[/code] / [code]pattern_leave[/code] or
 ## [code]ease_enter[/code] / [code]ease_leave[/code] instead, which take priority.
 var default_options := {
-	"speed": 2.8,
-	"color": Color("#000000"),
-	"pattern": "squares",
-	"wait_time": 0.08,
+	"speed": 1.5,
+	"color": Color("#07111f"),
+	"pattern": "curtains",
+	"wait_time": 0.04,
 	"invert_on_enter": false,
 	"invert_on_leave": true,
 	"ease": 1.0,
@@ -265,6 +265,11 @@ func change_scene(path: Variant, setted_options: Dictionary = { }) -> void:
 		preload_scene(path, options["cache_mode"])
 	if not options["skip_fade_out"]:
 		await fade_out(setted_options)
+	elif not options["skip_fade_in"]:
+		# The outgoing scene supplied its own fully covered frame (for example,
+		# the battle VS curtains). Match the plugin overlay to that state before
+		# replacing the scene so no uncovered swap frame can flash through.
+		_set_fully_covered(options)
 	if not options["skip_scene_change"]:
 		if path == null:
 			await _reload_scene()
@@ -278,6 +283,15 @@ func change_scene(path: Variant, setted_options: Dictionary = { }) -> void:
 	await _adapter.create_timer(options["wait_time"]).timeout
 	if not options["skip_fade_in"]:
 		await fade_in(setted_options)
+
+
+func _set_fully_covered(options: Dictionary) -> void:
+	is_transitioning = true
+	_shader_blend_rect.material.set_shader_parameter("dissolve_texture", options["pattern_leave"])
+	_shader_blend_rect.material.set_shader_parameter("fade", not options["pattern_leave"])
+	_shader_blend_rect.material.set_shader_parameter("fade_color", options["color"])
+	_shader_blend_rect.material.set_shader_parameter("inverted", options["invert_on_leave"])
+	_shader_blend_rect.material.set_shader_parameter("dissolve_amount", 1.0)
 
 
 ## Reloads the current scene from disk, with the same transition [method change_scene] uses.
@@ -418,6 +432,11 @@ func fade_in(setted_options: Dictionary = { }) -> void:
 	var animation = _animation_player.get_animation("ShaderFade")
 	animation.track_set_key_transition(0, 0, options["ease_leave"])
 	fade_started.emit()
+	# A custom outgoing transition may deliberately skip the plugin fade-out.
+	# Always begin the reveal from the fully covered frame so the scene swap
+	# can never expose a single bright frame.
+	_animation_player.play("ShaderFade")
+	_animation_player.seek(animation.length, true)
 	_animation_player.play_backwards("ShaderFade")
 
 	await _animation_player.animation_finished

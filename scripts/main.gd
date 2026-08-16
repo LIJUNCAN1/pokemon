@@ -365,30 +365,22 @@ func _show_status(message: String) -> void:
 func _on_start_pressed() -> void:
 	for button in buttons:
 		button.disabled = true
-	var transition := create_tween().set_parallel(true)
-	transition.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	transition.tween_property(fade, "color:a", 1.0, 0.45)
-	MusicManager.fade_out(0.4)
-	await transition.finished
+	MusicManager.fade_out(0.6)
 	GameState.has_started_new_game = true
 	GameState.reset_run()
 	GameState.save_run()
-	await SceneManager.change_scene("res://trainer_select.tscn", {"skip_fade_out": true})
+	await SceneManager.change_scene("res://trainer_select.tscn")
 
 
 func _on_continue_pressed() -> void:
-	for button in buttons:
-		button.disabled = true
-	var transition := create_tween().set_parallel(true)
-	transition.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	transition.tween_property(fade, "color:a", 1.0, 0.45)
-	MusicManager.fade_out(0.4)
-	await transition.finished
 	if not GameState.has_started_new_game and not GameState.load_run():
 		_show_status("没有可以继续的远征")
 		_update_continue_availability()
 		return
-	await SceneManager.change_scene("res://map.tscn", {"skip_fade_out": true})
+	for button in buttons:
+		button.disabled = true
+	MusicManager.fade_out(0.6)
+	await SceneManager.change_scene("res://map.tscn")
 
 
 func _on_settings_pressed() -> void:
