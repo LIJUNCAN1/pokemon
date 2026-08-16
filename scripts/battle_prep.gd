@@ -4,16 +4,33 @@ const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-He
 const STAT_PIXEL_FONT: FontFile = preload("res://assets/fonts/ark-pixel-12px-proportional-zh_cn.ttf")
 const CATALOG = preload("res://scripts/creature_catalog.gd")
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
-const BACKGROUND_SHADER: Shader = preload("res://shaders/battle_prep_background.gdshader")
+const RARITY_TAG = preload("res://scripts/rarity_tag_style.gd")
 const STAT_BADGE_SHADER: Shader = preload("res://shaders/stat_badge.gdshader")
 const DEX_OVERLAY_SCENE: PackedScene = preload("res://dex_overlay.tscn")
 const SETTINGS_OVERLAY_SCENE: PackedScene = preload("res://settings_overlay.tscn")
 const INVENTORY_POPUP_SCENE: PackedScene = preload("res://inventory_popup.tscn")
 const ITEM_INFO_TINT_SHADER: Shader = preload("res://assets/ui/item_info/rarity_tint.gdshader")
+const SOLID_ICON_TINT_SHADER: Shader = preload("res://shaders/solid_icon_tint.gdshader")
 const ITEM_INFO_ROOT := "res://assets/ui/item_info/"
+const BATTLE_RANGED_ICON: Texture2D = preload("res://素材/战斗场景/图层 3.png")
+const BATTLE_MELEE_ICON: Texture2D = preload("res://素材/战斗场景/图层 4.png")
+const CHARACTER_INFO_TIME_ICON: Texture2D = preload("res://assets/ui/character_info/time.png")
+const CHARACTER_INFO_DAMAGE_GAP := 12.0
 const SYNERGY_TOOLTIP_ROOT := "res://assets/ui/synergy_tooltip/"
+const SYNERGY_TOOLTIP_BASE_SIZE := Vector2(320, 243)
+const SYNERGY_TOOLTIP_DISPLAY_SCALE := 1.0
+const SYNERGY_TOOLTIP_SIZE := Vector2(320, 243)
 const DESIGN_SIZE := Vector2(1280, 720)
 const FULL_HD_SCALE := Vector2(0.5, 0.5)
+const PREP_GRASS_BACKGROUND := "res://assets/ui/battle_prep/grass_background.png"
+const PREP_FORMATION_TOP_PLATFORM := "res://素材/场景/图层 6.png"
+const PREP_FORMATION_BOTTOM_PLATFORM := "res://素材/场景/图层 7.png"
+const PREP_FORMATION_TOP_CENTERS: Array[Vector2] = [Vector2(230, 335), Vector2(392, 335), Vector2(550, 335)]
+const PREP_FORMATION_BOTTOM_CENTERS: Array[Vector2] = [Vector2(194, 438), Vector2(356, 438), Vector2(518, 438)]
+const PREP_FORMATION_GROUP_OFFSET := Vector2(268, 0)
+const PREP_FORMATION_SLOT_SIZE := Vector2(112, 96)
+const PREP_FORMATION_SLOT_OFFSET := Vector2(-56, -70)
+const PREP_FORMATION_SPRITE_SIZE := Vector2(76, 78)
 const UI := "res://素材/主菜单/"
 const POKEMON := "res://素材/宝可梦图/"
 const MAP_PREP_MUSIC := "res://assets/audio/pixel_mountain_quest.mp3"
@@ -41,6 +58,14 @@ const LEVEL_COLORS: Array[Color] = [Color.WHITE, Color("58d66b"), Color("ef4b52"
 var CREATURE_NAMES: Array[String] = CATALOG.all_names()
 const SHOP_RARITY_NAMES: Array[String] = ["普通", "优秀", "稀有", "史诗", "传说"]
 const SHOP_RARITY_COLORS: Array[Color] = [Color("b8bdc5"), Color("58b85f"), Color("3e95d8"), Color("c45ad9"), Color("e3a62f")]
+const SHOP_CARD_ASSETS: Array[String] = [
+	"res://assets/ui/shop_card/card_common.png",
+	"res://assets/ui/shop_card/card_uncommon.png",
+	"res://assets/ui/shop_card/card_rare.png",
+	"res://assets/ui/shop_card/card_epic.png",
+	"res://assets/ui/shop_card/card_legendary.png",
+]
+const SHOP_CARD_COIN_ICON := "res://素材/主菜单/精灵图-0001.png"
 const SHOP_CARD_COUNT := 5
 const SHOP_ITEM_CHANCE := 0.58
 const SHOP_ACCESSORY_CHANCE := 0.46
@@ -114,6 +139,7 @@ var creature_levels: Array[int] = []
 var selected_slot := -1
 var drag_source_slot := -1
 var shop_sprites: Array[TextureRect] = []
+var shop_portrait_clips: Array[Control] = []
 var shop_buttons: Array[Button] = []
 var shop_hp_labels: Array[Label] = []
 var shop_special_labels: Array[Label] = []
@@ -130,6 +156,9 @@ var shop_creature_overlays: Array[TextureRect] = []
 var shop_outer_layers: Array[TextureRect] = []
 var shop_name_labels: Array[Label] = []
 var shop_price_labels: Array[Label] = []
+var shop_element_labels: Array[Label] = []
+var shop_secondary_trait_labels: Array[Label] = []
+var shop_coin_icons: Array[TextureRect] = []
 var shop_sold_out_overlays: Array[TextureRect] = []
 var shop_sold_out_shades: Array[ColorRect] = []
 var shop_card_outlines: Array[Panel] = []
@@ -166,13 +195,14 @@ var synergy_current_counts: Dictionary = {}
 var synergy_scroll: ScrollContainer
 var synergy_list: Control
 var synergy_tooltip: Panel
+var synergy_tooltip_content: Control
 var synergy_tooltip_title: Label
 var synergy_tooltip_body: Label
 var synergy_tooltip_icon: TextureRect
 var synergy_tooltip_count: Label
 var synergy_tooltip_tier_rows: Array[Control] = []
 var synergy_tooltip_tier_circles: Array[TextureRect] = []
-var synergy_tooltip_tier_fills: Array[ColorRect] = []
+var synergy_tooltip_tier_fills: Array[Panel] = []
 var synergy_tooltip_tier_badges: Array[TextureRect] = []
 var synergy_tooltip_tier_numbers: Array[Label] = []
 var synergy_tooltip_tier_texts: Array[RichTextLabel] = []
@@ -181,9 +211,11 @@ var shop_hover_tweens: Dictionary = {}
 var idle_wobble_time := 0.0
 var selection_pulse_tween: Tween
 var card_tooltip: Panel
+var card_tooltip_legacy_header: ColorRect
 var card_tooltip_name: Label
 var card_tooltip_rarity: Label
 var card_tooltip_sprite: TextureRect
+var card_tooltip_portrait_panel: Panel
 var card_tooltip_element_icon: TextureRect
 var card_tooltip_element: Label
 var card_tooltip_race_icon: TextureRect
@@ -194,6 +226,28 @@ var card_tooltip_extra: Label
 var card_tooltip_element_panel: Panel
 var card_tooltip_race_panel: Panel
 var card_tooltip_info_panel: Panel
+var creature_tooltip_nodes: Array[CanvasItem] = []
+var card_tooltip_gradient: TextureRect
+var card_tooltip_shadow: Panel
+var card_tooltip_star: TextureRect
+var card_tooltip_star_label: Label
+var card_tooltip_price: Label
+var card_tooltip_role_icon: TextureRect
+var card_tooltip_role: Label
+var card_tooltip_cooldown_caption: Label
+var card_tooltip_skill_icon: TextureRect
+var card_tooltip_skill_backdrop: Panel
+var card_tooltip_skill_name: Label
+var card_tooltip_skill_damage: Label
+var card_tooltip_skill_text: RichTextLabel
+var card_tooltip_header_divider: ColorRect
+var card_tooltip_bottom_panel: Panel
+var card_tooltip_skill_divider: ColorRect
+var card_tooltip_rarity_badge: Panel
+var card_tooltip_clock_icon: TextureRect
+var card_tooltip_active_label: Label
+var card_tooltip_name_icon: Label
+var card_tooltip_horizontal_divider: Control
 var item_tooltip_layers: Array[CanvasItem] = []
 var item_tooltip_type: Label
 var item_tooltip_effect: RichTextLabel
@@ -251,13 +305,10 @@ func _apply_full_hd_layout() -> void:
 
 
 func _build_interface() -> void:
-	var background := ColorRect.new()
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var material := ShaderMaterial.new()
-	material.shader = BACKGROUND_SHADER
-	background.material = material
+	var background := _add_texture(self, PREP_GRASS_BACKGROUND, Rect2(Vector2.ZERO, DESIGN_SIZE), TextureRect.STRETCH_KEEP_ASPECT_COVERED)
+	background.name = "PreparationGrassBackground"
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(background)
+	move_child(background, 0)
 	_build_top_bar()
 	_build_bench()
 	_build_team()
@@ -266,7 +317,6 @@ func _build_interface() -> void:
 	_build_shop()
 	_build_footer_actions()
 	_build_card_tooltip()
-	_play_transition_in.call_deferred()
 
 
 func _build_top_bar() -> void:
@@ -321,16 +371,18 @@ func _build_bench() -> void:
 
 
 func _build_team() -> void:
-	_add_texture(self, UI + "10_切图_10.png", Rect2(414, 246, 442, 270), TextureRect.STRETCH_SCALE)
-	_add_label(self, "队伍", Rect2(432, 251, 170, 27), 17, Color.WHITE)
-	var rects := [
-		Rect2(435, 296, 119, 86), Rect2(574, 296, 121, 86), Rect2(715, 296, 120, 86),
-		Rect2(435, 405, 119, 87), Rect2(574, 405, 121, 87), Rect2(715, 405, 120, 87),
-	]
-	for index in rects.size():
+	var top_platform := _add_texture(self, PREP_FORMATION_TOP_PLATFORM, Rect2(Vector2(170, 307) + PREP_FORMATION_GROUP_OFFSET, Vector2(440, 52)), TextureRect.STRETCH_SCALE)
+	top_platform.name = "FormationTopPlatform"
+	var bottom_platform := _add_texture(self, PREP_FORMATION_BOTTOM_PLATFORM, Rect2(Vector2(135, 410) + PREP_FORMATION_GROUP_OFFSET, Vector2(446, 55)), TextureRect.STRETCH_SCALE)
+	bottom_platform.name = "FormationBottomPlatform"
+	var centers: Array[Vector2] = []
+	centers.append_array(PREP_FORMATION_TOP_CENTERS)
+	centers.append_array(PREP_FORMATION_BOTTOM_CENTERS)
+	for index in centers.size():
 		var saved_texture := GameState.player_team[index] if index < GameState.player_team.size() else ""
 		var saved_level := GameState.player_team_levels[index] if index < GameState.player_team_levels.size() else 1
-		_create_creature_slot(rects[index], saved_texture, "上阵 %d" % (index + 1), saved_level)
+		var slot_rect := Rect2(centers[index] + PREP_FORMATION_GROUP_OFFSET + PREP_FORMATION_SLOT_OFFSET, PREP_FORMATION_SLOT_SIZE)
+		_create_creature_slot(slot_rect, saved_texture, "上阵 %d" % (index + 1), saved_level, true)
 
 
 func _build_synergy() -> void:
@@ -416,47 +468,72 @@ func _build_synergy() -> void:
 
 func _build_synergy_tooltip() -> void:
 	synergy_tooltip = Panel.new()
+	# The supplied drawer artwork is authored at 1280x972 (4x the old
+	# implementation).  Keep the native proportions and scale the complete
+	# composition uniformly so the bitmap layers and text share one coordinate
+	# system.
 	synergy_tooltip.position = Vector2(648, 82)
-	synergy_tooltip.size = Vector2(320, 243)
+	synergy_tooltip.size = SYNERGY_TOOLTIP_SIZE
 	synergy_tooltip.z_index = 90
 	synergy_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	synergy_tooltip.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	synergy_tooltip.visible = false
 	add_child(synergy_tooltip)
-	for asset_name in ["frame.png", "header.png", "body.png", "count_border.png", "count_fill.png", "icon_shadow.png", "icon_border.png", "icon_fill.png"]:
-		var layer := _add_texture(synergy_tooltip, SYNERGY_TOOLTIP_ROOT + asset_name, Rect2(0, 0, 320, 243), TextureRect.STRETCH_KEEP_ASPECT_CENTERED)
+	for asset_name in ["frame.png", "header.png", "body.png", "count_border.png", "count_fill.png"]:
+		var layer := _add_texture(synergy_tooltip, SYNERGY_TOOLTIP_ROOT + asset_name, Rect2(0, 0, SYNERGY_TOOLTIP_SIZE.x, SYNERGY_TOOLTIP_SIZE.y), TextureRect.STRETCH_KEEP_ASPECT_CENTERED)
+		layer.name = asset_name.get_basename().to_pascal_case()
 		layer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		if asset_name in ["header.png", "count_border.png", "count_fill.png", "icon_border.png", "icon_fill.png"]:
+		if asset_name in ["header.png", "count_border.png", "count_fill.png"]:
 			var material := ShaderMaterial.new()
 			material.shader = ITEM_INFO_TINT_SHADER
 			layer.material = material
-	synergy_tooltip_icon = _add_texture(synergy_tooltip, CATALOG.synergy_icon_path("自然"), Rect2(23, 14, 25, 25))
-	synergy_tooltip_title = _add_label(synergy_tooltip, "", Rect2(62, 13, 196, 34), 23, Color.WHITE)
-	synergy_tooltip_count = _add_label(synergy_tooltip, "", Rect2(54, 58, 96, 26), 15, Color("cdd2df"), HORIZONTAL_ALIGNMENT_CENTER)
-	synergy_tooltip_body = _add_label(synergy_tooltip, "", Rect2(Vector2.ZERO, Vector2.ZERO), 1, Color.TRANSPARENT)
+	synergy_tooltip_content = Control.new()
+	synergy_tooltip_content.name = "ScaledContent"
+	synergy_tooltip_content.position = Vector2.ZERO
+	synergy_tooltip_content.size = SYNERGY_TOOLTIP_BASE_SIZE
+	synergy_tooltip_content.scale = Vector2.ONE * SYNERGY_TOOLTIP_DISPLAY_SCALE
+	synergy_tooltip_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	synergy_tooltip.add_child(synergy_tooltip_content)
+	synergy_tooltip_icon = _add_texture(synergy_tooltip_content, CATALOG.synergy_icon_path("自然"), Rect2(22, 15, 25, 25))
+	synergy_tooltip_icon.name = "SynergyIcon"
+	synergy_tooltip_title = _add_label(synergy_tooltip_content, "", Rect2(64, 9, 242, 34), 23, Color.WHITE)
+	synergy_tooltip_count = _add_label(synergy_tooltip_content, "", Rect2(16, 55, 106, 27), 15, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	synergy_tooltip_body = _add_label(synergy_tooltip_content, "", Rect2(Vector2.ZERO, Vector2.ZERO), 1, Color.TRANSPARENT)
 	for tier_index in 3:
 		var row := Control.new()
-		row.position = Vector2(48, 92 + tier_index * 48)
+		row.position = Vector2(20, 92 + tier_index * 48)
 		row.size = Vector2(286, 45)
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		synergy_tooltip.add_child(row)
+		synergy_tooltip_content.add_child(row)
 		synergy_tooltip_tier_rows.append(row)
 		var circle := _add_texture(row, SYNERGY_TOOLTIP_ROOT + "tier_circle_trim.png", Rect2(0, 8, 14, 14))
+		var circle_material := ShaderMaterial.new()
+		circle_material.shader = SOLID_ICON_TINT_SHADER
+		circle_material.set_shader_parameter("tint_color", Color.WHITE)
+		circle.material = circle_material
 		synergy_tooltip_tier_circles.append(circle)
-		var fill := ColorRect.new()
-		fill.position = Vector2(3, 11)
-		fill.size = Vector2(8, 8)
+		var fill := Panel.new()
+		fill.position = Vector2(0, 8)
+		fill.size = Vector2(14, 14)
 		fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var fill_style := StyleBoxFlat.new()
+		fill_style.bg_color = Color.WHITE
+		fill_style.corner_radius_top_left = 7
+		fill_style.corner_radius_top_right = 7
+		fill_style.corner_radius_bottom_left = 7
+		fill_style.corner_radius_bottom_right = 7
+		fill.add_theme_stylebox_override("panel", fill_style)
 		row.add_child(fill)
+		fill.visible = false
 		synergy_tooltip_tier_fills.append(fill)
-		var badge := _add_texture(row, SYNERGY_TOOLTIP_ROOT + "tier_border_trim.png", Rect2(20, 4, 18, 20))
+		var badge := _add_texture(row, SYNERGY_TOOLTIP_ROOT + "tier_border_trim.png", Rect2(20, 5, 18, 20))
 		synergy_tooltip_tier_badges.append(badge)
 		var number := _add_label(row, "", Rect2(20, 3, 18, 21), 13, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 		synergy_tooltip_tier_numbers.append(number)
 		var text_label := RichTextLabel.new()
-		text_label.position = Vector2(45, 0)
-		text_label.size = Vector2(235, 34)
+		text_label.position = Vector2(44, 0)
+		text_label.size = Vector2(236, 36)
 		text_label.bbcode_enabled = true
 		text_label.fit_content = false
 		text_label.scroll_active = false
@@ -464,10 +541,11 @@ func _build_synergy_tooltip() -> void:
 		text_label.add_theme_font_override("normal_font", source_han_font)
 		text_label.add_theme_font_size_override("normal_font_size", 10)
 		text_label.add_theme_color_override("default_color", Color.WHITE)
+		text_label.scale.x = 1.0
 		row.add_child(text_label)
 		synergy_tooltip_tier_texts.append(text_label)
 		if tier_index < 2:
-			_make_dashed_divider(row, Vector2(0, 43), 282.0, 0)
+			_make_dashed_divider(row, Vector2(0, 43), 281.0, 0)
 
 
 func _show_synergy_tooltip(synergy: String) -> void:
@@ -494,7 +572,8 @@ func _show_synergy_tooltip(synergy: String) -> void:
 			continue
 		var activated := active_tier >= tier_index
 		var fill := synergy_tooltip_tier_fills[tier_index]
-		fill.color = synergy_color
+		var circle := synergy_tooltip_tier_circles[tier_index]
+		circle.visible = not activated
 		fill.visible = activated
 		var badge := synergy_tooltip_tier_badges[tier_index]
 		var badge_material := ShaderMaterial.new()
@@ -504,7 +583,10 @@ func _show_synergy_tooltip(synergy: String) -> void:
 		badge_material.set_shader_parameter("brightness", 0.72)
 		badge.material = badge_material
 		synergy_tooltip_tier_numbers[tier_index].text = "%d" % int(thresholds[tier_index])
-		synergy_tooltip_tier_texts[tier_index].text = _synergy_colored_numbers(String(effects[tier_index]), synergy_color)
+		var effect_text := String(effects[tier_index])
+		var effect_label := synergy_tooltip_tier_texts[tier_index]
+		effect_label.position.y = 6.0 if source_han_font.get_string_size(effect_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x <= effect_label.size.x else 0.0
+		effect_label.text = _synergy_colored_numbers(effect_text, synergy_color)
 	synergy_tooltip.visible = true
 	synergy_tooltip.move_to_front()
 
@@ -587,7 +669,6 @@ func _update_synergies() -> void:
 func _build_shop() -> void:
 	_add_texture(self, SHOP_PANEL_ASSET, Rect2(242, 526, 796, 190))
 	var header_center_y := 551.0
-	_add_label(self, "商店", Rect2(260, header_center_y - 15.0, 76, 30), 18, Color.WHITE)
 	var rarity_chances := _shop_rarity_chances()
 	var rarity_labels: Array[Label] = []
 	for rarity_index in SHOP_RARITY_NAMES.size():
@@ -595,7 +676,7 @@ func _build_shop() -> void:
 		var rarity_label := _add_label(
 			self,
 			"◆%d%%" % roundi(rarity_chances[rarity_index] * 100.0),
-			Rect2(354 + rarity_index * 61, header_center_y - 12.0, 58, 24),
+			Rect2(260 + rarity_index * 61, header_center_y - 12.0, 58, 24),
 			10,
 			label_color,
 			HORIZONTAL_ALIGNMENT_CENTER
@@ -610,9 +691,10 @@ func _build_shop() -> void:
 	var card_width := 145.0
 	var card_gap := 9.0
 	var card_start_x := 264.0
-	var card_height := 130.0
+	# Preserve the authored 115×94 Aseprite ratio at runtime.
+	var card_height := card_width * 94.0 / 115.0
 	for index in SHOP_CARD_COUNT:
-		_create_shop_card(index, Rect2(card_start_x + index * (card_width + card_gap), 574, card_width, card_height))
+		_create_shop_card(index, Rect2(card_start_x + index * (card_width + card_gap), 584, card_width, card_height))
 	_add_texture(self, UI + "04_切图_4.png", Rect2(871, header_center_y - 10.0, 20, 20))
 	coin_label = _add_label(self, "%dG" % coins, Rect2(895, header_center_y - 12.0, 58, 24), 13, Color("e4aa2f"), HORIZONTAL_ALIGNMENT_RIGHT)
 	lock_button_texture = _add_texture(self, LOCK_ICON, Rect2(1000, header_center_y - 9.0, 18, 18))
@@ -662,16 +744,18 @@ func _build_footer_actions() -> void:
 	_add_label(battle, "返回地图" if shop_node else ("挑战宝箱怪" if mimic_node else "战斗！"), Rect2(0, 38, 198, 42), 27, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 
 
-func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String, saved_level: int = 1) -> void:
+func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String, saved_level: int = 1, formation_slot := false) -> void:
 	var compact_card := rect.size.y < 100.0
 	var button := Button.new()
+	button.name = slot_name
 	button.position = rect.position
 	button.size = rect.size
+	button.set_meta("formation_slot", formation_slot)
 	button.flat = true
 	button.focus_mode = Control.FOCUS_NONE
 	button.tooltip_text = ""
 	button.add_theme_stylebox_override("normal", _slot_style(Color(0, 0, 0, 0), Color(0, 0, 0, 0)))
-	button.add_theme_stylebox_override("hover", _slot_style(Color(0.1, 0.65, 0.8, 0.08), Color(0.3, 0.9, 1.0, 0.8), 2))
+	button.add_theme_stylebox_override("hover", _slot_style(Color(0, 0, 0, 0), Color(0, 0, 0, 0)) if formation_slot else _slot_style(Color(0.1, 0.65, 0.8, 0.08), Color(0.3, 0.9, 1.0, 0.8), 2))
 	add_child(button)
 	var trait_background := TextureRect.new()
 	trait_background.position = Vector2(3, 3)
@@ -693,8 +777,8 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String,
 	rarity_frame.visible = false
 	button.add_child(rarity_frame)
 	var sprite := TextureRect.new()
-	sprite.position = Vector2(12, 7) if compact_card else Vector2(18, 9)
-	sprite.size = Vector2(rect.size.x - 24, rect.size.y - 18) if compact_card else Vector2(rect.size.x - 36, rect.size.y - 25)
+	sprite.position = Vector2(18, 4) if formation_slot else (Vector2(12, 7) if compact_card else Vector2(18, 9))
+	sprite.size = PREP_FORMATION_SPRITE_SIZE if formation_slot else (Vector2(rect.size.x - 24, rect.size.y - 18) if compact_card else Vector2(rect.size.x - 36, rect.size.y - 25))
 	sprite.pivot_offset = sprite.size * 0.5
 	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -736,7 +820,8 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String,
 	replace_mask.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	replace_mask.visible = false
 	button.add_child(replace_mask)
-	var selection_frame := _add_texture(button, "res://素材/图鉴/image-1785681904517-raawndjoah.png", Rect2(Vector2.ZERO, rect.size), TextureRect.STRETCH_SCALE)
+	var selection_frame_rect := Rect2(8, 0, 96, 96) if formation_slot else Rect2(Vector2.ZERO, rect.size)
+	var selection_frame := _add_texture(button, "res://素材/图鉴/image-1785681904517-raawndjoah.png", selection_frame_rect, TextureRect.STRETCH_SCALE)
 	selection_frame.pivot_offset = selection_frame.size * 0.5
 	selection_frame.visible = false
 	creature_buttons.append(button)
@@ -783,11 +868,11 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	button.add_theme_stylebox_override("hover", _slot_style(Color(1.0, 0.93, 0.66, 0.16), Color(1.0, 0.75, 0.12), 3))
 	add_child(button)
 	shop_buttons.append(button)
-	var top_height := 100.0
-	var content_layer := _add_texture(button, SHOP_CARD_TEMPLATE_ASSET, Rect2(Vector2.ZERO, rect.size), TextureRect.STRETCH_KEEP_ASPECT_CENTERED)
+	var top_height := rect.size.y * 72.0 / 94.0
+	var content_layer := _add_texture(button, SHOP_CARD_ASSETS[0], Rect2(Vector2.ZERO, rect.size), TextureRect.STRETCH_KEEP_ASPECT_CENTERED)
 	var trait_background := TextureRect.new()
-	trait_background.position = Vector2(5, 5)
-	trait_background.size = Vector2(135, 96)
+	trait_background.position = Vector2(rect.size.x * 5.0 / 115.0, rect.size.y * 5.0 / 94.0)
+	trait_background.size = Vector2(rect.size.x * 105.0 / 115.0, rect.size.y * 66.0 / 94.0)
 	trait_background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	trait_background.stretch_mode = TextureRect.STRETCH_SCALE
 	trait_background.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -798,22 +883,30 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	var creature_overlay := TextureRect.new()
 	creature_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(creature_overlay)
+	var portrait_clip := Control.new()
+	portrait_clip.position = trait_background.position
+	portrait_clip.size = trait_background.size
+	portrait_clip.clip_contents = true
+	portrait_clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(portrait_clip)
 	var sprite := TextureRect.new()
-	# Keep the visual box symmetrical; item cards use the full box while creatures
-	# retain extra breathing room for their level and trait badges.
-	sprite.position = Vector2(8, 7)
-	sprite.size = Vector2(rect.size.x - 16, top_height - 13)
+	# The reference intentionally lets the portrait exceed the inner image area;
+	# the dedicated clip keeps those pixels behind the authored black frame.
+	sprite.position = Vector2(24.4, -14.85)
+	sprite.size = Vector2(121.2, 108.7)
 	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	button.add_child(sprite)
-	var element_background := _add_shop_icon_background(button, Rect2(8, 77, 21, 21))
-	var extra_background := _add_shop_icon_background(button, Rect2(33, 77, 21, 21))
-	var race_background := _add_shop_icon_background(button, Rect2(58, 77, 21, 21))
-	var element_icon := _add_texture(button, TRAIT_ICON_PATHS["自然"], Rect2(10, 79, 17, 17))
-	var extra_trait_icon := _add_texture(button, TRAIT_ICON_PATHS["雷"], Rect2(35, 79, 17, 17))
-	var race_icon := _add_texture(button, TRAIT_ICON_PATHS["机械"], Rect2(60, 79, 17, 17))
+	portrait_clip.add_child(sprite)
+	var element_background := _add_shop_icon_background(button, Rect2(8, 46, 18, 18))
+	var extra_background := _add_shop_icon_background(button, Rect2(8, 69.416667, 18, 18))
+	var race_background := _add_shop_icon_background(button, Rect2(8, 69.416667, 18, 18))
+	var element_icon := _add_texture(button, TRAIT_ICON_PATHS["自然"], Rect2(10, 48, 14, 14))
+	var extra_trait_icon := _add_texture(button, TRAIT_ICON_PATHS["雷"], Rect2(10, 71.416667, 14, 14))
+	var race_icon := _add_texture(button, TRAIT_ICON_PATHS["机械"], Rect2(10, 71.416667, 14, 14))
+	var element_label := _add_label(button, "", Rect2(28.5, 42, 44.5, 20), 8, Color.WHITE)
+	var secondary_trait_label := _add_label(button, "", Rect2(28.5, 65.666667, 44.5, 20), 8, Color.WHITE)
 	element_background.visible = false
 	extra_background.visible = false
 	race_background.visible = false
@@ -836,8 +929,11 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	special_label.move_to_front()
 	_apply_stat_pixel_font(hp_label)
 	_apply_stat_pixel_font(special_label)
-	var name_label := _add_label(button, "", Rect2(8, top_height + 4, 88, 29), 11, Color("f4f5f6"))
-	var price_label := _add_label(button, "", Rect2(rect.size.x - 50, top_height + 4, 43, 29), 12, Color("e4aa2f"), HORIZONTAL_ALIGNMENT_RIGHT)
+	var name_label := _add_label(button, "", Rect2(7, top_height, 96, 24), 9, Color("f4f5f6"))
+	var coin_icon := _add_texture(button, SHOP_CARD_COIN_ICON, Rect2(rect.size.x - 28.666667, top_height + 8, 10, 10))
+	# Keep the coin icon at its authored position and place the numerals one
+	# pixel lower than the previous adjustment.
+	var price_label := _add_label(button, "", Rect2(rect.size.x - 17.5, top_height + 0.75, 11, 24), 10, Color("f8df93"), HORIZONTAL_ALIGNMENT_RIGHT)
 	name_label.z_index = 22
 	price_label.z_index = 22
 	var card_outline := Panel.new()
@@ -873,6 +969,7 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	lock_overlay.z_index = 40
 	lock_overlay.pivot_offset = lock_overlay.size * 0.5
 	shop_sprites.append(sprite)
+	shop_portrait_clips.append(portrait_clip)
 	shop_hp_labels.append(hp_label)
 	shop_special_labels.append(special_label)
 	shop_hp_badges.append(hp_badge)
@@ -888,6 +985,9 @@ func _create_shop_card(index: int, rect: Rect2) -> void:
 	shop_outer_layers.append(outer_layer)
 	shop_name_labels.append(name_label)
 	shop_price_labels.append(price_label)
+	shop_element_labels.append(element_label)
+	shop_secondary_trait_labels.append(secondary_trait_label)
+	shop_coin_icons.append(coin_icon)
 	shop_sold_out_overlays.append(sold_out)
 	shop_sold_out_shades.append(sold_shade)
 	shop_card_outlines.append(card_outline)
@@ -916,21 +1016,21 @@ func _build_card_tooltip() -> void:
 	card_tooltip.add_theme_stylebox_override("panel", _slot_style(Color(0.97, 0.97, 0.98, 0.99), Color(0.18, 0.2, 0.24, 1.0), 4))
 	card_tooltip.visible = false
 	add_child(card_tooltip)
-	var header := ColorRect.new()
-	header.position = Vector2(8, 8)
-	header.size = Vector2(276, 38)
-	header.color = Color(0.43, 0.43, 0.48, 1.0)
-	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card_tooltip.add_child(header)
+	card_tooltip_legacy_header = ColorRect.new()
+	card_tooltip_legacy_header.position = Vector2(8, 8)
+	card_tooltip_legacy_header.size = Vector2(276, 38)
+	card_tooltip_legacy_header.color = Color(0.43, 0.43, 0.48, 1.0)
+	card_tooltip_legacy_header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card_tooltip.add_child(card_tooltip_legacy_header)
 	card_tooltip_name = _add_label(card_tooltip, "", Rect2(18, 8, 165, 38), 19, Color.WHITE)
 	card_tooltip_rarity = _add_label(card_tooltip, "", Rect2(180, 8, 94, 38), 16, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-	var portrait_panel := Panel.new()
-	portrait_panel.position = Vector2(16, 58)
-	portrait_panel.size = Vector2(128, 128)
-	portrait_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	portrait_panel.add_theme_stylebox_override("panel", _slot_style(Color(0.99, 0.99, 1.0, 1.0), Color(0.68, 0.69, 0.74, 1.0), 3))
-	card_tooltip.add_child(portrait_panel)
-	card_tooltip_sprite = _add_texture(portrait_panel, CREATURE_TEXTURES[0], Rect2(12, 12, 104, 104))
+	card_tooltip_portrait_panel = Panel.new()
+	card_tooltip_portrait_panel.position = Vector2(16, 58)
+	card_tooltip_portrait_panel.size = Vector2(128, 128)
+	card_tooltip_portrait_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card_tooltip_portrait_panel.add_theme_stylebox_override("panel", _slot_style(Color(0.99, 0.99, 1.0, 1.0), Color(0.68, 0.69, 0.74, 1.0), 3))
+	card_tooltip.add_child(card_tooltip_portrait_panel)
+	card_tooltip_sprite = _add_texture(card_tooltip_portrait_panel, CREATURE_TEXTURES[0], Rect2(12, 12, 104, 104))
 	card_tooltip_element_panel = Panel.new()
 	card_tooltip_element_panel.position = Vector2(158, 70)
 	card_tooltip_element_panel.size = Vector2(116, 44)
@@ -958,7 +1058,127 @@ func _build_card_tooltip() -> void:
 	card_tooltip_damage.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	card_tooltip_extra = _add_label(card_tooltip_info_panel, "", Rect2(76, 45, 170, 63), 10, Color("5579b9"))
 	card_tooltip_extra.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_build_creature_tooltip_layers()
 	_build_item_tooltip_layers()
+
+
+func _build_creature_tooltip_layers() -> void:
+	card_tooltip_gradient = TextureRect.new()
+	card_tooltip_gradient.position = Vector2(4, 4)
+	card_tooltip_gradient.size = Vector2(361, 297)
+	card_tooltip_gradient.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	card_tooltip_gradient.stretch_mode = TextureRect.STRETCH_SCALE
+	card_tooltip_gradient.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card_tooltip_gradient.z_index = -2
+	card_tooltip.add_child(card_tooltip_gradient)
+	creature_tooltip_nodes.append(card_tooltip_gradient)
+
+	card_tooltip_shadow = Panel.new()
+	# A short capsule reads as a flat oval and stays centered below the portrait.
+	card_tooltip_shadow.position = Vector2(56.5, 177)
+	card_tooltip_shadow.size = Vector2(92, 8)
+	card_tooltip_shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var shadow_style := _slot_style(Color(0.18, 0.22, 0.32, 0.18), Color.TRANSPARENT, 0)
+	shadow_style.corner_radius_top_left = 4
+	shadow_style.corner_radius_top_right = 4
+	shadow_style.corner_radius_bottom_left = 4
+	shadow_style.corner_radius_bottom_right = 4
+	card_tooltip_shadow.add_theme_stylebox_override("panel", shadow_style)
+	card_tooltip.add_child(card_tooltip_shadow)
+	creature_tooltip_nodes.append(card_tooltip_shadow)
+
+	card_tooltip_header_divider = ColorRect.new()
+	card_tooltip_header_divider.position = Vector2(4, 46)
+	card_tooltip_header_divider.size = Vector2(361, 1)
+	card_tooltip_header_divider.color = Color("d9dee7")
+	card_tooltip_header_divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card_tooltip.add_child(card_tooltip_header_divider)
+
+	card_tooltip_rarity_badge = Panel.new()
+	card_tooltip_rarity_badge.position = Vector2(305, 12.5)
+	card_tooltip_rarity_badge.size = Vector2(47, 25)
+	card_tooltip_rarity_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var rarity_style := _slot_style(Color("eef0f4"), Color.TRANSPARENT, 0)
+	rarity_style.corner_radius_top_left = 8
+	rarity_style.corner_radius_top_right = 8
+	rarity_style.corner_radius_bottom_left = 8
+	rarity_style.corner_radius_bottom_right = 8
+	card_tooltip_rarity_badge.add_theme_stylebox_override("panel", rarity_style)
+	card_tooltip.add_child(card_tooltip_rarity_badge)
+	card_tooltip_name_icon = _add_label(card_tooltip, "◆", Rect2(16, 9, 27, 32), 22, Color("ef3f64"), HORIZONTAL_ALIGNMENT_CENTER)
+
+	card_tooltip_bottom_panel = Panel.new()
+	card_tooltip_bottom_panel.position = Vector2(16, 202)
+	card_tooltip_bottom_panel.size = Vector2(337, 91)
+	card_tooltip_bottom_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bottom_style := _slot_style(Color(1, 1, 1, 0.90), Color("d9dee7"), 1)
+	bottom_style.corner_radius_top_left = 7
+	bottom_style.corner_radius_top_right = 7
+	bottom_style.corner_radius_bottom_left = 7
+	bottom_style.corner_radius_bottom_right = 7
+	card_tooltip_bottom_panel.add_theme_stylebox_override("panel", bottom_style)
+	card_tooltip.add_child(card_tooltip_bottom_panel)
+
+	card_tooltip_skill_divider = ColorRect.new()
+	card_tooltip_skill_divider.position = Vector2(81, 212)
+	card_tooltip_skill_divider.size = Vector2(1, 70)
+	card_tooltip_skill_divider.color = Color("d9dee7")
+	card_tooltip_skill_divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card_tooltip.add_child(card_tooltip_skill_divider)
+	card_tooltip_horizontal_divider = _make_dashed_divider(card_tooltip, Vector2(92, 239), 238, 1)
+
+	card_tooltip_star = _add_texture(card_tooltip, STAR_ICON.resource_path, Rect2(158, 3, 22, 22))
+	card_tooltip_star.visible = false
+	card_tooltip_star_label = _add_label(card_tooltip, "★", Rect2(155, 2, 28, 24), 15, Color("f5b600"), HORIZONTAL_ALIGNMENT_CENTER)
+	card_tooltip_price = _add_label(card_tooltip, "", Rect2(305, 15, 47, 25), 12, Color("202530"), HORIZONTAL_ALIGNMENT_CENTER)
+	card_tooltip_role_icon = _add_texture(card_tooltip, BATTLE_MELEE_ICON.resource_path, Rect2(92, 247, 18, 18))
+	card_tooltip_role = _add_label(card_tooltip, "", Rect2(308, 216.5, 37, 18), 11, Color("252b35"), HORIZONTAL_ALIGNMENT_CENTER)
+	card_tooltip_cooldown_caption = _add_label(card_tooltip, "攻击间隔", Rect2(308, 204.5, 37, 12), 7, Color("252b35"), HORIZONTAL_ALIGNMENT_CENTER)
+	for cooldown_label in [card_tooltip_role, card_tooltip_cooldown_caption]:
+		cooldown_label.set_meta("disable_text_shadow", true)
+		cooldown_label.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+		cooldown_label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+		cooldown_label.add_theme_constant_override("outline_size", 0)
+		cooldown_label.add_theme_constant_override("shadow_offset_x", 0)
+		cooldown_label.add_theme_constant_override("shadow_offset_y", 0)
+	card_tooltip_clock_icon = _add_texture(card_tooltip, CHARACTER_INFO_TIME_ICON.resource_path, Rect2(287, 213, 18, 18))
+	card_tooltip_skill_backdrop = Panel.new()
+	card_tooltip_skill_backdrop.position = Vector2(28, 211)
+	card_tooltip_skill_backdrop.size = Vector2(45, 45)
+	card_tooltip_skill_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var skill_backdrop_style := _slot_style(Color("ef3f64"), Color("ffc1cc"), 2)
+	skill_backdrop_style.corner_radius_top_left = 23
+	skill_backdrop_style.corner_radius_top_right = 23
+	skill_backdrop_style.corner_radius_bottom_left = 23
+	skill_backdrop_style.corner_radius_bottom_right = 23
+	card_tooltip_skill_backdrop.add_theme_stylebox_override("panel", skill_backdrop_style)
+	card_tooltip.add_child(card_tooltip_skill_backdrop)
+	card_tooltip_skill_icon = _add_texture(card_tooltip, BATTLE_MELEE_ICON.resource_path, Rect2(34, 217, 33, 33))
+	card_tooltip_active_label = _add_label(card_tooltip, "主动技能", Rect2(28, 261, 45, 18), 8, Color("e33d5e"), HORIZONTAL_ALIGNMENT_CENTER)
+	card_tooltip_active_label.add_theme_stylebox_override("normal", _slot_style(Color("ffe0e6"), Color.TRANSPARENT, 0))
+	card_tooltip_skill_name = _add_label(card_tooltip, "", Rect2(92, 209, 82, 26), 14, Color("e43d5d"))
+	card_tooltip_skill_damage = _add_label(card_tooltip, "", Rect2(174, 210.5, 80, 18), 9, Color("e43d5d"), HORIZONTAL_ALIGNMENT_CENTER)
+	card_tooltip_skill_text = RichTextLabel.new()
+	card_tooltip_skill_text.set_meta("disable_text_shadow", true)
+	card_tooltip_skill_text.position = Vector2(92, 244)
+	card_tooltip_skill_text.size = Vector2(187, 40)
+	card_tooltip_skill_text.bbcode_enabled = true
+	card_tooltip_skill_text.fit_content = false
+	card_tooltip_skill_text.scroll_active = false
+	card_tooltip_skill_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	card_tooltip_skill_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card_tooltip_skill_text.add_theme_font_override("normal_font", source_han_font)
+	card_tooltip_skill_text.add_theme_font_size_override("normal_font_size", 9)
+	card_tooltip_skill_text.add_theme_color_override("default_color", Color("303642"))
+	card_tooltip_skill_text.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+	card_tooltip_skill_text.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	card_tooltip_skill_text.add_theme_constant_override("outline_size", 0)
+	card_tooltip_skill_text.add_theme_constant_override("shadow_offset_x", 0)
+	card_tooltip_skill_text.add_theme_constant_override("shadow_offset_y", 0)
+	card_tooltip.add_child(card_tooltip_skill_text)
+
+	for node in [card_tooltip_header_divider, card_tooltip_rarity_badge, card_tooltip_name_icon, card_tooltip_bottom_panel, card_tooltip_skill_divider, card_tooltip_horizontal_divider, card_tooltip_star, card_tooltip_star_label, card_tooltip_price, card_tooltip_role_icon, card_tooltip_role, card_tooltip_cooldown_caption, card_tooltip_clock_icon, card_tooltip_skill_backdrop, card_tooltip_skill_icon, card_tooltip_active_label, card_tooltip_skill_name, card_tooltip_skill_damage, card_tooltip_skill_text]:
+		creature_tooltip_nodes.append(node)
 
 
 func _build_item_tooltip_layers() -> void:
@@ -973,10 +1193,10 @@ func _build_item_tooltip_layers() -> void:
 			material.shader = ITEM_INFO_TINT_SHADER
 			layer.material = material
 		item_tooltip_layers.append(layer)
-	item_tooltip_type = _add_label(card_tooltip, "", Rect2(150, 59, 126, 28), 16, Color("252b35"))
+	item_tooltip_type = _add_label(card_tooltip, "", Rect2(155, 59, 126, 28), 16, Color("252b35"))
 	item_tooltip_type.z_index = 12
 	item_tooltip_effect = RichTextLabel.new()
-	item_tooltip_effect.position = Vector2(150, 88)
+	item_tooltip_effect.position = Vector2(157, 88)
 	item_tooltip_effect.size = Vector2(126, 62)
 	item_tooltip_effect.bbcode_enabled = true
 	item_tooltip_effect.fit_content = false
@@ -988,7 +1208,7 @@ func _build_item_tooltip_layers() -> void:
 	item_tooltip_effect.z_index = 12
 	card_tooltip.add_child(item_tooltip_effect)
 	item_tooltip_rule = RichTextLabel.new()
-	item_tooltip_rule.position = Vector2(150, 151)
+	item_tooltip_rule.position = Vector2(157, 151)
 	item_tooltip_rule.size = Vector2(126, 34)
 	item_tooltip_rule.bbcode_enabled = true
 	item_tooltip_rule.fit_content = false
@@ -999,7 +1219,7 @@ func _build_item_tooltip_layers() -> void:
 	item_tooltip_rule.add_theme_color_override("default_color", Color("596275"))
 	item_tooltip_rule.z_index = 12
 	card_tooltip.add_child(item_tooltip_rule)
-	item_tooltip_divider = _make_dashed_divider(card_tooltip, Vector2(150, 146), 126.0, 12)
+	item_tooltip_divider = _make_dashed_divider(card_tooltip, Vector2(157, 146), 126.0, 12)
 	item_tooltip_layers.append_array([item_tooltip_type, item_tooltip_effect, item_tooltip_rule, item_tooltip_divider])
 	_set_item_tooltip_visible(false)
 
@@ -1026,15 +1246,22 @@ func _make_dashed_divider(parent: Control, start: Vector2, width: float, z := 0)
 
 
 func _set_item_tooltip_visible(visible_value: bool) -> void:
+	card_tooltip_legacy_header.visible = not visible_value
 	for layer_index in item_tooltip_layers.size():
 		var node := item_tooltip_layers[layer_index]
-		# Layers 3..5 are the old title-side rarity icon. The revised layout keeps
-		# the title clean and uses only the centered rarity badge on the right.
-		node.visible = visible_value and layer_index not in [3, 4, 5]
+		# Layers 3..5 are the old title-side icon; layer 8 is the blue badge
+		# with baked text. The shared transparent tag is drawn by the Label.
+		node.visible = visible_value and layer_index not in [3, 4, 5, 8]
+	for node in creature_tooltip_nodes:
+		node.visible = not visible_value
 
 
 func _set_creature_tooltip_visible(visible_value: bool) -> void:
-	for node in [card_tooltip_element_panel, card_tooltip_race_panel, card_tooltip_info_panel]:
+	card_tooltip_legacy_header.visible = not visible_value
+	card_tooltip_info_panel.visible = false
+	for node in [card_tooltip_element_panel, card_tooltip_race_panel, card_tooltip_element_icon, card_tooltip_element, card_tooltip_race_icon, card_tooltip_race]:
+		node.visible = visible_value
+	for node in creature_tooltip_nodes:
 		node.visible = visible_value
 
 
@@ -1093,70 +1320,215 @@ func _on_shop_card_gui_input(event: InputEvent, index: int) -> void:
 
 
 func _show_card_tooltip(texture_path: String, level: int) -> void:
-	card_tooltip.size = Vector2(292, 331)
+	card_tooltip.size = Vector2(369, 305)
+	var outer_style := _slot_style(Color.TRANSPARENT, Color.BLACK, 4)
+	outer_style.corner_radius_top_left = 10
+	outer_style.corner_radius_top_right = 10
+	outer_style.corner_radius_bottom_left = 10
+	outer_style.corner_radius_bottom_right = 10
+	outer_style.anti_aliasing = false
+	card_tooltip.add_theme_stylebox_override("panel", outer_style)
 	_set_item_tooltip_visible(false)
 	_set_creature_tooltip_visible(true)
 	card_tooltip_name.visible = true
 	card_tooltip_rarity.visible = true
+	card_tooltip_name.set_meta("disable_text_shadow", true)
+	card_tooltip_rarity.set_meta("disable_text_shadow", true)
 	card_tooltip_sprite.visible = true
-	card_tooltip_name.position = Vector2(18, 8)
-	card_tooltip_name.size = Vector2(165, 38)
-	card_tooltip_name.add_theme_font_size_override("font_size", 19)
-	card_tooltip_rarity.position = Vector2(180, 8)
-	card_tooltip_rarity.size = Vector2(94, 38)
-	card_tooltip_sprite.position = Vector2(12, 12)
-	card_tooltip_sprite.size = Vector2(104, 104)
-	card_tooltip_name.z_index = 0
-	card_tooltip_rarity.z_index = 0
-	card_tooltip_sprite.z_index = 0
+	card_tooltip_name.position = Vector2(47, 6)
+	card_tooltip_name.size = Vector2(190, 38)
+	card_tooltip_name.add_theme_font_size_override("font_size", 22)
+	card_tooltip_name.add_theme_color_override("font_color", Color("252b35"))
+	card_tooltip_name.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+	card_tooltip_name.add_theme_constant_override("shadow_offset_x", 0)
+	card_tooltip_name.add_theme_constant_override("shadow_offset_y", 0)
+	card_tooltip_portrait_panel.position = Vector2(16, 58)
+	card_tooltip_portrait_panel.size = Vector2(173, 132)
+	var portrait_style := _slot_style(Color(1, 1, 1, 0.44), Color("d9dee7"), 1)
+	portrait_style.corner_radius_top_left = 7
+	portrait_style.corner_radius_top_right = 7
+	portrait_style.corner_radius_bottom_left = 7
+	portrait_style.corner_radius_bottom_right = 7
+	card_tooltip_portrait_panel.add_theme_stylebox_override("panel", portrait_style)
+	card_tooltip_sprite.position = Vector2(14, 6)
+	card_tooltip_sprite.size = Vector2(145, 116)
+	card_tooltip_name.z_index = 12
+	card_tooltip_rarity.z_index = 12
+	card_tooltip_sprite.z_index = 4
+	card_tooltip_shadow.z_index = 2
 	var elements: PackedStringArray = CATALOG.elements_for_texture(texture_path)
 	var races: PackedStringArray = CATALOG.races_for_texture(texture_path)
 	var rarity_index := CATALOG.rarity_for_texture(texture_path)
+	card_tooltip_element_panel.position = Vector2(205, 64)
+	card_tooltip_element_panel.size = Vector2(146, 56)
+	card_tooltip_race_panel.position = Vector2(205, 129)
+	card_tooltip_race_panel.size = Vector2(146, 56)
 	card_tooltip_element_panel.visible = true
 	card_tooltip_race_panel.visible = true
 	card_tooltip_name.text = CATALOG.name_for_texture(texture_path)
 	card_tooltip_rarity.text = SHOP_RARITY_NAMES[rarity_index]
-	card_tooltip_rarity.add_theme_color_override("font_color", _rarity_text_color(rarity_index))
+	card_tooltip_rarity.position = Vector2(305, 12.5)
+	card_tooltip_rarity.size = Vector2(47, 25)
+	card_tooltip_rarity.add_theme_font_size_override("font_size", 13)
+	card_tooltip_rarity.add_theme_color_override("font_color", Color.WHITE)
+	card_tooltip_rarity.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+	card_tooltip_rarity.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	card_tooltip_rarity.add_theme_constant_override("shadow_offset_x", 0)
+	card_tooltip_rarity.add_theme_constant_override("shadow_offset_y", 0)
+	card_tooltip_rarity.add_theme_constant_override("outline_size", 0)
+	card_tooltip_rarity.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card_tooltip_rarity.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	card_tooltip_rarity.z_index = 14
+	var rarity_color: Color = SHOP_RARITY_COLORS[rarity_index]
+	card_tooltip_name_icon.add_theme_color_override("font_color", rarity_color)
+	card_tooltip_rarity_badge.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	RARITY_TAG.apply(card_tooltip_rarity, rarity_index)
 	card_tooltip_sprite.texture = load(texture_path) as Texture2D
+	card_tooltip_element_icon.reparent(card_tooltip_element_panel)
+	card_tooltip_element_icon.position = Vector2(12, 8)
+	card_tooltip_element_icon.size = Vector2(40, 40)
 	card_tooltip_element_icon.texture = load(TRAIT_ICON_PATHS[elements[0]]) as Texture2D
+	_apply_solid_trait_tint(card_tooltip_element_icon, Color.WHITE)
+	card_tooltip_element_icon.visible = true
+	card_tooltip_element_icon.z_index = 12
+	card_tooltip_element.reparent(card_tooltip_element_panel)
+	card_tooltip_element.position = Vector2(58, 8)
+	card_tooltip_element.size = Vector2(78, 40)
+	card_tooltip_element.add_theme_font_size_override("font_size", 17)
 	card_tooltip_element.text = "/".join(elements)
-	card_tooltip_element_panel.add_theme_stylebox_override("panel", _slot_style(TRAIT_COLORS[elements[0]], TRAIT_COLORS[elements[0]].lightened(0.18), 1))
+	card_tooltip_element.add_theme_color_override("font_color", Color("252b35"))
+	card_tooltip_element.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card_tooltip_element.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	card_tooltip_element.visible = true
+	card_tooltip_element.z_index = 12
+	card_tooltip_race_icon.reparent(card_tooltip_race_panel)
+	card_tooltip_race_icon.position = Vector2(12, 8)
+	card_tooltip_race_icon.size = Vector2(40, 40)
 	card_tooltip_race_icon.texture = load(TRAIT_ICON_PATHS[races[0]]) as Texture2D
+	_apply_solid_trait_tint(card_tooltip_race_icon, Color.WHITE)
+	card_tooltip_race_icon.visible = true
+	card_tooltip_race_icon.z_index = 12
+	card_tooltip_race.reparent(card_tooltip_race_panel)
+	card_tooltip_race.position = Vector2(58, 8)
+	card_tooltip_race.size = Vector2(78, 40)
+	card_tooltip_race.add_theme_font_size_override("font_size", 17)
 	card_tooltip_race.text = races[0]
-	card_tooltip_race_panel.add_theme_stylebox_override("panel", _slot_style(TRAIT_COLORS[races[0]], TRAIT_COLORS[races[0]].lightened(0.18), 1))
+	card_tooltip_race.add_theme_color_override("font_color", Color.WHITE)
+	card_tooltip_race.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card_tooltip_race.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	card_tooltip_race.visible = true
+	card_tooltip_race.z_index = 12
 	var rarity_multiplier := CATALOG.RARITY_STAT_MULTIPLIERS[rarity_index]
 	var cooldown := CATALOG.cooldown_for_texture(texture_path) / CATALOG.RARITY_CHARGE_MULTIPLIERS[rarity_index]
 	var damage_range := CATALOG.damage_range_for_texture(texture_path)
 	var damage := roundi(damage_range.y * maxi(level, 1) * rarity_multiplier)
-	card_tooltip_cooldown.text = "%.1f\n秒" % cooldown
-	card_tooltip_damage.text = "%s：最高 %d 点伤害" % [CATALOG.skill_name_for_texture(texture_path), damage]
-	card_tooltip_extra.text = "定位：%s · 品级加成 +%d%%\n%s" % [CATALOG.combat_role_name(texture_path), roundi((rarity_multiplier - 1.0) * 100.0), CATALOG.skill_text_for_texture(texture_path)]
+	var role_icon := BATTLE_RANGED_ICON if CATALOG.attack_range_for_texture(texture_path) == "ranged" else BATTLE_MELEE_ICON
+	var element_color: Color = TRAIT_COLORS.get(elements[0], Color("f7cc37"))
+	var race_color: Color = TRAIT_COLORS.get(races[0], Color("6f5fd6"))
+	var element_style := _slot_style(element_color.lightened(0.12), element_color.lightened(0.28), 1)
+	element_style.corner_radius_top_left = 7
+	element_style.corner_radius_top_right = 7
+	element_style.corner_radius_bottom_left = 7
+	element_style.corner_radius_bottom_right = 7
+	card_tooltip_element_panel.add_theme_stylebox_override("panel", element_style)
+	var race_style := _slot_style(race_color.lightened(0.08), race_color.lightened(0.24), 1)
+	race_style.corner_radius_top_left = 7
+	race_style.corner_radius_top_right = 7
+	race_style.corner_radius_bottom_left = 7
+	race_style.corner_radius_bottom_right = 7
+	card_tooltip_race_panel.add_theme_stylebox_override("panel", race_style)
+	card_tooltip_element.add_theme_color_override("font_color", Color.WHITE)
+	card_tooltip_race.add_theme_color_override("font_color", Color.WHITE)
+	card_tooltip_role_icon.visible = false
+	card_tooltip_skill_icon.texture = role_icon
+	card_tooltip_role.text = "%.1f 秒" % cooldown
+	card_tooltip_skill_name.text = CATALOG.skill_name_for_texture(texture_path)
+	# Reserve the complete cooldown group before sizing the adaptive title row.
+	# This preserves the requested fixed gap without allowing long names to run
+	# underneath the clock icon or attack interval text.
+	var skill_name_width := minf(100.0, ceilf(source_han_font.get_string_size(card_tooltip_skill_name.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x))
+	card_tooltip_skill_name.size.x = skill_name_width
+	card_tooltip_skill_damage.position.x = card_tooltip_skill_name.position.x + skill_name_width + CHARACTER_INFO_DAMAGE_GAP
+	card_tooltip_skill_damage.size.x = minf(82.0, 280.0 - card_tooltip_skill_damage.position.x)
+	card_tooltip_skill_damage.text = "最高 %d 点伤害" % damage
+	card_tooltip_skill_damage.add_theme_stylebox_override("normal", _slot_style(Color("ffe1e6"), Color.TRANSPARENT, 0))
+	card_tooltip_skill_text.text = "[color=#303642]%s[/color]" % _blue_item_values(CATALOG.skill_text_for_texture(texture_path))
+	card_tooltip_price.visible = false
+	card_tooltip_star.visible = false
+	card_tooltip_star_label.visible = false
+	card_tooltip_gradient.texture = _make_creature_detail_background(rarity_index, elements[0])
+	card_tooltip_cooldown.visible = false
+	card_tooltip_damage.visible = false
+	card_tooltip_extra.visible = false
 	_position_card_tooltip()
+
+
+func _apply_solid_trait_tint(icon: TextureRect, tint_color: Color) -> void:
+	var material := ShaderMaterial.new()
+	material.shader = SOLID_ICON_TINT_SHADER
+	material.set_shader_parameter("tint_color", tint_color)
+	icon.material = material
+
+
+func _make_creature_detail_background(rarity_index: int, primary_trait: String) -> GradientTexture2D:
+	var rarity_color := SHOP_RARITY_COLORS[clampi(rarity_index, 0, SHOP_RARITY_COLORS.size() - 1)]
+	var trait_color: Color = TRAIT_COLORS.get(primary_trait, rarity_color)
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 0.38, 0.72, 1.0])
+	gradient.colors = PackedColorArray([
+		Color("fbfcff"),
+		rarity_color.lightened(0.82),
+		trait_color.lightened(0.76),
+		Color("f7f8fb"),
+	])
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.width = 64
+	texture.height = 64
+	texture.fill = GradientTexture2D.FILL_RADIAL
+	texture.fill_from = Vector2(0.62, 0.28)
+	texture.fill_to = Vector2(1.0, 0.86)
+	return texture
 
 
 func _show_item_card_tooltip(entry: Dictionary) -> void:
 	card_tooltip.size = Vector2(292, 206)
+	card_tooltip.add_theme_stylebox_override("panel", _slot_style(Color(0.97, 0.97, 0.98, 0.99), Color(0.18, 0.2, 0.24, 1.0), 4))
 	_set_creature_tooltip_visible(false)
 	_set_item_tooltip_visible(true)
+	card_tooltip_rarity.visible = true
 	card_tooltip_name.text = _shop_entry_name(entry)
 	card_tooltip_name.position = Vector2(18, 12)
 	card_tooltip_name.size = Vector2(196, 32)
 	card_tooltip_name.add_theme_font_size_override("font_size", 19)
+	card_tooltip_name.add_theme_color_override("font_color", Color.WHITE)
+	card_tooltip_name.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+	card_tooltip_name.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	card_tooltip_name.add_theme_constant_override("shadow_offset_x", 0)
+	card_tooltip_name.add_theme_constant_override("shadow_offset_y", 0)
+	card_tooltip_name.add_theme_constant_override("outline_size", 0)
 	card_tooltip_name.z_index = 12
 	var item_rarity_index := clampi(int(entry["rarity"]), 0, ITEM_CATALOG.RARITY_NAMES.size() - 1)
 	var display_rarity_index := _item_display_rarity_index(item_rarity_index)
 	var rarity_color := SHOP_RARITY_COLORS[display_rarity_index]
 	_apply_item_tooltip_rarity(rarity_color)
-	card_tooltip_rarity.text = ITEM_CATALOG.RARITY_NAMES[item_rarity_index]
+	RARITY_TAG.apply(card_tooltip_rarity, display_rarity_index)
 	# Aseprite badge bounds: x=929..1100, y=65..150 on the 1170x825 canvas.
 	# At 292x206 this is a 43x21 box; use its full measured area and equal padding.
 	card_tooltip_rarity.position = Vector2(232, 16)
 	card_tooltip_rarity.size = Vector2(43, 22)
 	card_tooltip_rarity.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	card_tooltip_rarity.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	card_tooltip_rarity.add_theme_color_override("font_color", rarity_color.lightened(0.16))
+	card_tooltip_rarity.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+	card_tooltip_rarity.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+	card_tooltip_rarity.add_theme_constant_override("shadow_offset_x", 0)
+	card_tooltip_rarity.add_theme_constant_override("shadow_offset_y", 0)
+	card_tooltip_rarity.add_theme_constant_override("outline_size", 0)
 	card_tooltip_rarity.z_index = 12
 	card_tooltip_sprite.texture = load(entry["path"]) as Texture2D
+	card_tooltip_portrait_panel.position = Vector2(16, 58)
+	card_tooltip_portrait_panel.size = Vector2(128, 128)
+	card_tooltip_portrait_panel.visible = true
 	card_tooltip_sprite.position = Vector2(1, 4)
 	card_tooltip_sprite.size = Vector2(120, 120)
 	card_tooltip_sprite.z_index = 12
@@ -1569,13 +1941,19 @@ func _roll_shop_entries(include_non_creature := true) -> Array[Dictionary]:
 		entries.append(_draw_creature_shop_entry(local_draw_counts))
 	if not include_non_creature:
 		return entries
-	var available_slots: Array[int] = [0, 1, 2, 3, 4]
-	if rng.randf() < SHOP_ITEM_CHANCE:
-		var item_slot := int(available_slots.pop_at(rng.randi_range(0, available_slots.size() - 1)))
-		entries[item_slot] = _discount_shop_entry(ITEM_CATALOG.random_entry("item", rng, mini(_roll_shop_rarity(), 2), "shop"))
-	if rng.randf() < SHOP_ACCESSORY_CHANCE and not available_slots.is_empty():
-		var accessory_slot := int(available_slots.pop_at(rng.randi_range(0, available_slots.size() - 1)))
-		entries[accessory_slot] = _discount_shop_entry(ITEM_CATALOG.random_entry("accessory", rng, mini(_roll_shop_rarity(), 2), "shop"))
+	# A refresh may contain at most one non-creature card. Roll both configured
+	# chances, then resolve a simultaneous success into either an item or an
+	# accessory so both can never occupy the same shop row.
+	var roll_item := rng.randf() < SHOP_ITEM_CHANCE
+	var roll_accessory := rng.randf() < SHOP_ACCESSORY_CHANCE
+	if roll_item or roll_accessory:
+		var kind := "item"
+		if roll_item and roll_accessory:
+			kind = "item" if rng.randf() < SHOP_ITEM_CHANCE / (SHOP_ITEM_CHANCE + SHOP_ACCESSORY_CHANCE) else "accessory"
+		elif roll_accessory:
+			kind = "accessory"
+		var non_creature_slot := rng.randi_range(0, SHOP_CARD_COUNT - 1)
+		entries[non_creature_slot] = _discount_shop_entry(ITEM_CATALOG.random_entry(kind, rng, mini(_roll_shop_rarity(), 2), "shop"))
 	return entries
 
 
@@ -1630,7 +2008,7 @@ func _animate_shop_unlock(index: int) -> void:
 		overlay.modulate.a = 1.0
 		overlay.scale = Vector2.ONE
 		if not shop_locked and index < shop_data.size() and not shop_data[index].is_empty():
-			shop_star_rows[index].visible = String(shop_data[index].get("kind", "")) == "creature"
+			shop_star_rows[index].visible = false
 	)
 
 
@@ -1702,17 +2080,7 @@ func _on_battle_pressed() -> void:
 		return
 	_save_current_team()
 	_set_notice("队伍已准备完毕 · 正在进入战斗")
-	var transition := ColorRect.new()
-	transition.z_index = 200
-	transition.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	transition.color = Color(0, 0, 0, 0)
-	transition.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(transition)
-	var fade_out := create_tween()
-	fade_out.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	fade_out.tween_property(transition, "color:a", 1.0, 0.55)
-	await fade_out.finished
-	await SceneManager.change_scene("res://battle.tscn", {"skip_fade_out": true})
+	await SceneManager.change_scene("res://battle_intro.tscn")
 
 
 func _leave_shop() -> void:
@@ -1831,6 +2199,16 @@ func _render_creature_slot(index: int) -> void:
 	var level := clampi(creature_levels[index], 1, 3)
 	creature_star_rows[index].visible = true
 	_set_star_level(creature_star_rows[index], level)
+	if bool(creature_buttons[index].get_meta("formation_slot", false)):
+		creature_rarity_frames[index].visible = false
+		creature_trait_backgrounds[index].visible = false
+		creature_element_icons[index].visible = false
+		creature_extra_trait_icons[index].visible = false
+		creature_race_icons[index].visible = false
+		creature_element_icon_backgrounds[index].visible = false
+		creature_extra_icon_backgrounds[index].visible = false
+		creature_race_icon_backgrounds[index].visible = false
+		return
 	var rarity_multiplier := CATALOG.rarity_stat_multiplier(creature_data[index])
 	var hp_value := roundi(CATALOG.base_hp_for_texture(creature_data[index]) * rarity_multiplier) * level
 	var special_value := roundi(CATALOG.damage_range_for_texture(creature_data[index]).y * rarity_multiplier) * level
@@ -1868,9 +2246,10 @@ func _render_shop_card(index: int) -> void:
 		shop_sold_out_overlays[index].visible = true
 		shop_sold_out_shades[index].visible = true
 		shop_lock_overlays[index].visible = shop_locked
-		shop_attribute_layers[index].visible = false
+		shop_attribute_layers[index].texture = load(SHOP_CARD_ASSETS[0]) as Texture2D
+		shop_attribute_layers[index].visible = true
 		shop_creature_overlays[index].visible = false
-		shop_outer_layers[index].visible = true
+		shop_outer_layers[index].visible = false
 		shop_card_outlines[index].visible = false
 		shop_element_icons[index].visible = false
 		shop_extra_trait_icons[index].visible = false
@@ -1883,6 +2262,9 @@ func _render_shop_card(index: int) -> void:
 		shop_special_labels[index].text = ""
 		shop_name_labels[index].text = ""
 		shop_price_labels[index].text = ""
+		shop_element_labels[index].text = ""
+		shop_secondary_trait_labels[index].text = ""
+		shop_coin_icons[index].visible = false
 		return
 	var entry: Dictionary = shop_data[index]
 	shop_sold_out_overlays[index].visible = false
@@ -1896,27 +2278,28 @@ func _render_shop_card(index: int) -> void:
 	shop_trait_backgrounds[index].texture = _make_rarity_background(display_rarity_index)
 	shop_trait_backgrounds[index].visible = true
 	shop_sprites[index].texture = load(texture_path) as Texture2D
-	shop_sprites[index].position = Vector2(28, 7) if is_creature else Vector2(8, 7)
-	shop_sprites[index].size = Vector2(shop_buttons[index].size.x - 56, 87) if is_creature else Vector2(shop_buttons[index].size.x - 16, 87)
+	shop_sprites[index].position = Vector2(24.4, -14.85) if is_creature else Vector2(9, 2)
+	shop_sprites[index].size = Vector2(121.2, 108.7) if is_creature else Vector2(115, 76)
 	shop_sprites[index].visible = true
 	shop_name_labels[index].text = _shop_entry_name(entry)
-	shop_price_labels[index].text = "$%d" % int(entry["price"])
+	shop_price_labels[index].text = "%d" % int(entry["price"])
+	shop_coin_icons[index].visible = true
 	shop_creature_overlays[index].visible = is_creature
 	shop_attribute_layers[index].visible = true
-	shop_attribute_layers[index].texture = load(SHOP_CARD_TEMPLATE_ASSET) as Texture2D
+	shop_attribute_layers[index].texture = load(SHOP_CARD_ASSETS[clampi(display_rarity_index, 0, SHOP_CARD_ASSETS.size() - 1)]) as Texture2D
 	shop_attribute_layers[index].modulate = Color.WHITE
-	shop_outer_layers[index].visible = true
+	shop_outer_layers[index].visible = false
 	shop_hp_badges[index].visible = false
 	shop_special_badges[index].visible = false
 	shop_level_labels[index].visible = false
-	shop_star_rows[index].visible = is_creature
-	if is_creature:
-		_set_star_level(shop_star_rows[index], 1)
+	shop_star_rows[index].visible = false
 	shop_hp_labels[index].visible = false
 	shop_special_labels[index].visible = false
 	shop_element_icons[index].visible = false
 	shop_extra_trait_icons[index].visible = false
 	shop_race_icons[index].visible = false
+	shop_element_labels[index].visible = is_creature
+	shop_secondary_trait_labels[index].visible = is_creature
 	if not is_creature:
 		shop_attribute_layers[index].modulate = Color.WHITE
 		shop_element_icon_backgrounds[index].visible = false
@@ -1924,6 +2307,8 @@ func _render_shop_card(index: int) -> void:
 		shop_race_icon_backgrounds[index].visible = false
 		shop_hp_labels[index].text = ""
 		shop_special_labels[index].text = ""
+		shop_element_labels[index].text = ""
+		shop_secondary_trait_labels[index].text = ""
 		return
 	var rarity_multiplier := CATALOG.RARITY_STAT_MULTIPLIERS[clampi(rarity_index, 0, CATALOG.RARITY_STAT_MULTIPLIERS.size() - 1)]
 	shop_attribute_layers[index].modulate = Color.WHITE
@@ -1938,6 +2323,8 @@ func _render_shop_card(index: int) -> void:
 	shop_element_icons[index].texture = load(TRAIT_ICON_PATHS[elements[0]]) as Texture2D
 	shop_race_icons[index].texture = load(TRAIT_ICON_PATHS[races[0]]) as Texture2D
 	var secondary_trait := elements[1] if elements.size() > 1 else races[0]
+	shop_element_labels[index].text = elements[0]
+	shop_secondary_trait_labels[index].text = secondary_trait
 	shop_extra_trait_icons[index].visible = true
 	shop_extra_trait_icons[index].texture = load(TRAIT_ICON_PATHS[secondary_trait]) as Texture2D
 	shop_element_icons[index].visible = true
@@ -2045,19 +2432,18 @@ func _make_trait_background(traits: PackedStringArray) -> GradientTexture2D:
 func _make_rarity_background(rarity_index: int) -> GradientTexture2D:
 	var base_color := SHOP_RARITY_COLORS[clampi(rarity_index, 0, SHOP_RARITY_COLORS.size() - 1)]
 	var gradient := Gradient.new()
-	gradient.offsets = PackedFloat32Array([0.0, 0.48, 1.0])
+	gradient.offsets = PackedFloat32Array([0.0, 1.0])
 	gradient.colors = PackedColorArray([
-		base_color.darkened(0.32),
-		base_color.lightened(0.34),
-		base_color.darkened(0.12),
+		base_color.darkened(0.28),
+		base_color.lightened(0.38),
 	])
 	var texture := GradientTexture2D.new()
 	texture.gradient = gradient
-	texture.width = 16
-	texture.height = 16
+	texture.width = 256
+	texture.height = 256
 	texture.fill = GradientTexture2D.FILL_LINEAR
 	texture.fill_from = Vector2(0.0, 0.0)
-	texture.fill_to = Vector2(0.0, 1.0)
+	texture.fill_to = Vector2(1.0, 1.0)
 	return texture
 
 

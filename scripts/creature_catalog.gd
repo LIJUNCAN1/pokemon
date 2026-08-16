@@ -281,6 +281,34 @@ static func skill_text_for_texture(texture_path: String) -> String:
 	return String(data_for_texture(texture_path).get("skill_text", "对目标造成伤害"))
 
 
+static func skill_detail_for_texture(texture_path: String) -> String:
+	# Keep the encyclopedia wording synchronized with the actual coefficients in
+	# battle.gd instead of showing a vague one-line summary.
+	match skill_id_for_texture(texture_path):
+		"shield_self":
+			return "攻击后获得相当于自身最大生命值 18% 的护盾。"
+		"heal_ally":
+			return "治疗生命比例最低的友军，治疗量为施法者最大生命值的 16%。"
+		"team_charge":
+			return "为其他所有存活友军恢复 16% 技能充能。"
+		"burn":
+			return "命中目标并施加 2 层燃烧。"
+		"slow":
+			return "使目标减速 3 秒，并削减其 20% 技能充能。"
+		"double_hit":
+			return "对目标追加一次相当于本次伤害 55% 的攻击。"
+		"seed_burst":
+			return "随机追击另一名敌人，造成相当于本次伤害 45% 的伤害。"
+		"chain":
+			return "随机跳跃至另一名敌人，造成相当于本次伤害 55% 的伤害。"
+		"aoe":
+			return "对主目标外的所有敌人造成相当于本次伤害 48% 的范围伤害。"
+		"aoe_burn":
+			return "对主目标外的所有敌人造成相当于本次伤害 38% 的范围伤害，并对所有目标施加 1 层燃烧。"
+		_:
+			return skill_text_for_texture(texture_path)
+
+
 static func rarity_stat_multiplier(texture_path: String) -> float:
 	return RARITY_STAT_MULTIPLIERS[rarity_for_texture(texture_path)]
 

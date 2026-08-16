@@ -1,0 +1,220 @@
+{
+  "source": "D:\\pokemon\\素材\\战斗进场\\战斗进场.psd",
+  "canvas": [
+    1920,
+    1080
+  ],
+  "color_mode": "RGB",
+  "depth": 8,
+  "layers": [
+    {
+      "index": 0,
+      "source_name": "背景",
+      "file": "background.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        1920,
+        1080
+      ],
+      "opacity": 255,
+      "blend_mode": "NORMAL"
+    },
+    {
+      "index": 1,
+      "source_name": "蓝色背景",
+      "file": "blue_background.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        1154,
+        1080
+      ],
+      "opacity": 255,
+      "blend_mode": "NORMAL"
+    },
+    {
+      "index": 2,
+      "source_name": "紫色背景",
+      "file": "purple_background.png",
+      "position": [
+        787,
+        0
+      ],
+      "size": [
+        1133,
+        1080
+      ],
+      "opacity": 255,
+      "blend_mode": "NORMAL"
+    },
+    {
+      "index": 3,
+      "source_name": "黑边",
+      "file": "blue_center_border.png",
+      "position": [
+        782,
+        0
+      ],
+      "size": [
+        372,
+        1080
+      ],
+      "opacity": 255,
+      "blend_mode": "NORMAL"
+    },
+    {
+      "index": 4,
+      "source_name": "黑边",
+      "file": "purple_center_border.png",
+      "position": [
+        787,
+        0
+      ],
+      "size": [
+        371,
+        1080
+      ],
+      "opacity": 255,
+      "blend_mode": "NORMAL"
+    },
+    {
+      "index": 5,
+      "source_name": "光效2",
+      "file": "blue_light.png",
+      "position": [
+        147,
+        365
+      ],
+      "size": [
+        613,
+        114
+      ],
+      "opacity": 255,
+      "blend_mode": "NORMAL"
+    },
+    {
+      "index": 6,
+      "source_name": "光效",
+      "file": "purple_light.png",
+      "position": [
+        1134,
+        483
+      ],
+      "size": [
+        613,
+        114
+      ],
+      "opacity": 255,
+      "blend_mode": "NORMAL"
+    },
+    {
+      "index": 7,
+      "source_name": "VS",
+      "file": "vs.png",
+      "position": [
+        780,
+        422
+      ],
+      "size": [
+        354,
+        249
+      ],
+      "opacity": 255,
+      "blend_mode": "NORMAL"
+    },
+    {
+      "index": 10,
+      "source_name": "下黑边",
+      "file": "bottom_bar.png",
+      "position": [
+        0,
+        915
+      ],
+      "size": [
+        1920,
+        165
+      ],
+      "opacity": 255,
+      "blend_mode": "NORMAL"
+    },
+    {
+      "index": 11,
+      "source_name": "上黑边",
+      "file": "top_bar.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        1920,
+        165
+      ],
+      "opacity": 255,
+      "blend_mode": "NORMAL"
+    }
+  ],
+  "portraits": [
+    {
+      "trainer_id": "researcher",
+      "source": "D:\\pokemon\\素材\\战斗进场\\10054302-36c0-4984-b77e-12d7dfb685dc.png",
+      "source_size": [
+        1024,
+        1536
+      ],
+      "alpha_bounds": [
+        118,
+        24,
+        863,
+        1509
+      ],
+      "file": "portrait_researcher.png",
+      "size": [
+        745,
+        1485
+      ]
+    },
+    {
+      "trainer_id": "vanguard",
+      "source": "D:\\pokemon\\素材\\战斗进场\\e25b9f17-bf21-4b61-9bcf-aceae6dcb35a.png",
+      "source_size": [
+        1024,
+        1536
+      ],
+      "alpha_bounds": [
+        178,
+        27,
+        884,
+        1435
+      ],
+      "file": "portrait_vanguard.png",
+      "size": [
+        706,
+        1408
+      ]
+    },
+    {
+      "trainer_id": "scout",
+      "source": "D:\\pokemon\\素材\\战斗进场\\ef5d91d1-8f3d-4ef6-8871-ae3724b3b559.png",
+      "source_size": [
+        1024,
+        1536
+      ],
+      "alpha_bounds": [
+        103,
+        8,
+        904,
+        1496
+      ],
+      "file": "portrait_scout.png",
+      "size": [
+        801,
+        1488
+      ]
+    }
+  ]
+}

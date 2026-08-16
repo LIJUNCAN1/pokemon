@@ -29,12 +29,23 @@ func _apply_branch(node: Node) -> void:
 func _apply_control(node: Node) -> void:
 	if not is_instance_valid(node):
 		return
+	if _shadow_disabled(node):
+		return
 	if node is Label:
 		_style_label(node as Label)
 	elif node is Button:
 		_style_button(node as Button)
 	elif node is RichTextLabel:
 		_style_rich_text(node as RichTextLabel)
+
+
+func _shadow_disabled(node: Node) -> bool:
+	var current := node
+	while current != null:
+		if current.has_meta("disable_text_shadow") and bool(current.get_meta("disable_text_shadow")):
+			return true
+		current = current.get_parent()
+	return false
 
 
 func _style_label(label: Label) -> void:

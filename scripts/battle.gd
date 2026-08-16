@@ -50,6 +50,7 @@ class Fighter:
 
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
 const CATALOG = preload("res://scripts/creature_catalog.gd")
+const RARITY_TAG = preload("res://scripts/rarity_tag_style.gd")
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
 const SETTINGS_OVERLAY_SCENE: PackedScene = preload("res://settings_overlay.tscn")
 const DESIGN_SIZE := Vector2(1280, 720)
@@ -65,6 +66,10 @@ const P7_PROJECTILE_FPS := 12.5
 const P7_PROJECTILE_TRAVEL_FRAMES := 16
 const STATUS_ICON_SHEET: Texture2D = preload("res://assets/ui/status/status_icons.png")
 const STATUS_ICON_SIZE := Vector2i(16, 16)
+const BATTLE_CRITICAL_ICON: Texture2D = preload("res://素材/战斗场景/图层5.png")
+const BATTLE_RANGED_ICON: Texture2D = preload("res://素材/战斗场景/图层 3.png")
+const BATTLE_MELEE_ICON: Texture2D = preload("res://素材/战斗场景/图层 4.png")
+const BATTLE_SHIELD_ICON: Texture2D = preload("res://素材/战斗场景/图层 2.png")
 const RESULT_COIN_ICON: Texture2D = preload("res://assets/ui/battle_result/coin.png")
 const MENU_BUTTON_NORMAL: Texture2D = preload("res://assets/ui/pixel_menu/controls/button-normal.png")
 const MENU_BUTTON_PRESSED: Texture2D = preload("res://assets/ui/pixel_menu/controls/button-pressed.png")
@@ -122,8 +127,10 @@ var battle_speed_button: Button
 var settings_overlay: Control
 var fighter_info_panel: Panel
 var fighter_info_icon: TextureRect
+var fighter_info_role_icon: TextureRect
 var fighter_info_name: Label
 var fighter_info_summary: Label
+var fighter_info_rarity: Label
 var fighter_info_stats: Label
 var fighter_info_skill: Label
 var fighter_info_description: Label
@@ -155,7 +162,6 @@ func _ready() -> void:
 	source_han_font.allow_system_fallback = false
 	consumable_bonuses = GameState.take_next_battle_bonuses()
 	_build_battlefield()
-	_play_transition_in.call_deferred()
 
 
 func _start_battle_music() -> void:
@@ -662,9 +668,19 @@ func _build_fighter_info_panel() -> void:
 	fighter_info_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	fighter_info_panel.add_child(fighter_info_icon)
 
+	fighter_info_role_icon = TextureRect.new()
+	fighter_info_role_icon.position = Vector2(150, 53)
+	fighter_info_role_icon.size = Vector2(25, 25)
+	fighter_info_role_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	fighter_info_role_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	fighter_info_role_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	fighter_info_role_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fighter_info_panel.add_child(fighter_info_role_icon)
+
 	fighter_info_name = _add_info_label(fighter_info_panel, "", Rect2(18, 10, 265, 38), 22, Color.WHITE)
-	fighter_info_summary = _add_info_label(fighter_info_panel, "", Rect2(280, 10, 108, 38), 14, Color("ffd267"), HORIZONTAL_ALIGNMENT_RIGHT)
-	fighter_info_stats = _add_info_label(fighter_info_panel, "", Rect2(150, 51, 270, 83), 14, Color.WHITE)
+	fighter_info_summary = _add_info_label(fighter_info_panel, "", Rect2(250, 10, 64, 38), 14, Color("ffd267"), HORIZONTAL_ALIGNMENT_RIGHT)
+	fighter_info_rarity = _add_info_label(fighter_info_panel, "", Rect2(320, 15, 64, 28), 12, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+	fighter_info_stats = _add_info_label(fighter_info_panel, "", Rect2(180, 51, 240, 83), 14, Color.WHITE)
 	fighter_info_skill = _add_info_label(fighter_info_panel, "", Rect2(150, 132, 270, 38), 16, Color("ff6687"))
 	fighter_info_description = _add_info_label(fighter_info_panel, "", Rect2(18, 180, 402, 78), 13, Color.WHITE)
 	fighter_info_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -705,8 +721,12 @@ func _show_fighter_info(fighter: Fighter) -> void:
 	var damage_max := 0 if is_mimic else roundi(fighter.damage_range.y * fighter.damage_multiplier)
 	var skill_text := "静待挑战者" if is_mimic else CATALOG.skill_text_for_texture(fighter.texture_path)
 	fighter_info_icon.texture = load(fighter.texture_path) as Texture2D
+	fighter_info_role_icon.texture = null if is_mimic else (BATTLE_RANGED_ICON if fighter.attack_range == "ranged" else BATTLE_MELEE_ICON)
 	fighter_info_name.text = display_name
-	fighter_info_summary.text = "%s · %s" % [side_name, rarity_name]
+	fighter_info_summary.text = "%s · %s" % [side_name, rarity_name] if is_mimic else side_name
+	fighter_info_rarity.visible = not is_mimic
+	if not is_mimic:
+		RARITY_TAG.apply(fighter_info_rarity, rarity)
 	fighter_info_stats.text = "LV.%d  %s\n生命 %d/%d  护盾 %d\n伤害 %d-%d  标签 %s" % [fighter.level, role_text, fighter.hp, fighter.max_hp, fighter.shield, damage_min, damage_max, trait_text]
 	fighter_info_skill.text = "%s" % fighter.skill_name
 	fighter_info_description.text = skill_text
@@ -769,6 +789,8 @@ func _perform_skill(attacker: Fighter) -> void:
 	_play_element_contact_vfx(attacker, target)
 	var dealt := _apply_damage(target, damage)
 	status_label.text = "%s%s，%s造成 %d 点伤害" % ["我方释放" if attacker.player_side else "敌方释放", attacker.skill_name, "暴击！" if critical else "", dealt]
+	if critical:
+		_play_critical_icon(target)
 	_play_hit_feedback(target, dealt)
 	_apply_unique_skill(attacker, target, dealt)
 	_apply_fire_attack(attacker, target)
@@ -1452,6 +1474,28 @@ func _show_effect_label(text: String, fighter: Fighter, color: Color) -> void:
 	tween.chain().tween_callback(label.queue_free)
 
 
+func _play_critical_icon(target: Fighter) -> void:
+	if target == null or not is_instance_valid(target.sprite):
+		return
+	var icon := TextureRect.new()
+	icon.position = target.sprite.position + Vector2(30, -34)
+	icon.size = Vector2(54, 54)
+	icon.pivot_offset = icon.size * 0.5
+	icon.texture = BATTLE_CRITICAL_ICON
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.z_index = 42
+	icon.scale = Vector2(0.45, 0.45)
+	add_child(icon)
+	var tween := create_tween().set_parallel(true)
+	tween.tween_property(icon, "scale", Vector2.ONE, 0.11).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(icon, "position:y", icon.position.y - 12.0, 0.38)
+	tween.tween_property(icon, "modulate:a", 0.0, 0.38).set_delay(0.14)
+	tween.chain().tween_callback(icon.queue_free)
+
+
 func _update_hp_label(fighter: Fighter) -> void:
 	if fighter.hp_label == null:
 		return
@@ -1465,7 +1509,7 @@ func _update_status_icons(fighter: Fighter) -> void:
 	for child in fighter.status_row.get_children():
 		child.queue_free()
 	if fighter.shield > 0:
-		fighter.status_row.add_child(_status_icon(0, "护盾 %d" % fighter.shield))
+		fighter.status_row.add_child(_status_icon(0, "护盾 %d" % fighter.shield, BATTLE_SHIELD_ICON))
 	if fighter.burn_stacks > 0:
 		fighter.status_row.add_child(_status_icon(9, "燃烧 %d" % fighter.burn_stacks))
 	if fighter.slow_remaining > 0.0:
@@ -1482,15 +1526,18 @@ func _update_status_icons(fighter: Fighter) -> void:
 		fighter.status_row.add_child(_status_icon(26, "复活状态"))
 
 
-func _status_icon(index: int, description: String) -> Control:
-	var atlas := AtlasTexture.new()
-	atlas.atlas = STATUS_ICON_SHEET
-	atlas.region = Rect2i(
-		(index % 8) * STATUS_ICON_SIZE.x,
-		(index / 8) * STATUS_ICON_SIZE.y,
-		STATUS_ICON_SIZE.x,
-		STATUS_ICON_SIZE.y,
-	)
+func _status_icon(index: int, description: String, custom_texture: Texture2D = null) -> Control:
+	var display_texture: Texture2D = custom_texture
+	if display_texture == null:
+		var atlas := AtlasTexture.new()
+		atlas.atlas = STATUS_ICON_SHEET
+		atlas.region = Rect2i(
+			(index % 8) * STATUS_ICON_SIZE.x,
+			(index / 8) * STATUS_ICON_SIZE.y,
+			STATUS_ICON_SIZE.x,
+			STATUS_ICON_SIZE.y,
+		)
+		display_texture = atlas
 	var root := Control.new()
 	root.custom_minimum_size = Vector2(18, 18)
 	root.tooltip_text = ""
@@ -1501,7 +1548,7 @@ func _status_icon(index: int, description: String) -> Control:
 	root.add_child(icon)
 	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	icon.custom_minimum_size = Vector2(16, 16)
-	icon.texture = atlas
+	icon.texture = display_texture
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST

@@ -1,0 +1,165 @@
+{
+  "source": "D:\\pokemon\\素材\\人物选择\\人物.psd",
+  "canvas": [
+    912,
+    1253
+  ],
+  "layers": [
+    {
+      "index": 0,
+      "name": "背景",
+      "visible": false,
+      "bbox": [
+        0,
+        0,
+        912,
+        1253
+      ],
+      "file": "layer_00.png"
+    },
+    {
+      "index": 1,
+      "name": "图层 1",
+      "visible": false,
+      "bbox": [
+        0,
+        0,
+        912,
+        1253
+      ],
+      "file": "layer_01.png"
+    },
+    {
+      "index": 2,
+      "name": "图层 3",
+      "visible": true,
+      "bbox": [
+        15,
+        15,
+        897,
+        1237
+      ],
+      "file": "layer_02.png"
+    },
+    {
+      "index": 3,
+      "name": "图层 6",
+      "visible": true,
+      "bbox": [
+        51,
+        1059,
+        862,
+        1198
+      ],
+      "file": "layer_03.png"
+    },
+    {
+      "index": 4,
+      "name": "图层 2",
+      "visible": true,
+      "bbox": [
+        2,
+        1,
+        911,
+        1252
+      ],
+      "file": "layer_04.png"
+    },
+    {
+      "index": 5,
+      "name": "图层 4",
+      "visible": true,
+      "bbox": [
+        49,
+        51,
+        150,
+        152
+      ],
+      "file": "layer_05.png"
+    },
+    {
+      "index": 6,
+      "name": "图层 4 拷贝",
+      "visible": true,
+      "bbox": [
+        42,
+        44,
+        157,
+        159
+      ],
+      "file": "layer_06.png"
+    },
+    {
+      "index": 7,
+      "name": "图层 5",
+      "visible": true,
+      "bbox": [
+        41,
+        2,
+        871,
+        842
+      ],
+      "file": "layer_07.png"
+    },
+    {
+      "index": 8,
+      "name": "图层 8",
+      "visible": true,
+      "bbox": [
+        54,
+        78,
+        863,
+        853
+      ],
+      "file": "layer_08.png"
+    },
+    {
+      "index": 9,
+      "name": "图层 12",
+      "visible": true,
+      "bbox": [
+        5,
+        53,
+        894,
+        835
+      ],
+      "file": "layer_09.png"
+    },
+    {
+      "index": 10,
+      "name": "图层 13",
+      "visible": false,
+      "bbox": [
+        14,
+        50,
+        845,
+        835
+      ],
+      "file": "layer_10.png"
+    },
+    {
+      "index": 11,
+      "name": "图层 14",
+      "visible": false,
+      "bbox": [
+        5,
+        60,
+        849,
+        835
+      ],
+      "file": "layer_11.png"
+    },
+    {
+      "index": 12,
+      "name": "图层 9",
+      "visible": true,
+      "bbox": [
+        98,
+        182,
+        308,
+        454
+      ],
+      "file": "layer_12.png"
+    }
+  ]
+}

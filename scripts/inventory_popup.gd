@@ -2,6 +2,7 @@ extends Control
 
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
+const RARITY_TAG = preload("res://scripts/rarity_tag_style.gd")
 const ITEM_INFO_TINT_SHADER: Shader = preload("res://assets/ui/item_info/rarity_tint.gdshader")
 const ITEM_INFO_ROOT := "res://assets/ui/item_info/"
 const VISIBLE_SLOT_COUNT := 24
@@ -242,6 +243,8 @@ func _build_item_info_art() -> void:
 			layer.material = material
 		item_info_panel.add_child(layer)
 		item_info_layers.append(layer)
+		if asset_name == "rarity_badge.png":
+			layer.visible = false
 	item_info_star = _add_label(item_info_panel, "✦", Rect2(24, 22, 44, 44), 25, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	item_info_type = _add_label(item_info_panel, "", Rect2(270, 105, 200, 42), 20, Color("252b35"))
 	item_info_effect_rich = _add_rich_text(item_info_panel, Rect2(270, 150, 208, 104), 15)
@@ -317,8 +320,7 @@ func _show_item_info(entry: Dictionary, rule_text: String) -> void:
 	var rarity := clampi(int(entry.get("rarity", 0)), 0, RARITY_COLORS.size() - 1)
 	item_info_icon.texture = load(String(entry["path"])) as Texture2D
 	item_info_name.text = String(entry["name"])
-	item_info_rarity.text = ITEM_CATALOG.RARITY_NAMES[rarity]
-	item_info_rarity.add_theme_color_override("font_color", RARITY_COLORS[rarity].lightened(0.18))
+	RARITY_TAG.apply(item_info_rarity, [0, 2, 3][rarity])
 	_apply_item_info_rarity(RARITY_COLORS[rarity])
 	item_info_type.text = "✦ %s" % ("饰品" if active_kind == "accessory" else "道具")
 	item_info_effect_rich.text = _blue_item_values(String(entry["effect"]))
