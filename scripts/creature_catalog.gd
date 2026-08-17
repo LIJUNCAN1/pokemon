@@ -99,6 +99,53 @@ const CREATURE_DATA: Array[Dictionary] = [
 	{"path": NEW_TRAIT_ROOT + "crystal_golem.png", "name": "晶铠巨人", "traits": ["晶石", "守护"], "range": "melee", "rarity": 4, "hp": 154, "damage": [18, 28], "cooldown": 4.2, "skill": "shield_self", "skill_name": "晶簇壁垒", "skill_text": "凝聚晶簇，攻击后获得最大生命18%的护盾"},
 ]
 
+# Skills are keyed by creature name so legacy art paths can change without
+# invalidating combat data. Every entry has a unique id, display name and
+# effect signature built for the basic-attack -> energy -> cast loop.
+const UNIQUE_SKILLS: Dictionary = {
+	"芽叶兽": {"id": "leaf_seed_volley", "name": "连芽飞种", "energy": 0.25, "text": "追击另一名敌人，造成45%技能伤害。", "effects": [{"type": "splash", "ratio": 0.45, "count": 1}]},
+	"钢甲象": {"id": "steel_purify_wall", "name": "净钢壁垒", "energy": 0.22, "text": "获得22%最大生命护盾，并清除自身燃烧、减速和眩晕。", "effects": [{"type": "shield_self", "ratio": 0.22}, {"type": "cleanse_self"}]},
+	"烛灵": {"id": "candle_soul_flame", "name": "摄魂烛火", "energy": 0.28, "text": "施加2层燃烧，并恢复本次伤害12%的生命。", "effects": [{"type": "burn", "stacks": 2}, {"type": "lifesteal", "ratio": 0.12}]},
+	"岩甲龟": {"id": "tortoise_stone_shell", "name": "玄岩缩壳", "energy": 0.20, "text": "获得28%最大生命护盾，并恢复8%已损失生命。", "effects": [{"type": "shield_self", "ratio": 0.28}, {"type": "heal_missing_self", "ratio": 0.08}]},
+	"夜翼兽": {"id": "nightwing_echo_strike", "name": "夜翼回响", "energy": 0.30, "text": "追加65%技能伤害，并立即恢复10%能量。", "effects": [{"type": "extra_hit", "ratio": 0.65}, {"type": "charge_self", "amount": 0.10}]},
+	"冰角鹿": {"id": "frost_antler_lock", "name": "霜角封流", "energy": 0.24, "text": "使目标减速3秒，并削减25%能量。", "effects": [{"type": "slow", "duration": 3.0}, {"type": "drain_charge", "amount": 0.25}]},
+	"菌盖兽": {"id": "mushroom_cleanse_spore", "name": "净愈孢子", "energy": 0.23, "text": "治疗生命比例最低友军20%施法者最大生命，并清除其负面状态。", "effects": [{"type": "heal_lowest", "ratio": 0.20}, {"type": "cleanse_lowest"}]},
+	"深海贤者": {"id": "abyssal_tidal_wisdom", "name": "深潮启迪", "energy": 0.22, "text": "其他友军恢复18%能量，能量最低友军获得10%施法者最大生命护盾。", "effects": [{"type": "charge_team", "amount": 0.18}, {"type": "shield_lowest", "ratio": 0.10}]},
+	"绵云羊": {"id": "cloud_triple_arc", "name": "云链三闪", "energy": 0.27, "text": "向随机敌人跳跃2次，每次造成38%技能伤害。", "effects": [{"type": "random_hits", "ratio": 0.38, "count": 2}]},
+	"烈焰犬": {"id": "blazing_execution_bite", "name": "焚命裂咬", "energy": 0.26, "text": "施加3层燃烧；目标生命低于35%时追加35%技能伤害。", "effects": [{"type": "burn", "stacks": 3}, {"type": "execute", "threshold": 0.35, "ratio": 0.35}]},
+	"花叶兽": {"id": "petal_shelter_bloom", "name": "花叶庇护", "energy": 0.24, "text": "全队恢复6%施法者最大生命，生命最低友军额外获得12%护盾。", "effects": [{"type": "heal_team", "ratio": 0.06}, {"type": "shield_lowest", "ratio": 0.12}]},
+	"铁壳蛛": {"id": "ironweb_stun_shell", "name": "震荡铁网", "energy": 0.21, "text": "获得20%最大生命护盾，并眩晕目标1.2秒。", "effects": [{"type": "shield_self", "ratio": 0.20}, {"type": "stun", "duration": 1.2}]},
+	"星云兽": {"id": "nebula_energy_collapse", "name": "星云坍缩", "energy": 0.32, "text": "对其他所有敌人造成58%技能伤害，并削减其12%能量。", "effects": [{"type": "aoe", "ratio": 0.58}, {"type": "drain_all", "amount": 0.12}]},
+	"花甲虫": {"id": "beetle_vital_command", "name": "繁花虫令", "energy": 0.29, "text": "其他友军恢复12%能量，全队恢复6%施法者最大生命。", "effects": [{"type": "charge_team", "amount": 0.12}, {"type": "heal_team", "ratio": 0.06}]},
+	"熔岩蛛": {"id": "magma_web_eruption", "name": "熔网喷发", "energy": 0.27, "text": "其他所有敌人受到42%技能伤害，所有敌人获得1层燃烧。", "effects": [{"type": "aoe", "ratio": 0.42}, {"type": "burn_all", "stacks": 1}]},
+	"森冠鹿": {"id": "forest_crown_sanctuary", "name": "森冠圣域", "energy": 0.28, "text": "治疗生命最低友军28%施法者最大生命，并为全队提供8%护盾。", "effects": [{"type": "heal_lowest", "ratio": 0.28}, {"type": "shield_team", "ratio": 0.08}]},
+	"花芽鹿": {"id": "bud_resonance_transfer", "name": "花芽灌注", "energy": 0.30, "text": "能量最低友军恢复35%能量并恢复12%施法者最大生命。", "effects": [{"type": "charge_lowest", "amount": 0.35}, {"type": "heal_lowest", "ratio": 0.12}]},
+	"青芽团": {"id": "sprout_growth_guard", "name": "新芽生长", "energy": 0.25, "text": "获得18%最大生命护盾，并永久提高6%基础最大生命。", "effects": [{"type": "shield_self", "ratio": 0.18}, {"type": "max_hp_growth", "ratio": 0.06}]},
+	"潮汐王": {"id": "tidal_king_decree", "name": "沧海王令", "energy": 0.30, "text": "其他所有敌人受到65%技能伤害，并被减速2秒。", "effects": [{"type": "aoe", "ratio": 0.65}, {"type": "slow_all", "duration": 2.0}]},
+	"潮汐卫": {"id": "tidal_guard_phalanx", "name": "潮卫方阵", "energy": 0.24, "text": "全队获得12%施法者最大生命护盾，并恢复10%能量。", "effects": [{"type": "shield_team", "ratio": 0.12}, {"type": "charge_team", "amount": 0.10}]},
+	"泡泡灵": {"id": "bubble_spirit_cycle", "name": "灵泡循环", "energy": 0.26, "text": "治疗生命最低友军16%施法者最大生命，自身恢复15%能量。", "effects": [{"type": "heal_lowest", "ratio": 0.16}, {"type": "charge_self", "amount": 0.15}]},
+	"水滴灵": {"id": "droplet_pressure_theft", "name": "涡压夺能", "energy": 0.29, "text": "削减目标30%能量，并使其减速2.5秒。", "effects": [{"type": "drain_charge", "amount": 0.30}, {"type": "slow", "duration": 2.5}]},
+	"炽焰狼王": {"id": "inferno_alpha_roar", "name": "狱焰王啸", "energy": 0.33, "text": "其他所有敌人受到50%技能伤害，所有敌人获得2层燃烧。", "effects": [{"type": "aoe", "ratio": 0.50}, {"type": "burn_all", "stacks": 2}]},
+	"炎鬃狼": {"id": "flamemane_blood_bite", "name": "炎鬃血牙", "energy": 0.27, "text": "施加2层燃烧，并恢复本次伤害25%的生命。", "effects": [{"type": "burn", "stacks": 2}, {"type": "lifesteal", "ratio": 0.25}]},
+	"赤尾狐": {"id": "redtail_foxfire_dance", "name": "赤尾狐火舞", "energy": 0.31, "text": "对随机敌人追击3次，每次造成28%技能伤害。", "effects": [{"type": "random_hits", "ratio": 0.28, "count": 3}]},
+	"小火狐": {"id": "kit_flame_rekindle", "name": "余烬复燃", "energy": 0.34, "text": "施加1层燃烧，并立即恢复20%能量。", "effects": [{"type": "burn", "stacks": 1}, {"type": "charge_self", "amount": 0.20}]},
+	"小冰企鹅": {"id": "penguin_snowguard", "name": "雪球冰障", "energy": 0.25, "text": "使目标减速3.5秒，并获得10%最大生命护盾。", "effects": [{"type": "slow", "duration": 3.5}, {"type": "shield_self", "ratio": 0.10}]},
+	"冰冠企鹅": {"id": "frostcrown_royal_tide", "name": "冰冠寒潮", "energy": 0.29, "text": "其他所有敌人受到36%技能伤害，并被减速2秒。", "effects": [{"type": "aoe", "ratio": 0.36}, {"type": "slow_all", "duration": 2.0}]},
+	"紫晶巨像": {"id": "amethyst_core_bulwark", "name": "紫晶核爆", "energy": 0.23, "text": "其他所有敌人受到50%技能伤害，自身获得25%最大生命护盾。", "effects": [{"type": "aoe", "ratio": 0.50}, {"type": "shield_self", "ratio": 0.25}]},
+	"苔岩守卫": {"id": "mossrock_guardian_oath", "name": "苔岩守誓", "energy": 0.21, "text": "生命最低友军获得22%施法者最大生命护盾并恢复10%生命。", "effects": [{"type": "shield_lowest", "ratio": 0.22}, {"type": "heal_lowest", "ratio": 0.10}]},
+	"小石怪": {"id": "pebble_armor_growth", "name": "砾甲增生", "energy": 0.22, "text": "获得16%最大生命护盾，并永久获得4%减伤，最多20%。", "effects": [{"type": "shield_self", "ratio": 0.16}, {"type": "damage_reduction", "amount": 0.04}]},
+	"苔心傀儡": {"id": "mossheart_purifying_pulse", "name": "苔心净脉", "energy": 0.24, "text": "清除全队燃烧、减速和眩晕，并恢复7%施法者最大生命。", "effects": [{"type": "cleanse_team"}, {"type": "heal_team", "ratio": 0.07}]},
+	"晶背龟": {"id": "crystalback_shell_crash", "name": "晶壳反震", "energy": 0.20, "text": "获得24%最大生命护盾，并根据当前护盾对目标追加伤害。", "effects": [{"type": "shield_self", "ratio": 0.24}, {"type": "shield_bash", "ratio": 0.35}]},
+	"林角幼兽": {"id": "woodhorn_gale_leaves", "name": "林角叶岚", "energy": 0.28, "text": "追击最多2名其他敌人，各造成40%技能伤害。", "effects": [{"type": "splash", "ratio": 0.40, "count": 2}]},
+	"月痕灵狐": {"id": "moontrace_phase_assault", "name": "月痕相袭", "energy": 0.31, "text": "追加60%技能伤害，并永久获得8%闪避，最多32%。", "effects": [{"type": "extra_hit", "ratio": 0.60}, {"type": "dodge_growth", "amount": 0.08}]},
+	"星辉术师": {"id": "starlight_orbit_resonance", "name": "星轨共振", "energy": 0.30, "text": "其他友军恢复20%能量，自身在施法后保留15%能量。", "effects": [{"type": "charge_team", "amount": 0.20}, {"type": "charge_self", "amount": 0.15}]},
+	"赤拳斗士": {"id": "scarlet_fist_combo", "name": "赤拳震连", "energy": 0.32, "text": "随机追击2次，每次造成50%技能伤害，并眩晕主目标0.6秒。", "effects": [{"type": "random_hits", "ratio": 0.50, "count": 2}, {"type": "stun", "duration": 0.6}]},
+	"苍羽狮鹫": {"id": "azure_griffin_dive", "name": "苍羽穿阵", "energy": 0.30, "text": "追击另一名敌人造成55%技能伤害，并削减主目标15%能量。", "effects": [{"type": "splash", "ratio": 0.55, "count": 1}, {"type": "drain_charge", "amount": 0.15}]},
+	"幽焰亡灵": {"id": "wraith_funeral_pyres", "name": "亡焰葬阵", "energy": 0.29, "text": "其他所有敌人受到40%技能伤害，全体获得2层燃烧，并恢复8%总伤害生命。", "effects": [{"type": "aoe", "ratio": 0.40}, {"type": "burn_all", "stacks": 2}, {"type": "lifesteal", "ratio": 0.08}]},
+	"翠风精灵": {"id": "verdant_wind_benediction", "name": "翠风净祷", "energy": 0.27, "text": "全队恢复12%施法者最大生命，并净化生命比例最低友军。", "effects": [{"type": "heal_team", "ratio": 0.12}, {"type": "cleanse_lowest"}]},
+	"晶铠巨人": {"id": "crystal_aegis_domain", "name": "晶铠领域", "energy": 0.20, "text": "全队获得15%施法者最大生命护盾，自身额外获得20%最大生命护盾。", "effects": [{"type": "shield_team", "ratio": 0.15}, {"type": "shield_self", "ratio": 0.20}]},
+}
+
 const THRESHOLDS: Dictionary = {
 	"自然": [3, 5], "火": [2, 4, 6], "水": [2, 3, 5], "雷": [2, 3], "冰": [2, 3], "岩": [2, 4, 6],
 	"植物": [2, 4, 5], "机械": [2, 3, 5], "灵体": [2, 3, 4], "野兽": [2, 4, 6],
@@ -250,6 +297,8 @@ static func target_rule_for_texture(texture_path: String) -> String:
 
 
 static func trigger_rule_for_texture(texture_path: String) -> String:
+	if not unique_skill_for_texture(texture_path).is_empty():
+		return "on_full_charge"
 	var data := data_for_texture(texture_path)
 	if data.has("trigger_rule"):
 		return String(data["trigger_rule"])
@@ -270,18 +319,30 @@ static func star_growth_for_texture(texture_path: String, level: int) -> Diction
 
 
 static func skill_id_for_texture(texture_path: String) -> String:
+	var unique_skill := unique_skill_for_texture(texture_path)
+	if not unique_skill.is_empty():
+		return String(unique_skill.get("id", "basic"))
 	return String(data_for_texture(texture_path).get("skill", "basic"))
 
 
 static func skill_name_for_texture(texture_path: String) -> String:
+	var unique_skill := unique_skill_for_texture(texture_path)
+	if not unique_skill.is_empty():
+		return String(unique_skill.get("name", "基础攻击"))
 	return String(data_for_texture(texture_path).get("skill_name", "基础攻击"))
 
 
 static func skill_text_for_texture(texture_path: String) -> String:
+	var unique_skill := unique_skill_for_texture(texture_path)
+	if not unique_skill.is_empty():
+		return String(unique_skill.get("text", "对目标造成伤害。"))
 	return String(data_for_texture(texture_path).get("skill_text", "对目标造成伤害"))
 
 
 static func skill_detail_for_texture(texture_path: String) -> String:
+	var unique_skill := unique_skill_for_texture(texture_path)
+	if not unique_skill.is_empty():
+		return String(unique_skill.get("text", "对目标造成伤害。"))
 	# Keep the encyclopedia wording synchronized with the actual coefficients in
 	# battle.gd instead of showing a vague one-line summary.
 	match skill_id_for_texture(texture_path):
@@ -307,6 +368,18 @@ static func skill_detail_for_texture(texture_path: String) -> String:
 			return "对主目标外的所有敌人造成相当于本次伤害 38% 的范围伤害，并对所有目标施加 1 层燃烧。"
 		_:
 			return skill_text_for_texture(texture_path)
+
+
+static func unique_skill_for_texture(texture_path: String) -> Dictionary:
+	return Dictionary(UNIQUE_SKILLS.get(name_for_texture(texture_path), {}))
+
+
+static func skill_effects_for_texture(texture_path: String) -> Array:
+	return Array(unique_skill_for_texture(texture_path).get("effects", [])).duplicate(true)
+
+
+static func energy_per_attack_for_texture(texture_path: String) -> float:
+	return clampf(float(unique_skill_for_texture(texture_path).get("energy", 0.25)), 0.05, 1.0)
 
 
 static func rarity_stat_multiplier(texture_path: String) -> float:

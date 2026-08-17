@@ -4,6 +4,8 @@ const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-He
 const CATALOG = preload("res://scripts/creature_catalog.gd")
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
 const RARITY_TAG = preload("res://scripts/rarity_tag_style.gd")
+const TRAINER_CATALOG = preload("res://scripts/trainer_catalog.gd")
+const EQUIPMENT_CATALOG = preload("res://scripts/equipment_catalog.gd")
 const BATTLE_RANGED_ICON := "res://素材/战斗场景/图层 3.png"
 const BATTLE_MELEE_ICON := "res://素材/战斗场景/图层 4.png"
 const DETAIL_TIME_ICON := "res://assets/ui/character_info/time.png"
@@ -12,20 +14,11 @@ const DEX := "res://素材/图鉴/"
 const POKEMON := "res://素材/宝可梦图/"
 var CREATURES: Array[String] = []
 var NAMES: Array[String] = []
-const TAB_NAMES: Array[String] = ["怪兽", "饰品", "道具", "训练家"]
-const INACTIVE_TABS: Array[String] = [DEX + "03_切图_3.png", DEX + "03_切图_3.png", DEX + "04_切图_4.png", DEX + "05_切图_5.png"]
-const TRAINER_TEXTURES: Array[String] = [
-	"res://assets/characters/trainers/trainer_green.png",
-	"res://assets/characters/trainers/trainer_red.png",
-	"res://assets/characters/trainers/trainer_yellow.png",
-]
-const TRAINER_IDS: Array[String] = ["researcher", "vanguard", "scout"]
-const TRAINER_NAMES: Array[String] = ["森野博士", "赤城", "紫苑"]
-const TRAINER_SKILLS: Array[String] = [
-	"野外补给：初始金币 +2",
-	"斗志昂扬：本轮全队伤害 +6%",
-	"可靠伙伴：初始获得一只普通怪兽",
-]
+const TAB_NAMES: Array[String] = ["怪兽", "饰品", "道具", "装备", "训练家"]
+var TRAINER_TEXTURES: Array[String] = []
+var TRAINER_IDS: Array[String] = TRAINER_CATALOG.ids()
+var TRAINER_NAMES: Array[String] = []
+var TRAINER_SKILLS: Array[String] = []
 
 var source_han_font: FontFile
 var tab_buttons: Array[Button] = []
@@ -72,18 +65,25 @@ var trainer_sprites: Array[TextureRect] = []
 var trainer_name_labels: Array[Label] = []
 var accessory_entries: Array[Dictionary] = []
 var item_entries: Array[Dictionary] = []
+var equipment_entries: Array[Dictionary] = []
 var accessory_cards: Array[Control] = []
 var item_cards: Array[Control] = []
+var equipment_cards: Array[Control] = []
 var accessory_sprites: Array[TextureRect] = []
 var item_sprites: Array[TextureRect] = []
+var equipment_sprites: Array[TextureRect] = []
 var accessory_name_labels: Array[Label] = []
 var item_name_labels: Array[Label] = []
+var equipment_name_labels: Array[Label] = []
 var accessory_unknown_labels: Array[Label] = []
 var item_unknown_labels: Array[Label] = []
+var equipment_unknown_labels: Array[Label] = []
 var accessory_rarity_labels: Array[Label] = []
 var item_rarity_labels: Array[Label] = []
+var equipment_rarity_labels: Array[Label] = []
 var accessory_selection_frames: Array[Control] = []
 var item_selection_frames: Array[Control] = []
+var equipment_selection_frames: Array[Control] = []
 var creature_detail_controls: Array[Control] = []
 var card_creature_sprites: Array[TextureRect] = []
 var card_name_labels: Array[Label] = []
@@ -102,6 +102,7 @@ var card_number_labels: Array[Label] = []
 var selected_index := 0
 var selected_accessory_index := 0
 var selected_item_index := 0
+var selected_equipment_index := 0
 var selected_trainer_index := 0
 var current_tab := 0
 var trainer_dragging := false
@@ -111,6 +112,10 @@ var trainer_drag_suppress_select := false
 
 
 func _ready() -> void:
+	for trainer in TRAINER_CATALOG.all():
+		TRAINER_TEXTURES.append(String(trainer["dex_art"]))
+		TRAINER_NAMES.append(String(trainer["name"]))
+		TRAINER_SKILLS.append(String(trainer["description"]))
 	set_meta("disable_text_shadow", true)
 	if get_parent() is Control:
 		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -135,9 +140,14 @@ func _ready() -> void:
 		NAMES.append(CATALOG.name_for_texture(texture_path))
 	accessory_entries = _catalog_entries_by_rarity("accessory")
 	item_entries = _catalog_entries_by_rarity("item")
+	equipment_entries = EQUIPMENT_CATALOG.all()
 	selected_index = _first_seen_creature_index()
 	selected_accessory_index = _first_seen_entry_index(accessory_entries, "accessory")
 	selected_item_index = _first_seen_entry_index(item_entries, "item")
+	for equipment_index in equipment_entries.size():
+		if GameState.has_seen_equipment(String(equipment_entries[equipment_index]["id"])):
+			selected_equipment_index = equipment_index
+			break
 	_build_interface()
 	refresh_data()
 
@@ -147,7 +157,7 @@ func _input(event: InputEvent) -> void:
 		var release_event := event as InputEventMouseButton
 		if release_event.button_index == MOUSE_BUTTON_LEFT and not release_event.pressed:
 			scroll_thumb_dragging = false
-	if current_tab != 3:
+	if current_tab != 4:
 		return
 	if event is InputEventMouseButton:
 		var mouse_event := event as InputEventMouseButton
@@ -374,12 +384,11 @@ func _build_sidebar() -> void:
 
 
 func _build_tabs() -> void:
-	var tab_positions := [Vector2(34, 39), Vector2(210, 39), Vector2(393, 39), Vector2(575, 39)]
-	var tab_widths := [159.0, 160.0, 159.0, 164.0]
-	for index in 4:
+	var tab_positions := [Vector2(34, 39), Vector2(180, 39), Vector2(326, 39), Vector2(472, 39), Vector2(618, 39)]
+	for index in 5:
 		var button := Button.new()
 		button.position = tab_positions[index]
-		button.size = Vector2(tab_widths[index], 35)
+		button.size = Vector2(138, 35)
 		button.text = TAB_NAMES[index]
 		button.focus_mode = Control.FOCUS_NONE
 		button.add_theme_font_override("font", source_han_font)
@@ -439,6 +448,8 @@ func _build_collection_panel() -> void:
 		_create_item_card("accessory", index, _collection_card_rect(index))
 	for index in item_entries.size():
 		_create_item_card("item", index, _collection_card_rect(index))
+	for index in equipment_entries.size():
+		_create_item_card("equipment", index, _collection_card_rect(index))
 	for index in TRAINER_TEXTURES.size():
 		_create_trainer_card(index, Rect2(10 + index * 354, 8, 338, 438))
 
@@ -509,7 +520,7 @@ func _create_creature_card(index: int, rect: Rect2) -> void:
 
 
 func _create_item_card(kind: String, index: int, rect: Rect2) -> void:
-	var entries := accessory_entries if kind == "accessory" else item_entries
+	var entries := accessory_entries if kind == "accessory" else (item_entries if kind == "item" else equipment_entries)
 	var entry: Dictionary = entries[index]
 	var card := Control.new()
 	card.position = rect.position
@@ -545,13 +556,20 @@ func _create_item_card(kind: String, index: int, rect: Rect2) -> void:
 		accessory_name_labels.append(name_label)
 		accessory_rarity_labels.append(rarity_label)
 		accessory_selection_frames.append(selection)
-	else:
+	elif kind == "item":
 		item_cards.append(card)
 		item_sprites.append(sprite)
 		item_unknown_labels.append(unknown_label)
 		item_name_labels.append(name_label)
 		item_rarity_labels.append(rarity_label)
 		item_selection_frames.append(selection)
+	else:
+		equipment_cards.append(card)
+		equipment_sprites.append(sprite)
+		equipment_unknown_labels.append(unknown_label)
+		equipment_name_labels.append(name_label)
+		equipment_rarity_labels.append(rarity_label)
+		equipment_selection_frames.append(selection)
 
 
 func _create_trainer_card(index: int, rect: Rect2) -> void:
@@ -649,32 +667,34 @@ func _select_trainer(index: int) -> void:
 	detail_rarity.text = "训练家" if unlocked else "未解锁"
 	detail_rarity.add_theme_stylebox_override("normal", _rounded_panel(Color("8d8fa0"), Color.TRANSPARENT, 0, 9))
 	detail_type.text = "训练家" if unlocked else "未知"
-	detail_cooldown.text = "被动" if unlocked else "--"
+	detail_cooldown.text = TRAINER_CATALOG.skill_type_name(TRAINER_IDS[selected_trainer_index]) if unlocked else "--"
 	detail_stats.text = "训练家能力" if unlocked else "尚未相遇"
-	detail_description_title.text = "被动描述"
+	detail_description_title.text = "%s描述" % TRAINER_CATALOG.skill_type_name(TRAINER_IDS[selected_trainer_index]).trim_suffix("技能")
 	detail_description.text = TRAINER_SKILLS[selected_trainer_index] if unlocked else "在新游戏中选择该训练家后解锁资料"
 	for frame_index in trainer_selection_frames.size():
 		trainer_selection_frames[frame_index].visible = frame_index == selected_trainer_index
 
 
 func _select_item_entry(kind: String, index: int) -> void:
-	var entries := accessory_entries if kind == "accessory" else item_entries
+	var entries := accessory_entries if kind == "accessory" else (item_entries if kind == "item" else equipment_entries)
 	if entries.is_empty():
 		return
 	index = clampi(index, 0, entries.size() - 1)
 	if kind == "accessory":
 		selected_accessory_index = index
-	else:
+	elif kind == "item":
 		selected_item_index = index
+	else:
+		selected_equipment_index = index
 	var entry: Dictionary = entries[index]
 	detail_id.text = "%03d" % (index + 1)
 	_apply_creature_detail_layout(false)
 	# Item/accessory pages intentionally omit the legacy bottom "-- / 未知"
 	# status box. Their useful information is already in the effect section.
 	detail_skill_panel.visible = false
-	var seen := GameState.has_seen_item(entry, kind)
+	var seen := GameState.has_seen_equipment(String(entry["id"])) if kind == "equipment" else GameState.has_seen_item(entry, kind)
 	detail_description_title.text = "效果描述"
-	var frames := accessory_selection_frames if kind == "accessory" else item_selection_frames
+	var frames := accessory_selection_frames if kind == "accessory" else (item_selection_frames if kind == "item" else equipment_selection_frames)
 	for frame_index in frames.size():
 		frames[frame_index].visible = frame_index == index
 	if not seen:
@@ -685,7 +705,7 @@ func _select_item_entry(kind: String, index: int) -> void:
 		detail_rarity.add_theme_color_override("font_color", Color.WHITE)
 		detail_rarity.text = "未发现"
 		detail_rarity.add_theme_stylebox_override("normal", _rounded_panel(Color("a6a8b2"), Color.TRANSPARENT, 0, 9))
-		detail_type.text = "饰品" if kind == "accessory" else "道具"
+		detail_type.text = "饰品" if kind == "accessory" else ("道具" if kind == "item" else "装备")
 		detail_cooldown.text = "--"
 		detail_stats.text = "未知"
 		detail_description.text = "获得后解锁详细信息"
@@ -696,9 +716,9 @@ func _select_item_entry(kind: String, index: int) -> void:
 	detail_name.text = String(entry["name"])
 	var rarity := clampi(int(entry.get("rarity", 0)), 0, ITEM_CATALOG.RARITY_NAMES.size() - 1)
 	RARITY_TAG.apply(detail_rarity, _item_rarity_tag_index(rarity))
-	detail_type.text = "饰品" if kind == "accessory" else "道具"
+	detail_type.text = "饰品" if kind == "accessory" else ("道具" if kind == "item" else "装备")
 	detail_cooldown.text = "%dG\n价格" % int(entry.get("price", 0))
-	detail_stats.text = "持有时生效" if kind == "accessory" else "使用后生效"
+	detail_stats.text = "持有时生效" if kind == "accessory" else ("使用后生效" if kind == "item" else "装备后对单个角色生效")
 	detail_description.text = String(entry.get("effect", "暂无效果说明"))
 
 
@@ -849,8 +869,10 @@ func _on_tab_pressed(index: int) -> void:
 		card.visible = index == 1
 	for card in item_cards:
 		card.visible = index == 2
-	for card in trainer_cards:
+	for card in equipment_cards:
 		card.visible = index == 3
+	for card in trainer_cards:
+		card.visible = index == 4
 	empty_label.visible = false
 	for control in creature_detail_controls:
 		control.visible = false
@@ -864,6 +886,9 @@ func _on_tab_pressed(index: int) -> void:
 		2:
 			_set_collection_page_height(item_entries.size())
 			_select_item_entry("item", selected_item_index)
+		3:
+			_set_collection_page_height(equipment_entries.size())
+			_select_item_entry("equipment", selected_equipment_index)
 		_:
 			monster_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 			monster_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -872,12 +897,12 @@ func _on_tab_pressed(index: int) -> void:
 			monster_page.update_minimum_size()
 			_select_trainer(selected_trainer_index)
 	if scroll_track != null:
-		scroll_track.visible = index != 3
+		scroll_track.visible = index != 4
 	if scroll_thumb != null:
-		scroll_thumb.visible = index != 3
+		scroll_thumb.visible = index != 4
 	_update_counters()
 	monster_scroll.scroll_vertical = 0
-	if index != 3:
+	if index != 4:
 		monster_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		monster_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 		monster_scroll.scroll_horizontal = 0
@@ -888,7 +913,7 @@ func _on_collection_scrolled(_value: float) -> void:
 
 
 func _update_scroll_thumb() -> void:
-	if scroll_thumb == null or monster_scroll == null or current_tab == 3:
+	if scroll_thumb == null or monster_scroll == null or current_tab == 4:
 		return
 	var bar := monster_scroll.get_v_scroll_bar()
 	var scroll_range := maxf(bar.max_value - bar.page, 1.0)
@@ -1001,6 +1026,13 @@ func refresh_data() -> void:
 		item_unknown_labels[index].visible = false
 		item_name_labels[index].text = String(item_entries[index]["name"]) if seen_item else "未解锁"
 		item_rarity_labels[index].visible = seen_item
+	for index in equipment_entries.size():
+		var seen_equipment := GameState.has_seen_equipment(String(equipment_entries[index]["id"]))
+		equipment_sprites[index].visible = true
+		_set_silhouette(equipment_sprites[index], not seen_equipment)
+		equipment_unknown_labels[index].visible = false
+		equipment_name_labels[index].text = String(equipment_entries[index]["name"]) if seen_equipment else "未解锁"
+		equipment_rarity_labels[index].visible = seen_equipment
 	for index in TRAINER_TEXTURES.size():
 		var unlocked := GameState.has_unlocked_trainer(TRAINER_IDS[index])
 		_set_silhouette(trainer_sprites[index], not unlocked)
@@ -1012,9 +1044,9 @@ func refresh_data() -> void:
 func _update_counters() -> void:
 	if counter_labels.size() != 3:
 		return
-	if current_tab == 1 or current_tab == 2:
-		var kind := "accessory" if current_tab == 1 else "item"
-		var entries := accessory_entries if current_tab == 1 else item_entries
+	if current_tab in [1, 2, 3]:
+		var kind := "accessory" if current_tab == 1 else ("item" if current_tab == 2 else "equipment")
+		var entries := accessory_entries if current_tab == 1 else (item_entries if current_tab == 2 else equipment_entries)
 		for rarity in 3:
 			var total := 0
 			var seen := 0
@@ -1022,7 +1054,7 @@ func _update_counters() -> void:
 				if int(entry.get("rarity", 0)) != rarity:
 					continue
 				total += 1
-				seen += 1 if GameState.has_seen_item(entry, kind) else 0
+				seen += 1 if (GameState.has_seen_equipment(String(entry["id"])) if kind == "equipment" else GameState.has_seen_item(entry, kind)) else 0
 			counter_labels[rarity].text = "%d/%d" % [seen, total]
 		return
 	var seen_count := 0

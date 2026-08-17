@@ -4,6 +4,7 @@ signal flash_started
 signal vs_started
 
 const FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
+const TRAINER_CATALOG = preload("res://scripts/trainer_catalog.gd")
 const LIGHT_MASK_SHADER: Shader = preload("res://shaders/battle_intro_light_mask.gdshader")
 const SOURCE_SIZE := Vector2(1920, 1080)
 const VIEWPORT_SCALE := Vector2.ONE / 3.0
@@ -14,16 +15,14 @@ const CONTENT_BOTTOM := 915.0
 const CONTENT_HEIGHT := CONTENT_BOTTOM - CONTENT_TOP
 const GROUP_START_OFFSET := 960.0
 const ASSET_ROOT := "res://assets/ui/battle_intro/"
-const TRAINER_IDS: Array[String] = ["researcher", "vanguard", "scout"]
-const TRAINER_PORTRAITS := {
-	"researcher": ASSET_ROOT + "portrait_researcher.png",
-	"vanguard": ASSET_ROOT + "portrait_vanguard.png",
-	"scout": ASSET_ROOT + "portrait_scout.png",
-}
-const TRAINER_NAMES := {
-	"researcher": "森野博士",
-	"vanguard": "赤城",
-	"scout": "紫苑",
+const BATTLE_REVEAL_TRANSITION := {
+	"skip_fade_out": true,
+	"speed": 1.5,
+	"color": Color.BLACK,
+	"pattern": "clean_curtains",
+	"wait_time": 0.04,
+	"invert_on_enter": false,
+	"invert_on_leave": true,
 }
 
 @export var auto_advance := true
@@ -105,10 +104,12 @@ func _build_scene() -> void:
 	right_portrait_clip = _clip("RightPortraitClip", right_group, Rect2(0, CONTENT_TOP, 1920, CONTENT_HEIGHT), 10)
 	var player_id := _player_trainer_id()
 	var enemy_id := _enemy_trainer_id(player_id)
-	left_portrait = _add_scaled_portrait(left_portrait_clip, "LeftPortrait", TRAINER_PORTRAITS[player_id], 146.0, 571.0)
-	right_portrait = _add_scaled_portrait(right_portrait_clip, "RightPortrait", TRAINER_PORTRAITS[enemy_id], 1174.0, 652.0)
-	left_name_label = _add_name_label(left_group, "LeftTrainerName", TRAINER_NAMES[player_id], Rect2(27, 809, 297, 83))
-	right_name_label = _add_name_label(right_group, "RightTrainerName", TRAINER_NAMES[enemy_id], Rect2(1595, 809, 297, 83))
+	var player_data := TRAINER_CATALOG.data(player_id)
+	var enemy_data := TRAINER_CATALOG.data(enemy_id)
+	left_portrait = _add_scaled_portrait(left_portrait_clip, "LeftPortrait", String(player_data["battle_art"]), 146.0, 571.0)
+	right_portrait = _add_scaled_portrait(right_portrait_clip, "RightPortrait", String(enemy_data["battle_art"]), 1174.0, 652.0)
+	left_name_label = _add_name_label(left_group, "LeftTrainerName", String(player_data["name"]), Rect2(27, 809, 297, 83))
+	right_name_label = _add_name_label(right_group, "RightTrainerName", String(enemy_data["name"]), Rect2(1595, 809, 297, 83))
 
 	# The two updated PSD edge layers move with their matching background but
 	# remain above every copied light streak.
@@ -239,7 +240,9 @@ func _advance_to_battle(skipped: bool) -> void:
 	if is_instance_valid(intro_tween):
 		intro_tween.kill()
 	await _play_exit_transition(0.12 if skipped else 0.42)
-	await SceneManager.change_scene("res://battle.tscn", {"skip_fade_out": true})
+	# Keep the authored VS curtains independent from the transition used by all
+	# other scene changes.
+	await SceneManager.change_scene("res://battle.tscn", BATTLE_REVEAL_TRANSITION)
 
 
 func _play_exit_transition(duration: float) -> void:
@@ -266,13 +269,14 @@ func _play_exit_transition(duration: float) -> void:
 
 
 func _player_trainer_id() -> String:
-	return GameState.trainer_id if TRAINER_IDS.has(GameState.trainer_id) else "vanguard"
+	return GameState.trainer_id if TRAINER_CATALOG.ids().has(GameState.trainer_id) else "vanguard"
 
 
 func _enemy_trainer_id(player_id: String) -> String:
-	var player_index := TRAINER_IDS.find(player_id)
+	var trainer_ids := TRAINER_CATALOG.ids()
+	var player_index := trainer_ids.find(player_id)
 	var variation := posmod(GameState.current_map_node + GameState.region, 2)
-	return TRAINER_IDS[(player_index + 1 + variation) % TRAINER_IDS.size()]
+	return trainer_ids[(player_index + 1 + variation) % trainer_ids.size()]
 
 
 func _add_scaled_portrait(parent: Control, node_name: String, path: String, x: float, width: float) -> TextureRect:

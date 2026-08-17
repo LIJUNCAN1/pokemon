@@ -14,7 +14,7 @@ func _ready() -> void:
 	GameState.clear_run_save()
 	GameState.has_started_new_game = true
 	GameState.reset_run()
-	_check(GameState.coins == 8, "新游戏必须从 8 金币开始")
+	_check(GameState.coins == 12, "新游戏必须从 12 金币开始")
 	_check(GameState.player_team.is_empty() and GameState.player_bench.is_empty(), "新游戏阵容必须为空")
 	_check(GameState.floor == 1 and GameState.region == 1, "新游戏必须从第 1 层、第 1 区域开始")
 	_test_catalog()
@@ -35,6 +35,10 @@ func _test_catalog() -> void:
 	var textures := CATALOG.all_textures()
 	_check(textures.size() == 41, "图鉴和卡池应包含 15 个原角色与 26 个新增角色")
 	var unique_paths: Dictionary = {}
+	var unique_skill_ids: Dictionary = {}
+	var unique_skill_names: Dictionary = {}
+	var unique_skill_texts: Dictionary = {}
+	var unique_skill_signatures: Dictionary = {}
 	var new_count := 0
 	for texture_path in textures:
 		unique_paths[texture_path] = true
@@ -44,6 +48,23 @@ func _test_catalog() -> void:
 		_check(not elements.is_empty(), "角色缺少元素标签：%s" % texture_path)
 		_check(not races.is_empty(), "角色缺少种族标签：%s" % texture_path)
 		_check(not CATALOG.skill_name_for_texture(texture_path).is_empty(), "角色缺少技能：%s" % texture_path)
+		var skill_id := CATALOG.skill_id_for_texture(texture_path)
+		var skill_name := CATALOG.skill_name_for_texture(texture_path)
+		var skill_text := CATALOG.skill_text_for_texture(texture_path)
+		var skill_effects := CATALOG.skill_effects_for_texture(texture_path)
+		var skill_signature := JSON.stringify(skill_effects)
+		_check(not unique_skill_ids.has(skill_id), "角色技能 ID 重复：%s" % skill_id)
+		_check(not unique_skill_names.has(skill_name), "角色技能名称重复：%s" % skill_name)
+		_check(not unique_skill_texts.has(skill_text), "角色技能说明重复：%s" % skill_text)
+		_check(not unique_skill_signatures.has(skill_signature), "角色技能效果组合重复：%s" % skill_name)
+		unique_skill_ids[skill_id] = texture_path
+		unique_skill_names[skill_name] = texture_path
+		unique_skill_texts[skill_text] = texture_path
+		unique_skill_signatures[skill_signature] = texture_path
+		_check(not skill_effects.is_empty(), "角色技能缺少实战效果：%s" % skill_name)
+		var energy_per_attack := CATALOG.energy_per_attack_for_texture(texture_path)
+		_check(energy_per_attack > 0.0 and energy_per_attack <= 1.0, "角色普攻能量值非法：%s" % skill_name)
+		_check(CATALOG.trigger_rule_for_texture(texture_path) == "on_full_charge", "角色技能必须在满能量时自动释放：%s" % skill_name)
 		if texture_path.begins_with(NEW_ROOT):
 			new_count += 1
 	_check(unique_paths.size() == textures.size(), "角色卡池包含重复路径")
@@ -118,6 +139,7 @@ func _test_map_and_first_battle() -> void:
 	var test_creature := NEW_ROOT + "1 (3).png"
 	GameState.set_player_team([test_creature], [1])
 	var coins_before := GameState.coins
+	var opening_gold := GameState.battle_gold_breakdown("chest")
 	var battle := BATTLE_SCENE.instantiate()
 	add_child(battle)
 	await get_tree().process_frame
@@ -150,7 +172,7 @@ func _test_map_and_first_battle() -> void:
 	_check(GameState.battle_victories == 1, "首战胜利次数没有记录")
 	_check(GameState.is_map_node_completed(0), "胜利后必须完成开局宝箱节点")
 	_check(GameState.item_inventory.size() == 2, "首战宝箱必须发放 2 个不同道具")
-	_check(GameState.coins == coins_before + GameState.BATTLE_BASE_GOLD + GameState.FIRST_BATTLE_CHEST_GOLD, "首战金币奖励不正确")
+	_check(GameState.coins == coins_before + int(opening_gold["total"]) + GameState.FIRST_BATTLE_CHEST_GOLD, "首战金币奖励不正确")
 	var result_coin := battle.get_node_or_null("ResultCoinIcon") as TextureRect
 	_check(result_coin != null and result_coin.texture == battle.RESULT_COIN_ICON, "战斗结算金币必须使用素材 icon")
 	var gold_text := battle.get_node_or_null("ResultGoldText") as Label

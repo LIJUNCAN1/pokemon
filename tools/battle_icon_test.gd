@@ -27,9 +27,18 @@ func _ready() -> void:
 	_assert(battle.fighter_info_role_icon.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "角色类型图标必须使用最近邻过滤")
 	fighter.shield = 12
 	battle.call("_update_status_icons", fighter)
+	_assert(fighter.status_row is VBoxContainer and fighter.status_row.position.x > fighter.sprite.position.x + fighter.sprite.size.x, "buff icons must stack vertically to the right of the portrait")
 	var shield_root: Control = fighter.status_row.get_child(0)
 	var shield_icon: TextureRect = shield_root.get_child(0)
 	_assert(shield_icon.texture == battle.BATTLE_SHIELD_ICON, "护盾状态没有使用新图标")
+	battle.call("_show_status_info", "护盾 12")
+	var status_style := battle.status_info_panel.get_theme_stylebox("panel") as StyleBoxTexture
+	_assert(status_style != null and status_style.texture == battle.PRESET_INFO_FRAME, "status details must use the supplied preset information frame")
+	if DisplayServer.get_name() != "headless":
+		await get_tree().process_frame
+		var status_capture := get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://battle_status_info.png"))
+		_assert(status_capture == OK, "战斗状态信息框截图失败")
+	battle.call("_hide_status_info")
 	var children_before := battle.get_child_count()
 	battle.call("_play_critical_icon", fighter)
 	_assert(battle.get_child_count() == children_before + 1, "暴击命中没有创建暴击图标动画")

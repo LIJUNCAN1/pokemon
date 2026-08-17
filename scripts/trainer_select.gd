@@ -1,6 +1,7 @@
 extends Control
 
 const FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
+const TRAINER_CATALOG = preload("res://scripts/trainer_catalog.gd")
 const TRAINER_SELECT_ROOT := "res://assets/ui/trainer_select/"
 const TRAINER_PSD_ROOT := "res://assets/ui/trainer_select/psd_exact/"
 const TRAINER_CARD_TINT_SHADER: Shader = preload("res://shaders/trainer_card_hue.gdshader")
@@ -18,47 +19,7 @@ const CARD_SOURCE_SIZE := Vector2(296, 407)
 const CARD_SIZE := Vector2(339, 465)
 const CARD_START := Vector2(92, 135)
 const CARD_STEP_X := 379.0
-const TRAINERS: Array[Dictionary] = [
-	{
-		"id": "researcher",
-		"name": "森野博士",
-		"title": "生态研究员",
-		"art": TRAINER_PSD_ROOT + "portrait_green.png",
-		"passive_prefix": "野外补给：初始金币 ",
-		"passive_value": "+2",
-		"passive_suffix": "",
-		"color": Color("4f9d69"),
-		"hue": 0.42,
-		"element": "植物",
-		"icon_offset": Vector2(-1, 0),
-	},
-	{
-		"id": "vanguard",
-		"name": "赤城",
-		"title": "先锋训练家",
-		"art": TRAINER_PSD_ROOT + "portrait_red.png",
-		"passive_prefix": "斗志昂扬：本轮全队伤害 ",
-		"passive_value": "+6%",
-		"passive_suffix": "",
-		"color": Color("c94e4e"),
-		"hue": 0.0,
-		"element": "火",
-		"icon_offset": Vector2(0, -1),
-	},
-	{
-		"id": "scout",
-		"name": "紫苑",
-		"title": "遗迹探索者",
-		"art": TRAINER_PSD_ROOT + "portrait_yellow.png",
-		"passive_prefix": "可靠伙伴：初始获得一只普通怪兽",
-		"passive_value": "",
-		"passive_suffix": "",
-		"color": Color("b79338"),
-		"hue": 0.13,
-		"element": "雷",
-		"icon_offset": Vector2(0, 2),
-	},
-]
+var TRAINERS: Array[Dictionary] = TRAINER_CATALOG.all()
 
 var selected_index := 0
 var cards: Array[Panel] = []
@@ -138,7 +99,7 @@ func _build_trainer_card(index: int) -> void:
 	# name area.
 	art.position = Vector2.ZERO
 	art.size = card.size
-	art.texture = load(String(data["art"])) as Texture2D
+	art.texture = load(String(data["select_art"])) as Texture2D
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -268,11 +229,11 @@ func _rich_label(bbcode: String, rect: Rect2, font_size: int, color: Color) -> R
 
 
 func _passive_bbcode(data: Dictionary) -> String:
-	var value := String(data["passive_value"])
+	var value := String(data["short_value"])
 	var highlighted := ""
 	if not value.is_empty():
 		highlighted = "[color=#%s]%s[/color]" % [Color(data["color"]).to_html(false), value]
-	return "%s%s%s" % [data["passive_prefix"], highlighted, data["passive_suffix"]]
+	return "%s%s%s" % [data["short_prefix"], highlighted, data["short_suffix"]]
 
 
 func _card_rect(source_rect: Rect2) -> Rect2:

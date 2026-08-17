@@ -177,7 +177,7 @@ func _test_visual_layout_contracts() -> void:
 	var dex := DEX_SCRIPT.new()
 	add_child(dex)
 	await get_tree().process_frame
-	dex.call("_on_tab_pressed", 3)
+	dex.call("_on_tab_pressed", dex.TAB_NAMES.find("训练家"))
 	await get_tree().process_frame
 	_check(dex.monster_page.size.x > dex.monster_scroll.size.x + 100.0, "训练家图鉴没有形成可感知的横向浏览区域")
 	var wheel := InputEventMouseButton.new()

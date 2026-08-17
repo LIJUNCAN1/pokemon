@@ -2,6 +2,7 @@ extends Control
 
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
+const EQUIPMENT_CATALOG = preload("res://scripts/equipment_catalog.gd")
 const RARITY_TAG = preload("res://scripts/rarity_tag_style.gd")
 const ITEM_INFO_TINT_SHADER: Shader = preload("res://assets/ui/item_info/rarity_tint.gdshader")
 const ITEM_INFO_ROOT := "res://assets/ui/item_info/"
@@ -15,6 +16,7 @@ var item_grid: GridContainer
 var count_label: Label
 var accessory_tab: Button
 var item_tab: Button
+var equipment_tab: Button
 var item_info_panel: Panel
 var item_info_dismiss_layer: Button
 var item_info_icon: TextureRect
@@ -96,7 +98,8 @@ func _build_interface() -> void:
 	header.add_child(close)
 
 	accessory_tab = _create_tab(frame, "饰品", Vector2(22, 72), "accessory")
-	item_tab = _create_tab(frame, "道具", Vector2(278, 72), "item")
+	item_tab = _create_tab(frame, "道具", Vector2(194, 72), "item")
+	equipment_tab = _create_tab(frame, "装备", Vector2(366, 72), "equipment")
 
 	var scroll := ScrollContainer.new()
 	scroll.position = Vector2(22, 116)
@@ -121,10 +124,10 @@ func refresh_items() -> void:
 	_hide_item_info()
 	for child in item_grid.get_children():
 		child.queue_free()
-	var source_items: Array = GameState.accessory_inventory if active_kind == "accessory" else GameState.item_inventory
+	var source_items: Array = GameState.accessory_inventory if active_kind == "accessory" else (GameState.item_inventory if active_kind == "item" else GameState.equipment_inventory)
 	var items: Array = []
 	for source_entry in source_items:
-		items.append(ITEM_CATALOG.normalize_entry(source_entry, active_kind))
+		items.append(EQUIPMENT_CATALOG.normalize(source_entry) if active_kind == "equipment" else ITEM_CATALOG.normalize_entry(source_entry, active_kind))
 	items.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		var rarity_a := int(a.get("rarity", 0))
 		var rarity_b := int(b.get("rarity", 0))
@@ -133,7 +136,8 @@ func refresh_items() -> void:
 		return String(a.get("name", "")) < String(b.get("name", ""))
 	)
 	var slot_count := maxi(VISIBLE_SLOT_COUNT, items.size())
-	count_label.text = "%s %d 件" % ["饰品" if active_kind == "accessory" else "道具", items.size()]
+	var kind_name := "饰品" if active_kind == "accessory" else ("道具" if active_kind == "item" else "装备")
+	count_label.text = "%s %d 件" % [kind_name, items.size()]
 	for index in slot_count:
 		_create_item_slot(items[index] if index < items.size() else {}, index)
 	_update_tabs()
@@ -165,7 +169,7 @@ func _create_item_slot(entry: Dictionary, index: int) -> void:
 	var rarity_label := _add_label(slot, ITEM_CATALOG.RARITY_NAMES[rarity], Rect2(66, 40, 86, 23), 10, rarity_color.lightened(0.18), HORIZONTAL_ALIGNMENT_CENTER)
 	var owned_count := _owned_entry_count(entry)
 	var stack_limit := int(entry.get("stack_limit", 1))
-	var rule_text := "唯一饰品" if not String(entry.get("exclusive_group", "")).is_empty() else "持有 %d/%d" % [owned_count, stack_limit]
+	var rule_text := "每名角色最多装备两件" if active_kind == "equipment" else ("唯一饰品" if not String(entry.get("exclusive_group", "")).is_empty() else "持有 %d/%d" % [owned_count, stack_limit])
 	slot.gui_input.connect(_on_item_slot_gui_input.bind(entry, rule_text))
 	if active_kind == "item":
 		var use_button := Button.new()
@@ -176,6 +180,14 @@ func _create_item_slot(entry: Dictionary, index: int) -> void:
 		use_button.gui_input.connect(_on_item_slot_gui_input.bind(entry, rule_text))
 		use_button.pressed.connect(_use_item_entry.bind(entry))
 		slot.add_child(use_button)
+	elif active_kind == "equipment":
+		var equip_button := Button.new()
+		equip_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		equip_button.flat = true
+		equip_button.focus_mode = Control.FOCUS_NONE
+		equip_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		equip_button.pressed.connect(_equip_entry.bind(entry))
+		slot.add_child(equip_button)
 
 
 func _build_item_info_panel(parent: Control) -> void:
@@ -322,13 +334,25 @@ func _show_item_info(entry: Dictionary, rule_text: String) -> void:
 	item_info_name.text = String(entry["name"])
 	RARITY_TAG.apply(item_info_rarity, [0, 2, 3][rarity])
 	_apply_item_info_rarity(RARITY_COLORS[rarity])
-	item_info_type.text = "✦ %s" % ("饰品" if active_kind == "accessory" else "道具")
+	item_info_type.text = "✦ %s" % ("饰品" if active_kind == "accessory" else ("道具" if active_kind == "item" else "装备"))
 	item_info_effect_rich.text = _blue_item_values(String(entry["effect"]))
 	item_info_rule_rich.text = _blue_item_values(rule_text)
 	item_info_dismiss_layer.visible = true
 	item_info_panel.visible = true
 	item_info_dismiss_layer.move_to_front()
 	item_info_panel.move_to_front()
+
+
+func show_entry_info(entry: Dictionary, rule_text := "") -> void:
+	var normalized := EQUIPMENT_CATALOG.normalize(entry) if String(entry.get("kind", "")) == "equipment" else ITEM_CATALOG.normalize_entry(entry, active_kind)
+	if normalized.is_empty():
+		return
+	if String(normalized.get("kind", "")) == "equipment":
+		active_kind = "equipment"
+		_update_tabs()
+		_show_item_info(normalized, rule_text if not String(rule_text).is_empty() else "每名角色最多装备两件")
+	else:
+		_show_item_info(normalized, rule_text)
 
 
 func _hide_item_info() -> void:
@@ -339,7 +363,7 @@ func _hide_item_info() -> void:
 
 
 func _owned_entry_count(entry: Dictionary) -> int:
-	var inventory: Array = GameState.accessory_inventory if active_kind == "accessory" else GameState.item_inventory
+	var inventory: Array = GameState.accessory_inventory if active_kind == "accessory" else (GameState.item_inventory if active_kind == "item" else GameState.equipment_inventory)
 	var count := 0
 	for owned in inventory:
 		if int(owned.get("id", -1)) == int(entry.get("id", -2)):
@@ -350,7 +374,7 @@ func _owned_entry_count(entry: Dictionary) -> int:
 func _create_tab(parent: Control, text: String, position: Vector2, kind: String) -> Button:
 	var button := Button.new()
 	button.position = position
-	button.size = Vector2(250, 36)
+	button.size = Vector2(162, 36)
 	button.text = text
 	button.focus_mode = Control.FOCUS_NONE
 	button.add_theme_font_override("font", source_han_font)
@@ -366,7 +390,7 @@ func _select_tab(kind: String) -> void:
 
 
 func _update_tabs() -> void:
-	for pair in [[accessory_tab, "accessory"], [item_tab, "item"]]:
+	for pair in [[accessory_tab, "accessory"], [item_tab, "item"], [equipment_tab, "equipment"]]:
 		var button := pair[0] as Button
 		var selected := active_kind == String(pair[1])
 		button.disabled = selected
@@ -397,6 +421,12 @@ func _use_item_entry(entry: Dictionary) -> void:
 			break
 	if inventory_index >= 0:
 		_use_item(inventory_index)
+
+
+func _equip_entry(entry: Dictionary) -> void:
+	var parent_control := get_parent()
+	if parent_control and parent_control.has_method("equip_selected_creature") and bool(parent_control.call("equip_selected_creature", entry)):
+		refresh_items()
 
 
 func _add_label(parent: Control, text: String, rect: Rect2, font_size: int, color: Color, alignment := HORIZONTAL_ALIGNMENT_LEFT) -> Label:

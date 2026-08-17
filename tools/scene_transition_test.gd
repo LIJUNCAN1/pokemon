@@ -1,5 +1,7 @@
 extends Node
 
+const BATTLE_INTRO_SCRIPT = preload("res://scripts/battle_intro.gd")
+
 var failed := false
 var expected_scene_name := ""
 
@@ -12,6 +14,10 @@ func _run() -> void:
 	GameState.reset_run()
 	GameState.has_started_new_game = true
 	GameState.apply_trainer_choice("vanguard")
+	_assert(SceneManager.default_options["pattern"] == "diagonal", "ordinary scenes must use the diagonal transition")
+	_assert(SceneManager.default_options["pattern"] != BATTLE_INTRO_SCRIPT.BATTLE_REVEAL_TRANSITION["pattern"], "ordinary scenes must not reuse the VS battle curtains")
+	_assert(BATTLE_INTRO_SCRIPT.BATTLE_REVEAL_TRANSITION["pattern"] == "clean_curtains", "VS battle reveal must use the clean symmetric curtain mask")
+	_assert(BATTLE_INTRO_SCRIPT.BATTLE_REVEAL_TRANSITION["color"] == Color.BLACK, "VS closing curtains and plugin reveal must use the same pure black")
 	await _verify_transition("res://trainer_select.tscn", "TrainerSelect")
 	await _verify_transition("res://map.tscn", "RunMap")
 	if not failed:

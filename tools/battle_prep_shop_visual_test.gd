@@ -16,11 +16,23 @@ const CREATURES: Array[String] = [
 
 func _ready() -> void:
 	GameState.reset_run()
+	GameState.apply_trainer_choice("vanguard")
 	GameState.coins = 12
 	GameState.run_lives = 3
 	var prep := PREP_SCENE.instantiate()
 	add_child(prep)
 	await get_tree().process_frame
+	_assert(is_instance_valid(prep.trainer_skill_panel) and prep.trainer_skill_panel.size == Vector2(58, 58), "trainer skill must use the compact icon control")
+	var trainer_icons: Array[Node] = prep.trainer_skill_panel.find_children("*", "TextureRect", true, false)
+	_assert(not trainer_icons.is_empty() and (trainer_icons[0] as TextureRect).texture.resource_path.ends_with("战斗号令.png"), "vanguard trainer skill must use the supplied command icon")
+	var trainer_inspect := InputEventMouseButton.new()
+	trainer_inspect.button_index = MOUSE_BUTTON_RIGHT
+	trainer_inspect.pressed = true
+	prep._on_trainer_skill_gui_input(trainer_inspect)
+	_assert(is_instance_valid(prep.trainer_skill_detail) and prep.trainer_skill_detail.visible, "right-clicking the trainer skill icon must open its details")
+	await _capture("res://trainer_skill_icon_detail.png")
+	prep.trainer_skill_detail.queue_free()
+	prep.trainer_skill_detail = null
 	await get_tree().process_frame
 	for rarity_index in RARITY_TAG.KEYS.size():
 		var tag_texture := RARITY_TAG.texture(rarity_index)
