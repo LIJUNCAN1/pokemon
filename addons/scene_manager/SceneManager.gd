@@ -85,10 +85,10 @@ var _current_scene: Node
 ## To differ per side, pass [code]pattern_enter[/code] / [code]pattern_leave[/code] or
 ## [code]ease_enter[/code] / [code]ease_leave[/code] instead, which take priority.
 var default_options := {
-	"speed": 1.5,
-	"color": Color("#07111f"),
-	"pattern": "curtains",
-	"wait_time": 0.04,
+	"speed": 1.7,
+	"color": Color("#0b1b2b"),
+	"pattern": "diagonal",
+	"wait_time": 0.02,
 	"invert_on_enter": false,
 	"invert_on_leave": true,
 	"ease": 1.0,
@@ -110,6 +110,7 @@ var _pending_loads := { }
 var _ready_scenes := { }
 var _discarded_loads := { }
 var _failed_loads := { }
+var _generated_patterns := { }
 
 
 func _ready() -> void:
@@ -129,8 +130,29 @@ func _load_pattern(pattern) -> Texture:
 			return load(pattern)
 		if pattern == 'fade':
 			return null
+		if pattern == 'clean_curtains':
+			return _clean_curtain_pattern()
 		return load("res://addons/scene_manager/shader_patterns/%s.png" % pattern)
 	return pattern
+
+
+func _clean_curtain_pattern() -> Texture2D:
+	if _generated_patterns.has("clean_curtains"):
+		return _generated_patterns["clean_curtains"]
+	# Generate a perfectly symmetric horizontal ramp. Unlike the old imported
+	# PNG, every row is identical and contains no compression or dither noise.
+	const WIDTH := 512
+	const HEIGHT := 2
+	var image := Image.create(WIDTH, HEIGHT, false, Image.FORMAT_RGBA8)
+	for x in WIDTH:
+		var normalized_x := float(x) / float(WIDTH - 1)
+		var value := 1.0 - absf(normalized_x * 2.0 - 1.0)
+		var color := Color(value, value, value, 1.0)
+		for y in HEIGHT:
+			image.set_pixel(x, y, color)
+	var texture := ImageTexture.create_from_image(image)
+	_generated_patterns["clean_curtains"] = texture
+	return texture
 
 
 func _get_final_options(initial_options: Dictionary) -> Dictionary:

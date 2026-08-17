@@ -2,28 +2,32 @@ extends Node
 
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
 const CREATURE_CATALOG = preload("res://scripts/creature_catalog.gd")
+const TRAINER_CATALOG = preload("res://scripts/trainer_catalog.gd")
+const EQUIPMENT_CATALOG = preload("res://scripts/equipment_catalog.gd")
 const ACHIEVEMENT_TROPHY := 1
 const ACHIEVEMENT_MEDAL := 2
 const ACHIEVEMENT_STAR := 4
-const STARTING_COINS := 8
-const BATTLE_BASE_GOLD := 5
-const ELITE_BATTLE_BONUS := 2
-const BOSS_BATTLE_BONUS := 5
-const MAX_INTEREST_GOLD := 5
-const EVENT_GOLD_SMALL := 3
-const EVENT_GOLD_MEDIUM := 4
-const EVENT_GOLD_LARGE := 5
-const CHEST_GOLD_MIN := 4
-const CHEST_GOLD_MAX := 6
-const FIRST_BATTLE_CHEST_GOLD := 3
+const STARTING_COINS := 12
+const BATTLE_BASE_GOLD := 9
+const ELITE_BATTLE_BONUS := 5
+const BOSS_BATTLE_BONUS := 10
+const MAX_INTEREST_GOLD := 8
+const EVENT_GOLD_SMALL := 6
+const EVENT_GOLD_MEDIUM := 9
+const EVENT_GOLD_LARGE := 12
+const CHEST_GOLD_MIN := 8
+const CHEST_GOLD_MAX := 12
+const FIRST_BATTLE_CHEST_GOLD := 8
 const CREATURE_BUY_PRICES: Array[int] = [1, 2, 3, 4, 5]
-const CREATURE_STAR_COPIES: Array[int] = [1, 3, 9]
+const CREATURE_STAR_COPIES: Array[int] = [1, 3, 6]
 const CREATURE_SELL_RATE := 0.70
 const SAVE_PATH := "user://run_save.cfg"
 const MAX_FLOORS := 9
 const FLOORS_PER_REGION := 3
 const MAX_RUN_LIVES := 3
-const CREATURE_POOL_COPIES: Array[int] = [10, 8, 6, 4, 2]
+const CREATURE_POOL_COPIES: Array[int] = [10, 8, 6, 6, 6]
+const LEGACY_CREATURE_POOL_COPIES: Array[int] = [10, 8, 6, 4, 2]
+const STAR_RULE_VERSION := 2
 
 var coins := STARTING_COINS
 var run_lives := 3
@@ -34,12 +38,16 @@ var player_team: Array[String] = []
 var player_bench: Array[String] = []
 var player_team_levels: Array[int] = []
 var player_bench_levels: Array[int] = []
+var player_team_equipment: Array = []
+var player_bench_equipment: Array = []
 var item_inventory: Array[Dictionary] = []
 var accessory_inventory: Array[Dictionary] = []
+var equipment_inventory: Array[Dictionary] = []
 var creature_shop_pool: Dictionary = {}
 var seen_creatures: Dictionary = {}
 var seen_items: Dictionary = {}
 var seen_accessories: Dictionary = {}
+var seen_equipment: Dictionary = {}
 var creature_achievements: Dictionary = {}
 var creature_progress: Dictionary = {}
 var unlocked_trainers: Dictionary = {}
@@ -59,6 +67,9 @@ var next_battle_charge_bonus := 0.0
 var battle_victories := 0
 var has_started_new_game := false
 var trainer_id := ""
+var trainer_prep_token := ""
+var trainer_skill_state: Dictionary = {}
+var trainer_battle_boost_pending := false
 var tutorial_completed := false
 
 
@@ -72,8 +83,11 @@ func reset_run() -> void:
 	player_bench.clear()
 	player_team_levels.clear()
 	player_bench_levels.clear()
+	player_team_equipment.clear()
+	player_bench_equipment.clear()
 	item_inventory.clear()
 	accessory_inventory.clear()
+	equipment_inventory.clear()
 	_reset_creature_shop_pool()
 	map_initialized = false
 	map_intro_played = false
@@ -90,42 +104,130 @@ func reset_run() -> void:
 	next_battle_charge_bonus = 0.0
 	battle_victories = 0
 	trainer_id = ""
+	trainer_prep_token = ""
+	trainer_skill_state.clear()
+	trainer_battle_boost_pending = false
 
 
 func apply_trainer_choice(choice: String) -> void:
 	trainer_id = choice
 	unlocked_trainers[choice] = true
+	trainer_prep_token = ""
+	trainer_skill_state.clear()
+	trainer_battle_boost_pending = false
+
+
+func begin_preparation() -> void:
+	var token := "%d:%d:%d" % [floor, region, current_map_node]
+	if trainer_prep_token == token:
+		return
+	trainer_prep_token = token
+	trainer_skill_state = {
+		"uses": 0,
+		"researcher_elements": [],
+		"researcher_triggers": 0,
+		"scout_free_refresh": trainer_id == "scout",
+	}
+	save_run()
+
+
+func activate_trainer_skill() -> Dictionary:
+	begin_preparation()
+	if trainer_id.is_empty() or not TRAINER_CATALOG.is_active(trainer_id):
+		return {"ok": false, "message": "该训练家使用被动技能"}
+	if int(trainer_skill_state.get("uses", 0)) >= 1:
+		return {"ok": false, "message": "本轮训练家技能已经使用"}
+	var data := TRAINER_CATALOG.data(trainer_id)
+	var cost := int(data.get("cost", 0))
+	if not try_spend_coins(cost):
+		return {"ok": false, "message": "金币不足"}
+	trainer_skill_state["uses"] = int(trainer_skill_state.get("uses", 0)) + 1
+	if trainer_id == "vanguard":
+		trainer_battle_boost_pending = true
+	save_run()
+	return {"ok": true, "message": "%s已激活" % String(data["skill_name"])}
+
+
+func record_trainer_creature_purchase(texture_path: String) -> int:
+	begin_preparation()
+	if trainer_id != "researcher":
+		return 0
+	var elements := CREATURE_CATALOG.elements_for_texture(texture_path)
+	if elements.is_empty():
+		return 0
+	var seen_elements: Array = Array(trainer_skill_state.get("researcher_elements", []))
+	var element := String(elements[0])
+	if element in seen_elements:
+		return 0
+	seen_elements.append(element)
+	trainer_skill_state["researcher_elements"] = seen_elements
+	var data := TRAINER_CATALOG.data(trainer_id)
+	var triggers := int(trainer_skill_state.get("researcher_triggers", 0))
+	var earned := 0
+	if seen_elements.size() >= (triggers + 1) * int(data.get("elements_per_reward", 2)) and triggers < int(data.get("max_triggers", 2)):
+		triggers += 1
+		trainer_skill_state["researcher_triggers"] = triggers
+		add_coins(1)
+		earned = 1
+	save_run()
+	return earned
+
+
+func consume_scout_free_refresh() -> bool:
+	begin_preparation()
+	if trainer_id != "scout" or not bool(trainer_skill_state.get("scout_free_refresh", false)):
+		return false
+	trainer_skill_state["scout_free_refresh"] = false
+	save_run()
+	return true
+
+
+func trainer_skill_progress_text() -> String:
+	begin_preparation()
 	match trainer_id:
 		"researcher":
-			coins += 2
+			var elements := Array(trainer_skill_state.get("researcher_elements", [])).size()
+			var triggers := int(trainer_skill_state.get("researcher_triggers", 0))
+			return "%d/4 元素 · %d/2 奖励" % [elements, triggers]
 		"vanguard":
-			run_damage_bonus += 0.06
+			return "已激活" if trainer_battle_boost_pending else ("本轮已使用" if int(trainer_skill_state.get("uses", 0)) > 0 else "消耗 2G")
 		"scout":
-			var starters := CREATURE_CATALOG.textures_for_rarity(0)
-			if not starters.is_empty():
-				var starter := starters[posmod(map_seed + 7, starters.size())]
-				player_bench = [starter]
-				player_bench_levels = [1]
-				take_creature_from_pool(starter)
-				mark_creature_seen(starter)
+			return "首次刷新免费" if bool(trainer_skill_state.get("scout_free_refresh", false)) else "本轮已触发"
+	return ""
+
+
+func take_trainer_battle_effect() -> Dictionary:
+	if trainer_id != "vanguard" or not trainer_battle_boost_pending:
+		return {}
+	trainer_battle_boost_pending = false
+	save_run()
+	var data := TRAINER_CATALOG.data(trainer_id)
+	return {
+		"name": String(data["skill_name"]),
+		"attack_bonus": float(data["attack_bonus"]),
+		"attack_speed_bonus": float(data["attack_speed_bonus"]),
+		"duration": float(data["duration"]),
+	}
 
 
 func has_unlocked_trainer(choice: String) -> bool:
 	return bool(unlocked_trainers.get(choice, false))
 
 
-func set_player_team(team: Array[String], levels: Array[int] = []) -> void:
+func set_player_team(team: Array[String], levels: Array[int] = [], equipment: Array = []) -> void:
 	player_team = team.duplicate()
 	player_team_levels = _normalized_creature_levels(player_team, levels)
+	player_team_equipment = _normalized_creature_equipment(player_team, equipment)
 	for index in player_team.size():
 		if not player_team[index].is_empty():
 			mark_creature_owned(player_team[index], player_team_levels[index])
 	save_run()
 
 
-func set_player_bench(bench: Array[String], levels: Array[int] = []) -> void:
+func set_player_bench(bench: Array[String], levels: Array[int] = [], equipment: Array = []) -> void:
 	player_bench = bench.duplicate()
 	player_bench_levels = _normalized_creature_levels(player_bench, levels)
+	player_bench_equipment = _normalized_creature_equipment(player_bench, equipment)
 	for index in player_bench.size():
 		if not player_bench[index].is_empty():
 			mark_creature_owned(player_bench[index], player_bench_levels[index])
@@ -140,6 +242,33 @@ func _normalized_creature_levels(creatures: Array[String], levels: Array[int]) -
 		else:
 			result.append(clampi(levels[index] if index < levels.size() else 1, 1, 3))
 	return result
+
+
+func _normalized_creature_equipment(creatures: Array[String], equipment: Array) -> Array:
+	var result: Array = []
+	for index in creatures.size():
+		var slots: Array[String] = []
+		if not creatures[index].is_empty() and index < equipment.size() and equipment[index] is Array:
+			for equipment_id in Array(equipment[index]):
+				var id := String(equipment_id)
+				if not EQUIPMENT_CATALOG.data(id).is_empty() and id not in slots and slots.size() < 2:
+					slots.append(id)
+		result.append(slots)
+	return result
+
+
+func add_equipment(value: Variant) -> Dictionary:
+	var entry := EQUIPMENT_CATALOG.normalize(value)
+	if entry.is_empty():
+		return {}
+	equipment_inventory.append(entry)
+	seen_equipment[String(entry["id"])] = true
+	save_run()
+	return entry
+
+
+func has_seen_equipment(equipment_id: String) -> bool:
+	return bool(seen_equipment.get(equipment_id, false))
 
 
 func add_item(value: Variant) -> Dictionary:
@@ -251,11 +380,11 @@ func try_spend_coins(amount: int) -> bool:
 func battle_gold_breakdown(node_type: String) -> Dictionary:
 	var node_bonus := 0
 	match node_type:
-		"elite": node_bonus = ELITE_BATTLE_BONUS + floori(float(floor - 1) / FLOORS_PER_REGION)
-		"boss": node_bonus = BOSS_BATTLE_BONUS + maxi(region - 1, 0)
-	var scaled_base := BATTLE_BASE_GOLD + floori(float(floor - 1) / FLOORS_PER_REGION)
+		"elite": node_bonus = ELITE_BATTLE_BONUS + maxi(region - 1, 0) * 2
+		"boss": node_bonus = BOSS_BATTLE_BONUS + maxi(region - 1, 0) * 2 + maxi(region - 2, 0)
+	var scaled_base := BATTLE_BASE_GOLD + maxi(region - 1, 0) * 2
 	var interest_cap := MAX_INTEREST_GOLD + roundi(accessory_effect_total("interest_cap"))
-	var interest := mini(coins / 10, interest_cap)
+	var interest := mini(coins / 5, interest_cap)
 	var accessory_gold := roundi(accessory_effect_total("battle_gold"))
 	return {
 		"base": scaled_base,
@@ -299,6 +428,8 @@ func chest_gold_range() -> Vector2i:
 func creature_sell_value(rarity: int, level: int) -> int:
 	var safe_rarity := clampi(rarity, 0, CREATURE_BUY_PRICES.size() - 1)
 	var safe_level := clampi(level, 1, CREATURE_STAR_COPIES.size())
+	if safe_level == 1:
+		return shop_price(CREATURE_BUY_PRICES[safe_rarity])
 	var invested := CREATURE_BUY_PRICES[safe_rarity] * CREATURE_STAR_COPIES[safe_level - 1]
 	return maxi(1, floori(float(invested) * CREATURE_SELL_RATE))
 
@@ -322,6 +453,16 @@ func _reset_creature_shop_pool() -> void:
 	for texture_path in CREATURE_CATALOG.all_textures():
 		var rarity := CREATURE_CATALOG.rarity_for_texture(texture_path)
 		creature_shop_pool[texture_path] = CREATURE_POOL_COPIES[rarity]
+
+
+func _migrate_creature_pool_for_two_copy_three_star() -> void:
+	for texture_path in CREATURE_CATALOG.all_textures():
+		var rarity := CREATURE_CATALOG.rarity_for_texture(texture_path)
+		var old_maximum := LEGACY_CREATURE_POOL_COPIES[rarity]
+		var new_maximum := CREATURE_POOL_COPIES[rarity]
+		var old_remaining := clampi(int(creature_shop_pool.get(texture_path, old_maximum)), 0, old_maximum)
+		var purchased_copies := old_maximum - old_remaining
+		creature_shop_pool[texture_path] = maxi(new_maximum - purchased_copies, 0)
 
 
 func available_creatures_for_rarity(rarity: int) -> Array[String]:
@@ -355,17 +496,22 @@ func add_creature_reward(texture_path: String) -> bool:
 	if player_bench.size() < 4:
 		player_bench.append(texture_path)
 		player_bench_levels.append(1)
+		player_bench_equipment.append([])
 		return true
 	for index in player_team.size():
 		if player_team[index].is_empty():
 			player_team[index] = texture_path
 			while player_team_levels.size() <= index:
 				player_team_levels.append(0)
+			while player_team_equipment.size() <= index:
+				player_team_equipment.append([])
 			player_team_levels[index] = 1
+			player_team_equipment[index] = []
 			return true
 	if player_team.size() < 6:
 		player_team.append(texture_path)
 		player_team_levels.append(1)
+		player_team_equipment.append([])
 		return true
 	return false
 
@@ -543,16 +689,20 @@ func save_run() -> void:
 		return
 	var config := ConfigFile.new()
 	config.set_value("run", "active", true)
+	config.set_value("run", "star_rule_version", STAR_RULE_VERSION)
 	config.set_value("run", "coins", coins)
 	config.set_value("run", "lives", run_lives)
 	config.set_value("run", "floor", floor)
 	config.set_value("run", "region", region)
 	config.set_value("run", "team", player_team)
 	config.set_value("run", "team_levels", player_team_levels)
+	config.set_value("run", "team_equipment", player_team_equipment)
 	config.set_value("run", "bench", player_bench)
 	config.set_value("run", "bench_levels", player_bench_levels)
+	config.set_value("run", "bench_equipment", player_bench_equipment)
 	config.set_value("run", "items", item_inventory)
 	config.set_value("run", "accessories", accessory_inventory)
+	config.set_value("run", "equipment", equipment_inventory)
 	config.set_value("run", "creature_shop_pool", creature_shop_pool)
 	config.set_value("run", "map_initialized", map_initialized)
 	config.set_value("run", "map_intro_played", map_intro_played)
@@ -569,9 +719,13 @@ func save_run() -> void:
 	config.set_value("run", "next_charge_bonus", next_battle_charge_bonus)
 	config.set_value("run", "battle_victories", battle_victories)
 	config.set_value("run", "trainer_id", trainer_id)
+	config.set_value("run", "trainer_prep_token", trainer_prep_token)
+	config.set_value("run", "trainer_skill_state", trainer_skill_state)
+	config.set_value("run", "trainer_battle_boost_pending", trainer_battle_boost_pending)
 	config.set_value("meta", "seen_creatures", seen_creatures)
 	config.set_value("meta", "seen_items", seen_items)
 	config.set_value("meta", "seen_accessories", seen_accessories)
+	config.set_value("meta", "seen_equipment", seen_equipment)
 	config.set_value("meta", "creature_achievements", creature_achievements)
 	config.set_value("meta", "creature_progress", creature_progress)
 	config.set_value("meta", "tutorial_completed", tutorial_completed)
@@ -589,13 +743,18 @@ func load_run() -> bool:
 	region = maxi(int(config.get_value("run", "region", 1)), 1)
 	player_team = _string_array(config.get_value("run", "team", []))
 	player_team_levels = _int_array(config.get_value("run", "team_levels", []))
+	player_team_equipment = _normalized_creature_equipment(player_team, Array(config.get_value("run", "team_equipment", [])))
 	player_bench = _string_array(config.get_value("run", "bench", []))
 	player_bench_levels = _int_array(config.get_value("run", "bench_levels", []))
+	player_bench_equipment = _normalized_creature_equipment(player_bench, Array(config.get_value("run", "bench_equipment", [])))
 	item_inventory = _dictionary_array(config.get_value("run", "items", []))
 	accessory_inventory = _dictionary_array(config.get_value("run", "accessories", []))
+	equipment_inventory = _dictionary_array(config.get_value("run", "equipment", []))
 	creature_shop_pool = Dictionary(config.get_value("run", "creature_shop_pool", {}))
 	if creature_shop_pool.is_empty():
 		_reset_creature_shop_pool()
+	elif int(config.get_value("run", "star_rule_version", 1)) < STAR_RULE_VERSION:
+		_migrate_creature_pool_for_two_copy_three_star()
 	map_initialized = bool(config.get_value("run", "map_initialized", false))
 	map_intro_played = bool(config.get_value("run", "map_intro_played", false))
 	map_seed = int(config.get_value("run", "map_seed", 0))
@@ -611,9 +770,13 @@ func load_run() -> bool:
 	next_battle_charge_bonus = float(config.get_value("run", "next_charge_bonus", 0.0))
 	battle_victories = int(config.get_value("run", "battle_victories", 0))
 	trainer_id = String(config.get_value("run", "trainer_id", ""))
+	trainer_prep_token = String(config.get_value("run", "trainer_prep_token", ""))
+	trainer_skill_state = Dictionary(config.get_value("run", "trainer_skill_state", {}))
+	trainer_battle_boost_pending = bool(config.get_value("run", "trainer_battle_boost_pending", false))
 	seen_creatures = Dictionary(config.get_value("meta", "seen_creatures", {}))
 	seen_items = Dictionary(config.get_value("meta", "seen_items", {}))
 	seen_accessories = Dictionary(config.get_value("meta", "seen_accessories", {}))
+	seen_equipment = Dictionary(config.get_value("meta", "seen_equipment", {}))
 	creature_achievements = Dictionary(config.get_value("meta", "creature_achievements", {}))
 	creature_progress = Dictionary(config.get_value("meta", "creature_progress", {}))
 	for key in seen_creatures:

@@ -2,6 +2,7 @@ extends Node
 
 const PREP_SCENE: PackedScene = preload("res://battle_prep.tscn")
 const BATTLE_SCENE: PackedScene = preload("res://battle.tscn")
+const CATALOG = preload("res://scripts/creature_catalog.gd")
 const TEST_CREATURE := "res://素材/宝可梦图/1 (1).png"
 const FILLER_A := "res://素材/宝可梦图/1 (2).png"
 const FILLER_B := "res://素材/宝可梦图/1 (3).png"
@@ -37,11 +38,29 @@ func _ready() -> void:
 	_assert(_visible_star_count(prep.creature_star_rows[merged_slot]) == 2, "2-star card should show two star icons")
 	_assert(prep.shop_sold_out_overlays[0].visible, "purchased shop card should show sold-out art")
 	_assert(is_equal_approx(prep.shop_sold_out_overlays[0].rotation, deg_to_rad(-30.0)), "sold-out art should rotate 30 degrees to the left")
+	var second_two_star_slot := -1
+	for slot_index in prep.creature_data.size():
+		if prep.creature_data[slot_index].is_empty():
+			second_two_star_slot = slot_index
+			break
+	_assert(second_two_star_slot >= 0, "merge test requires one empty slot for the second 2-star copy")
+	prep.creature_data[second_two_star_slot] = TEST_CREATURE
+	prep.creature_levels[second_two_star_slot] = 2
+	prep._render_creature_slot(second_two_star_slot)
+	_assert(prep._resolve_creature_merges(TEST_CREATURE) == 3, "two 2-star copies should produce one 3-star copy")
+	var three_star_slots: Array[int] = prep._matching_creature_slots(TEST_CREATURE, 3)
+	_assert(three_star_slots.size() == 1, "exactly one 3-star copy should remain after merging two 2-star copies")
+	_assert(prep._matching_creature_slots(TEST_CREATURE, 2).is_empty(), "no 2-star copy should remain after the 3-star merge")
+	# Restore the original two-star setup for the existing persistence and battle assertions.
+	merged_slot = three_star_slots[0]
+	prep.creature_levels[merged_slot] = 2
+	prep._render_creature_slot(merged_slot)
 
 	prep._save_current_team()
 	_assert(GameState.player_bench_levels.has(2), "merged star level should persist in GameState")
-	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://merge_shop_visual.png"))
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://merge_shop_visual.png"))
 
 	prep.queue_free()
 	await get_tree().process_frame
@@ -57,11 +76,13 @@ func _ready() -> void:
 			break
 	_assert(player_fighter != null, "battle should create the merged player creature")
 	_assert(player_fighter.level == 2, "battle should receive the saved star level")
-	_assert(player_fighter.max_hp == 144, "2-star battle health should be doubled")
-	_assert(is_equal_approx(player_fighter.damage_multiplier, 2.0), "2-star battle damage should be doubled")
+	var growth := CATALOG.star_growth_for_texture(TEST_CREATURE, 2)
+	var expected_hp := roundi(CATALOG.base_hp_for_texture(TEST_CREATURE) * CATALOG.rarity_stat_multiplier(TEST_CREATURE) * float(growth["hp"]))
+	var expected_damage_multiplier := CATALOG.rarity_stat_multiplier(TEST_CREATURE) * float(growth["damage"])
+	_assert(player_fighter.max_hp == expected_hp, "2-star battle health should use the current catalog growth")
+	_assert(is_equal_approx(player_fighter.damage_multiplier, expected_damage_multiplier), "2-star battle damage should use the current catalog growth")
 
 	print("CREATURE_MERGE_TEST: PASS")
-	battle._release_battle_audio()
 	battle.queue_free()
 	await get_tree().process_frame
 	get_tree().quit()

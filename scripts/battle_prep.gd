@@ -3,7 +3,9 @@ extends Control
 const SOURCE_HAN_FONT: FontFile = preload("res://assets/fonts/SourceHanSansSC-Heavy.otf")
 const STAT_PIXEL_FONT: FontFile = preload("res://assets/fonts/ark-pixel-12px-proportional-zh_cn.ttf")
 const CATALOG = preload("res://scripts/creature_catalog.gd")
+const TRAINER_CATALOG = preload("res://scripts/trainer_catalog.gd")
 const ITEM_CATALOG = preload("res://scripts/item_catalog.gd")
+const EQUIPMENT_CATALOG = preload("res://scripts/equipment_catalog.gd")
 const RARITY_TAG = preload("res://scripts/rarity_tag_style.gd")
 const STAT_BADGE_SHADER: Shader = preload("res://shaders/stat_badge.gdshader")
 const DEX_OVERLAY_SCENE: PackedScene = preload("res://dex_overlay.tscn")
@@ -66,9 +68,11 @@ const SHOP_CARD_ASSETS: Array[String] = [
 	"res://assets/ui/shop_card/card_legendary.png",
 ]
 const SHOP_CARD_COIN_ICON := "res://素材/主菜单/精灵图-0001.png"
+const PRESET_INFO_FRAME: Texture2D = preload("res://素材/主菜单/13_切图_13 拷贝.png")
 const SHOP_CARD_COUNT := 5
 const SHOP_ITEM_CHANCE := 0.58
 const SHOP_ACCESSORY_CHANCE := 0.46
+const SHOP_EQUIPMENT_CHANCE := 0.30
 const TRAIT_ICON_PATHS: Dictionary = {
 	"自然": "res://assets/ui/trait_icons/new_set/nature.png",
 	"火": "res://assets/ui/trait_icons/new_set/fire.png",
@@ -136,6 +140,8 @@ var creature_masks: Array[ColorRect] = []
 var creature_selection_frames: Array[TextureRect] = []
 var creature_data: Array[String] = []
 var creature_levels: Array[int] = []
+var creature_equipment: Array = []
+var creature_equipment_icons: Array = []
 var selected_slot := -1
 var drag_source_slot := -1
 var shop_sprites: Array[TextureRect] = []
@@ -253,10 +259,15 @@ var item_tooltip_type: Label
 var item_tooltip_effect: RichTextLabel
 var item_tooltip_rule: RichTextLabel
 var item_tooltip_divider: Control
+var trainer_skill_panel: Panel
+var trainer_skill_button: Button
+var trainer_skill_progress: Label
+var trainer_skill_detail: Panel
 
 
 func _ready() -> void:
 	_apply_full_hd_layout()
+	GameState.begin_preparation()
 	# Map and preparation intentionally share one track. The global manager
 	# keeps playback position instead of restarting it between both scenes.
 	MusicManager.play_music(MAP_PREP_MUSIC, 1.2)
@@ -331,12 +342,94 @@ func _build_top_bar() -> void:
 	stripe.color = Color(0.42, 0.9, 1.0, 0.9)
 	bar.add_child(stripe)
 	_build_health_display()
+	_build_trainer_skill_control()
 	_add_label(self, "远 征 准 备", Rect2(500, 7, 280, 54), 34, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_add_icon_button(UI + "01_切图_1.png", Rect2(1068, 5, 58, 58), _open_inventory, "打开物品栏")
 	_add_static_icon_button("res://assets/ui/collection_book_icon.png", Rect2(1137, 7, 52, 52), _open_dex, "打开图鉴")
 	_add_icon_button("res://素材/地图/设置icon.png", Rect2(1202, 6, 56, 56), _on_settings_pressed, "设置")
 	inventory_count_label = _add_label(self, "", Rect2(1101, 43, 24, 24), 18, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 	_refresh_inventory_count()
+
+
+func _build_trainer_skill_control() -> void:
+	if GameState.trainer_id.is_empty():
+		return
+	var data := TRAINER_CATALOG.data(GameState.trainer_id)
+	trainer_skill_panel = Panel.new()
+	trainer_skill_panel.position = Vector2(182, 7)
+	trainer_skill_panel.size = Vector2(58, 58)
+	trainer_skill_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	add_child(trainer_skill_panel)
+	var skill_icon := _add_texture(trainer_skill_panel, String(data["skill_icon"]), Rect2(5, 5, 48, 48))
+	skill_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	skill_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	trainer_skill_button = Button.new()
+	trainer_skill_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	trainer_skill_button.flat = true
+	trainer_skill_button.focus_mode = Control.FOCUS_NONE
+	trainer_skill_button.tooltip_text = ""
+	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+		trainer_skill_button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	trainer_skill_button.pressed.connect(_on_trainer_skill_pressed)
+	trainer_skill_button.gui_input.connect(_on_trainer_skill_gui_input)
+	trainer_skill_panel.add_child(trainer_skill_button)
+	_refresh_trainer_skill_control()
+
+
+func _refresh_trainer_skill_control() -> void:
+	if not is_instance_valid(trainer_skill_panel):
+		return
+	if is_instance_valid(trainer_skill_progress):
+		trainer_skill_progress.text = GameState.trainer_skill_progress_text()
+	var data := TRAINER_CATALOG.data(GameState.trainer_id)
+	var unavailable := TRAINER_CATALOG.is_active(GameState.trainer_id) and (
+		int(GameState.trainer_skill_state.get("uses", 0)) > 0 or GameState.coins < int(data.get("cost", 0))
+	)
+	trainer_skill_panel.modulate = Color(0.62, 0.62, 0.62, 1.0) if unavailable else Color.WHITE
+
+
+func _on_trainer_skill_pressed() -> void:
+	var data := TRAINER_CATALOG.data(GameState.trainer_id)
+	if not TRAINER_CATALOG.is_active(GameState.trainer_id):
+		_set_notice(String(data["description"]))
+		return
+	var result := GameState.activate_trainer_skill()
+	_sync_coins()
+	_refresh_trainer_skill_control()
+	_set_notice(String(result["message"]))
+
+
+func _on_trainer_skill_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if is_instance_valid(trainer_skill_detail):
+			trainer_skill_detail.queue_free()
+			trainer_skill_detail = null
+		else:
+			_show_trainer_skill_detail()
+		get_viewport().set_input_as_handled()
+
+
+func _show_trainer_skill_detail() -> void:
+	if is_instance_valid(trainer_skill_detail):
+		trainer_skill_detail.queue_free()
+	var data := TRAINER_CATALOG.data(GameState.trainer_id)
+	trainer_skill_detail = Panel.new()
+	trainer_skill_detail.position = Vector2(182, 68)
+	trainer_skill_detail.size = Vector2(390, 136)
+	trainer_skill_detail.z_index = 160
+	trainer_skill_detail.mouse_filter = Control.MOUSE_FILTER_STOP
+	trainer_skill_detail.add_theme_stylebox_override("panel", _preset_info_style())
+	add_child(trainer_skill_detail)
+	var title := _add_label(trainer_skill_detail, "%s · %s" % [String(data["skill_name"]), TRAINER_CATALOG.skill_type_name(GameState.trainer_id)], Rect2(20, 10, 350, 28), 17, Color("252b35"))
+	var body := _add_label(trainer_skill_detail, String(data["description"]), Rect2(20, 42, 350, 56), 12, Color("596275"))
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	trainer_skill_progress = _add_label(trainer_skill_detail, GameState.trainer_skill_progress_text(), Rect2(20, 103, 350, 22), 11, Color(data["color"]), HORIZONTAL_ALIGNMENT_RIGHT)
+	for label in [title, body, trainer_skill_progress]:
+		label.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
+		label.add_theme_color_override("font_outline_color", Color.TRANSPARENT)
+		label.add_theme_constant_override("outline_size", 0)
+		label.add_theme_constant_override("shadow_offset_x", 0)
+		label.add_theme_constant_override("shadow_offset_y", 0)
 
 
 func _build_health_display() -> void:
@@ -367,7 +460,8 @@ func _build_bench() -> void:
 	for index in rects.size():
 		var saved_texture := GameState.player_bench[index] if index < GameState.player_bench.size() else ""
 		var saved_level := GameState.player_bench_levels[index] if index < GameState.player_bench_levels.size() else 1
-		_create_creature_slot(rects[index], saved_texture, "备战 %d" % (index + 1), saved_level)
+		var saved_equipment: Array = GameState.player_bench_equipment[index] if index < GameState.player_bench_equipment.size() else []
+		_create_creature_slot(rects[index], saved_texture, "备战 %d" % (index + 1), saved_level, false, saved_equipment)
 
 
 func _build_team() -> void:
@@ -382,7 +476,8 @@ func _build_team() -> void:
 		var saved_texture := GameState.player_team[index] if index < GameState.player_team.size() else ""
 		var saved_level := GameState.player_team_levels[index] if index < GameState.player_team_levels.size() else 1
 		var slot_rect := Rect2(centers[index] + PREP_FORMATION_GROUP_OFFSET + PREP_FORMATION_SLOT_OFFSET, PREP_FORMATION_SLOT_SIZE)
-		_create_creature_slot(slot_rect, saved_texture, "上阵 %d" % (index + 1), saved_level, true)
+		var saved_equipment: Array = GameState.player_team_equipment[index] if index < GameState.player_team_equipment.size() else []
+		_create_creature_slot(slot_rect, saved_texture, "上阵 %d" % (index + 1), saved_level, true, saved_equipment)
 
 
 func _build_synergy() -> void:
@@ -744,7 +839,7 @@ func _build_footer_actions() -> void:
 	_add_label(battle, "返回地图" if shop_node else ("挑战宝箱怪" if mimic_node else "战斗！"), Rect2(0, 38, 198, 42), 27, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
 
 
-func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String, saved_level: int = 1, formation_slot := false) -> void:
+func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String, saved_level: int = 1, formation_slot := false, saved_equipment: Array = []) -> void:
 	var compact_card := rect.size.y < 100.0
 	var button := Button.new()
 	button.name = slot_name
@@ -844,7 +939,28 @@ func _create_creature_slot(rect: Rect2, texture_path: String, slot_name: String,
 	creature_selection_frames.append(selection_frame)
 	creature_data.append(texture_path)
 	creature_levels.append(0 if texture_path.is_empty() else clampi(saved_level, 1, 3))
+	var equipment_slots: Array[String] = []
+	for equipment_id in saved_equipment:
+		var normalized_id := String(equipment_id)
+		if not EQUIPMENT_CATALOG.data(normalized_id).is_empty() and normalized_id not in equipment_slots and equipment_slots.size() < 2:
+			equipment_slots.append(normalized_id)
+	creature_equipment.append(equipment_slots)
+	var equipment_icons: Array[TextureRect] = []
+	for equipment_index in 2:
+		var equipment_icon := TextureRect.new()
+		equipment_icon.position = Vector2(rect.size.x - 22, 6 + equipment_index * 21) if formation_slot else Vector2(5 + equipment_index * 21, rect.size.y - 45)
+		equipment_icon.size = Vector2(18, 18)
+		equipment_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		equipment_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		equipment_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		equipment_icon.mouse_filter = Control.MOUSE_FILTER_STOP
+		equipment_icon.z_index = 42
+		button.add_child(equipment_icon)
+		equipment_icons.append(equipment_icon)
+	creature_equipment_icons.append(equipment_icons)
 	var slot_index := creature_buttons.size() - 1
+	for equipment_index in 2:
+		(equipment_icons[equipment_index] as TextureRect).gui_input.connect(_on_equipment_icon_input.bind(slot_index, equipment_index))
 	button.set_drag_forwarding(
 		_get_creature_drag_data.bind(slot_index),
 		_can_drop_creature_data.bind(slot_index),
@@ -1532,8 +1648,8 @@ func _show_item_card_tooltip(entry: Dictionary) -> void:
 	card_tooltip_sprite.position = Vector2(1, 4)
 	card_tooltip_sprite.size = Vector2(120, 120)
 	card_tooltip_sprite.z_index = 12
-	item_tooltip_type.text = "◆ %s" % ("饰品" if entry["kind"] == "accessory" else "道具")
-	var rule_text := "唯一饰品" if not String(entry.get("exclusive_group", "")).is_empty() else "叠加上限 %d" % int(entry.get("stack_limit", 1))
+	item_tooltip_type.text = "◆ %s" % ("饰品" if entry["kind"] == "accessory" else ("道具" if entry["kind"] == "item" else "装备"))
+	var rule_text := "每名角色最多装备两件" if entry["kind"] == "equipment" else ("唯一饰品" if not String(entry.get("exclusive_group", "")).is_empty() else "叠加上限 %d" % int(entry.get("stack_limit", 1)))
 	item_tooltip_effect.text = _blue_item_values(String(entry["effect"]))
 	item_tooltip_rule.text = _blue_item_values(rule_text)
 	_position_card_tooltip()
@@ -1616,6 +1732,60 @@ func _on_creature_slot_pressed(index: int) -> void:
 	selected_slot = -1
 	_update_selection()
 	_set_notice("角色位置已交换")
+
+
+func equip_selected_creature(entry: Dictionary) -> bool:
+	if selected_slot < 0 or selected_slot >= creature_data.size() or creature_data[selected_slot].is_empty():
+		_set_notice("请先选择一个角色")
+		return false
+	var equipment := EQUIPMENT_CATALOG.normalize(entry)
+	if equipment.is_empty():
+		return false
+	var equipment_id := String(equipment["id"])
+	if equipment_id in creature_equipment[selected_slot]:
+		_set_notice("同一角色不能装备两件同名装备")
+		return false
+	if creature_equipment[selected_slot].size() >= 2:
+		_set_notice("该角色的两个装备栏都已占用")
+		return false
+	var inventory_index := -1
+	for index in GameState.equipment_inventory.size():
+		if String(GameState.equipment_inventory[index].get("id", "")) == equipment_id:
+			inventory_index = index
+			break
+	if inventory_index < 0:
+		return false
+	GameState.equipment_inventory.remove_at(inventory_index)
+	creature_equipment[selected_slot].append(equipment_id)
+	GameState.save_run()
+	_render_creature_slot(selected_slot)
+	_refresh_inventory_count()
+	_set_notice("%s已装备%s" % [CATALOG.name_for_texture(creature_data[selected_slot]), String(equipment["name"])])
+	return true
+
+
+func _on_equipment_icon_input(event: InputEvent, creature_index: int, equipment_index: int) -> void:
+	if not event is InputEventMouseButton:
+		return
+	var mouse_event := event as InputEventMouseButton
+	if not mouse_event.pressed or mouse_event.button_index not in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
+		return
+	if creature_index >= creature_equipment.size() or equipment_index >= creature_equipment[creature_index].size():
+		return
+	var equipment_id := String(creature_equipment[creature_index][equipment_index])
+	var equipment := EQUIPMENT_CATALOG.data(equipment_id)
+	if mouse_event.button_index == MOUSE_BUTTON_RIGHT:
+		_open_inventory()
+		if is_instance_valid(inventory_popup) and inventory_popup.has_method("show_entry_info"):
+			inventory_popup.call("show_entry_info", equipment, "已装备 · 每名角色最多装备两件")
+		get_viewport().set_input_as_handled()
+		return
+	creature_equipment[creature_index].remove_at(equipment_index)
+	GameState.add_equipment(equipment_id)
+	_render_creature_slot(creature_index)
+	_refresh_inventory_count()
+	_set_notice("已卸下%s" % String(equipment.get("name", "装备")))
+	get_viewport().set_input_as_handled()
 
 
 func _get_creature_drag_data(_at_position: Vector2, slot_index: int) -> Variant:
@@ -1724,10 +1894,13 @@ func _swap_creature_slots(first_index: int, second_index: int) -> void:
 		return
 	var held_path := creature_data[first_index]
 	var held_level := creature_levels[first_index]
+	var held_equipment: Array = creature_equipment[first_index]
 	creature_data[first_index] = creature_data[second_index]
 	creature_levels[first_index] = creature_levels[second_index]
+	creature_equipment[first_index] = creature_equipment[second_index]
 	creature_data[second_index] = held_path
 	creature_levels[second_index] = held_level
+	creature_equipment[second_index] = held_equipment
 	_render_creature_slot(first_index)
 	_render_creature_slot(second_index)
 	_update_synergies()
@@ -1742,7 +1915,18 @@ func _on_shop_card_pressed(index: int) -> void:
 	if GameState.coins < price:
 		_set_notice("金币不足")
 		return
-	if entry["kind"] == "item" or entry["kind"] == "accessory":
+	if entry["kind"] in ["item", "accessory", "equipment"]:
+		if entry["kind"] == "equipment":
+			if not _spend_shop_coins(price):
+				_set_notice("金币不足")
+				return
+			GameState.add_equipment(entry)
+			_refresh_inventory_count()
+			shop_data[index] = {}
+			_render_shop_card(index)
+			_hide_card_tooltip()
+			_set_notice("获得装备%s：%s" % [_shop_entry_name(entry), String(entry["effect"])])
+			return
 		var can_accept := GameState.can_add_accessory(entry) if entry["kind"] == "accessory" else GameState.can_add_item(entry)
 		if not can_accept:
 			_set_notice("该物品已达到叠加上限或与现有饰品冲突")
@@ -1774,6 +1958,7 @@ func _on_shop_card_pressed(index: int) -> void:
 		return
 	_render_shop_card(index)
 	GameState.mark_creature_seen(texture_path)
+	var trainer_reward := GameState.record_trainer_creature_purchase(texture_path)
 	GameState.unlock_creature_achievement(texture_path, GameState.ACHIEVEMENT_TROPHY)
 	if merge_level >= 3:
 		GameState.unlock_creature_achievement(texture_path, GameState.ACHIEVEMENT_STAR)
@@ -1781,7 +1966,11 @@ func _on_shop_card_pressed(index: int) -> void:
 	selected_slot = -1
 	_update_selection()
 	_hide_card_tooltip()
-	_set_notice("已自动合成为 %d 星角色" % merge_level if merge_level > 1 else "角色已加入备战席")
+	var purchase_notice := "已自动合成为 %d 星角色" % merge_level if merge_level > 1 else "角色已加入备战席"
+	if trainer_reward > 0:
+		purchase_notice += "，生态研究 +%dG" % trainer_reward
+	_refresh_trainer_skill_control()
+	_set_notice(purchase_notice)
 
 
 func _can_accept_creature_purchase(texture_path: String) -> bool:
@@ -1800,6 +1989,7 @@ func _add_purchased_creature(texture_path: String) -> int:
 	if target_slot >= 0:
 		creature_data[target_slot] = texture_path
 		creature_levels[target_slot] = 1
+		creature_equipment[target_slot] = []
 		_render_creature_slot(target_slot)
 	else:
 		# Two owned 1-star copies plus the purchased copy form the triple.
@@ -1824,16 +2014,17 @@ func _resolve_all_creature_merges() -> void:
 func _resolve_creature_merges(texture_path: String) -> int:
 	var highest_level := 1
 	for level in range(1, 3):
+		var required_copies := 3 if level == 1 else 2
 		while true:
 			var matches := _matching_creature_slots(texture_path, level)
-			if matches.size() < 3:
+			if matches.size() < required_copies:
 				break
 			var keep_slot := _preferred_merge_slot(matches)
 			matches.erase(keep_slot)
 			creature_levels[keep_slot] = level + 1
 			GameState.mark_creature_owned(texture_path, level + 1)
-			_clear_creature_slot(matches[0])
-			_clear_creature_slot(matches[1])
+			for consumed_index in range(required_copies - 1):
+				_clear_creature_slot(matches[consumed_index])
 			_render_creature_slot(keep_slot)
 			highest_level = level + 1
 	for index in creature_data.size():
@@ -1858,6 +2049,9 @@ func _preferred_merge_slot(matches: Array[int]) -> int:
 
 
 func _clear_creature_slot(index: int) -> void:
+	for equipment_id in creature_equipment[index]:
+		GameState.add_equipment(String(equipment_id))
+	creature_equipment[index] = []
 	creature_data[index] = ""
 	creature_levels[index] = 0
 	if selected_slot == index:
@@ -1869,18 +2063,21 @@ func _on_reroll_pressed() -> void:
 	if shop_locked:
 		_set_notice("商店已锁定，无法刷新")
 		return
-	if GameState.coins < 1:
-		_set_notice("金币不足")
-		return
-	if not _spend_shop_coins(1):
-		_set_notice("金币不足")
-		return
-	shop_data = _roll_shop_entries()
+	var free_refresh := GameState.consume_scout_free_refresh()
+	if not free_refresh:
+		if GameState.coins < 1:
+			_set_notice("金币不足")
+			return
+		if not _spend_shop_coins(1):
+			_set_notice("金币不足")
+			return
+	shop_data = _roll_shop_entries(true, free_refresh)
 	for entry in shop_data:
 		_mark_shop_creature_seen(entry)
 	for index in shop_sprites.size():
 		_render_shop_card(index)
-	_set_notice("商店已刷新")
+	_refresh_trainer_skill_control()
+	_set_notice("商店已刷新（免费）" if free_refresh else "商店已刷新")
 
 
 func _roll_shop_rarity() -> int:
@@ -1934,7 +2131,7 @@ func _draw_creature_shop_entry(local_draw_counts: Dictionary = {}) -> Dictionary
 	}
 
 
-func _roll_shop_entries(include_non_creature := true) -> Array[Dictionary]:
+func _roll_shop_entries(include_non_creature := true, force_non_creature := false) -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	var local_draw_counts: Dictionary = {}
 	for index in SHOP_CARD_COUNT:
@@ -1944,16 +2141,20 @@ func _roll_shop_entries(include_non_creature := true) -> Array[Dictionary]:
 	# A refresh may contain at most one non-creature card. Roll both configured
 	# chances, then resolve a simultaneous success into either an item or an
 	# accessory so both can never occupy the same shop row.
-	var roll_item := rng.randf() < SHOP_ITEM_CHANCE
+	var roll_item := force_non_creature or rng.randf() < SHOP_ITEM_CHANCE
 	var roll_accessory := rng.randf() < SHOP_ACCESSORY_CHANCE
-	if roll_item or roll_accessory:
+	var roll_equipment := rng.randf() < SHOP_EQUIPMENT_CHANCE
+	if roll_item or roll_accessory or roll_equipment:
 		var kind := "item"
-		if roll_item and roll_accessory:
-			kind = "item" if rng.randf() < SHOP_ITEM_CHANCE / (SHOP_ITEM_CHANCE + SHOP_ACCESSORY_CHANCE) else "accessory"
-		elif roll_accessory:
-			kind = "accessory"
+		var options: Array[String] = []
+		if roll_item: options.append("item")
+		if roll_accessory: options.append("accessory")
+		if roll_equipment: options.append("equipment")
+		kind = options[rng.randi_range(0, options.size() - 1)]
 		var non_creature_slot := rng.randi_range(0, SHOP_CARD_COUNT - 1)
-		entries[non_creature_slot] = _discount_shop_entry(ITEM_CATALOG.random_entry(kind, rng, mini(_roll_shop_rarity(), 2), "shop"))
+		var rarity := mini(_roll_shop_rarity(), 2)
+		var entry := EQUIPMENT_CATALOG.random_entry(rng, rarity, "shop") if kind == "equipment" else ITEM_CATALOG.random_entry(kind, rng, rarity, "shop")
+		entries[non_creature_slot] = _discount_shop_entry(entry)
 	return entries
 
 
@@ -2051,7 +2252,7 @@ func _open_inventory() -> void:
 func _refresh_inventory_count() -> void:
 	if not inventory_count_label:
 		return
-	var item_count := GameState.item_inventory.size() + GameState.accessory_inventory.size()
+	var item_count := GameState.item_inventory.size() + GameState.accessory_inventory.size() + GameState.equipment_inventory.size()
 	inventory_count_label.text = str(item_count)
 	inventory_count_label.visible = item_count > 0
 
@@ -2116,17 +2317,21 @@ func _on_back_pressed() -> void:
 func _save_current_team() -> void:
 	var saved_bench: Array[String] = []
 	var saved_bench_levels: Array[int] = []
+	var saved_bench_equipment: Array = []
 	for index in range(0, mini(creature_data.size(), 4)):
 		if not creature_data[index].is_empty():
 			saved_bench.append(creature_data[index])
 			saved_bench_levels.append(creature_levels[index])
+			saved_bench_equipment.append(Array(creature_equipment[index]).duplicate())
 	var saved_team: Array[String] = []
 	var saved_team_levels: Array[int] = []
+	var saved_team_equipment: Array = []
 	for index in range(4, mini(creature_data.size(), 10)):
 		saved_team.append(creature_data[index])
 		saved_team_levels.append(creature_levels[index])
-	GameState.set_player_bench(saved_bench, saved_bench_levels)
-	GameState.set_player_team(saved_team, saved_team_levels)
+		saved_team_equipment.append(Array(creature_equipment[index]).duplicate())
+	GameState.set_player_bench(saved_bench, saved_bench_levels, saved_bench_equipment)
+	GameState.set_player_team(saved_team, saved_team_levels, saved_team_equipment)
 
 
 func _sync_coins() -> void:
@@ -2174,6 +2379,16 @@ func _set_star_level(row: Control, level: int) -> void:
 
 
 func _render_creature_slot(index: int) -> void:
+	if index < creature_equipment_icons.size():
+		for equipment_index in 2:
+			var icon := creature_equipment_icons[index][equipment_index] as TextureRect
+			if index < creature_equipment.size() and equipment_index < creature_equipment[index].size():
+				var entry := EQUIPMENT_CATALOG.data(String(creature_equipment[index][equipment_index]))
+				icon.texture = load(String(entry.get("path", ""))) as Texture2D
+				icon.visible = not entry.is_empty()
+			else:
+				icon.texture = null
+				icon.visible = false
 	if creature_data[index].is_empty():
 		creature_sprites[index].texture = null
 		creature_hp_badges[index].visible = false
@@ -2507,6 +2722,22 @@ func _slot_style(fill: Color, border: Color, width := 0) -> StyleBoxFlat:
 	style.corner_radius_top_right = 3
 	style.corner_radius_bottom_left = 3
 	style.corner_radius_bottom_right = 3
+	return style
+
+
+func _preset_info_style() -> StyleBoxTexture:
+	var style := StyleBoxTexture.new()
+	style.texture = PRESET_INFO_FRAME
+	style.texture_margin_left = 20.0
+	style.texture_margin_top = 18.0
+	style.texture_margin_right = 20.0
+	style.texture_margin_bottom = 20.0
+	style.content_margin_left = 18.0
+	style.content_margin_top = 14.0
+	style.content_margin_right = 18.0
+	style.content_margin_bottom = 16.0
+	style.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	style.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
 	return style
 
 

@@ -1,6 +1,7 @@
 extends Node
 
 const INTRO_SCENE: PackedScene = preload("res://battle_intro.tscn")
+const INTRO_SCRIPT: Script = preload("res://scripts/battle_intro.gd")
 
 var failed := false
 
@@ -30,6 +31,7 @@ func _ready() -> void:
 	_assert(intro.left_name_label.position == Vector2(27, 809) and intro.left_name_label.size == Vector2(297, 83), "left trainer name must retain the updated PSD guide bounds")
 	_assert(intro.right_name_label.position == Vector2(1595, 809) and intro.right_name_label.size == Vector2(297, 83), "right trainer name must retain the updated PSD guide bounds")
 	_assert(intro.left_name_label.text == "赤城" and not intro.right_name_label.text.is_empty(), "trainer names must be written dynamically inside the authored plates")
+	_verify_clean_curtain_mask()
 	var initial_light_positions: Array[Vector2] = []
 	for light in intro.light_nodes:
 		initial_light_positions.append(light.position)
@@ -65,6 +67,19 @@ func _ready() -> void:
 	await _capture("res://battle_intro_exit.png")
 	await get_tree().create_timer(0.27).timeout
 	_assert(intro.exit_curtains[0].position.x == 0.0 and intro.exit_curtains[1].position.x == 960.0, "ending transition must finish on a fully black screen")
+	var reveal_options := SceneManager._get_final_options(INTRO_SCRIPT.BATTLE_REVEAL_TRANSITION)
+	SceneManager._set_fully_covered(reveal_options)
+	# A real scene swap frees the two authored closing curtains before the
+	# persistent SceneManager overlay reveals the battle scene.
+	for curtain in intro.exit_curtains:
+		curtain.visible = false
+	SceneManager.fade_in(INTRO_SCRIPT.BATTLE_REVEAL_TRANSITION)
+	await get_tree().create_timer(0.32).timeout
+	var overlay := SceneManager.get_node("CanvasLayer/ColorRect") as ColorRect
+	var reveal_amount := float((overlay.material as ShaderMaterial).get_shader_parameter("dissolve_amount"))
+	_assert(reveal_amount > 0.1 and reveal_amount < 0.9, "clean battle curtains must progress continuously while opening")
+	await _capture("res://battle_intro_reveal_mid.png")
+	await SceneManager.transition_finished
 	if not failed:
 		print("BATTLE_INTRO_VISUAL_TEST: PASS")
 	get_tree().quit(1 if failed else 0)
@@ -78,6 +93,23 @@ func _capture(path: String) -> void:
 	var image := get_viewport().get_texture().get_image()
 	var error := image.save_png(path)
 	_assert(error == OK, "failed to save %s" % path)
+
+
+func _verify_clean_curtain_mask() -> void:
+	var texture := SceneManager._load_pattern(INTRO_SCRIPT.BATTLE_REVEAL_TRANSITION["pattern"]) as Texture2D
+	_assert(texture != null, "clean VS curtain mask must load as a texture")
+	if texture == null:
+		return
+	var image := texture.get_image()
+	var width := image.get_width()
+	var height := image.get_height()
+	var previous := -1.0
+	for x in range(int(width / 2.0) + 1):
+		var value := image.get_pixel(x, height / 2).r
+		_assert(absf(value - image.get_pixel(x, height / 4).r) < 0.005, "VS curtain mask must not contain vertical pixel noise")
+		_assert(value + 0.005 >= previous, "VS curtain mask must progress monotonically toward the center")
+		_assert(absf(value - image.get_pixel(width - 1 - x, height / 2).r) < 0.01, "VS curtain mask must remain horizontally symmetric")
+		previous = value
 
 
 func _assert(condition: bool, message: String) -> void:

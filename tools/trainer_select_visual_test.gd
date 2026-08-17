@@ -43,8 +43,8 @@ func _ready() -> void:
 	_assert(passives.size() == 3, "every trainer card must use a value-aware passive label")
 	for passive in passives:
 		_assert(is_zero_approx(passive.get_theme_color("font_shadow_color").a), "trainer passive text must remain shadow-free")
-	_assert("+2" in passives[0].text and "#4f9d69" in passives[0].text.to_lower(), "initial coin value must use the trainer element colour")
-	_assert("+6%" in passives[1].text and "#c94e4e" in passives[1].text.to_lower(), "damage value must use the trainer element colour")
+	_assert("+1" in passives[0].text and "#4f9d69" in passives[0].text.to_lower(), "researcher reward value must use the trainer element colour")
+	_assert("+15%" in passives[1].text and "#c94e4e" in passives[1].text.to_lower(), "vanguard skill value must use the trainer element colour")
 	if DisplayServer.get_name() != "headless":
 		await get_tree().process_frame
 		var error := get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://trainer_select_shadow_preview.png"))
